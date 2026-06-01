@@ -543,6 +543,7 @@ def _compute_rdp_sample_wor_gaussian_int(
 
 def _effective_gaussian_noise_multiplier(
     event: dp_event.DpEvent,
+    accept_zcdp: bool = False,
 ) -> Union[float, dp_event.DpEvent]:
   """Determines the effective noise multiplier of nested structure of Gaussians.
 
@@ -555,6 +556,8 @@ def _effective_gaussian_noise_multiplier(
       must consist of a single `dp_event.GaussianDpEvent`, or a nested structure
       of `dp_event.ComposedDpEvent` and/or `dp_event.SelfComposedDpEvent`
       bottoming out in `dp_event.GaussianDpEvent`s.
+    accept_zcdp: Whether to accept `dp_event.ZCDpEvent` as equivalent to
+      `dp_event.GaussianDpEvent`.
 
   Returns:
     The noise multiplier of the equivalent `dp_event.GaussianDpEvent`. If the
@@ -564,16 +567,21 @@ def _effective_gaussian_noise_multiplier(
   """
   if isinstance(event, dp_event.GaussianDpEvent):
     return event.noise_multiplier
+  elif accept_zcdp and isinstance(event, dp_event.ZCDpEvent) and event.xi == 0:
+    # If xi>0 the zCDP guarantee does not correspond to a Gaussian mechanism.
+    return 1 / np.sqrt(2 * event.rho)  # rho = 1/2/noise_multiplier^2
   elif isinstance(event, dp_event.ComposedDpEvent):
     sum_sigma_inv_sq = 0
     for e in event.events:
-      sigma = _effective_gaussian_noise_multiplier(e)
+      sigma = _effective_gaussian_noise_multiplier(e, accept_zcdp=accept_zcdp)
       if not isinstance(sigma, float):
         return sigma
       sum_sigma_inv_sq += sigma**-2
     return sum_sigma_inv_sq**-0.5
   elif isinstance(event, dp_event.SelfComposedDpEvent):
-    sigma = _effective_gaussian_noise_multiplier(event.event)
+    sigma = _effective_gaussian_noise_multiplier(
+        event.event, accept_zcdp=accept_zcdp
+    )
     if not isinstance(sigma, float):
       return sigma
     return sigma * event.count**-0.5
@@ -1053,7 +1061,9 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         return CompositionErrorDetails(
             invalid_event=event, error_message=error_msg
         )
-      sigma_or_bad_event = _effective_gaussian_noise_multiplier(event.event)
+      sigma_or_bad_event = _effective_gaussian_noise_multiplier(
+          event.event, accept_zcdp=True
+      )
       if isinstance(sigma_or_bad_event, dp_event.DpEvent):
         return CompositionErrorDetails(
             invalid_event=event,
@@ -1081,7 +1091,9 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         return CompositionErrorDetails(
             invalid_event=event, error_message=error_msg
         )
-      sigma_or_bad_event = _effective_gaussian_noise_multiplier(event.event)
+      sigma_or_bad_event = _effective_gaussian_noise_multiplier(
+          event.event, accept_zcdp=True
+      )
       if isinstance(sigma_or_bad_event, dp_event.DpEvent):
         return CompositionErrorDetails(
             invalid_event=event,

@@ -287,6 +287,56 @@ class RdpPrivacyAccountantTest(
     expected = sum(s**-2 for s in multi_sigmas) ** -0.5
     self.assertAlmostEqual(sigma, expected)
 
+  def test_effective_gaussian_noise_multiplier_zcdp_basic(self):
+    sigma = 3.14159
+    rho = 0.5 / sigma**2
+    event = dp_event.ZCDpEvent(rho)
+    # Without accept_zcdp, should return the event itself (not a float).
+    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
+    self.assertIsInstance(result, dp_event.DpEvent)
+    # With accept_zcdp, should return equivalent sigma.
+    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(
+        event, accept_zcdp=True
+    )
+    self.assertAlmostEqual(result, sigma)
+
+  def test_effective_gaussian_noise_multiplier_zcdp_composed(self):
+    sigma = 3.14159
+    rho = 0.5 / sigma**2
+    event = dp_event.ComposedDpEvent([
+        dp_event.ZCDpEvent(rho),
+        dp_event.GaussianDpEvent(sigma),
+    ])
+    # Without accept_zcdp, should return the event itself (not a float).
+    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
+    self.assertIsInstance(result, dp_event.DpEvent)
+    # With accept_zcdp, should return equivalent sigma.
+    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(
+        event, accept_zcdp=True
+    )
+    self.assertAlmostEqual(result, sigma / np.sqrt(2))
+
+  def test_effective_gaussian_noise_multiplier_zcdp_self_composed(self):
+    sigma = 3.14159
+    rho = 0.5 / sigma**2
+    event = dp_event.SelfComposedDpEvent(dp_event.ZCDpEvent(rho), 2)
+    # Without accept_zcdp, should return the event itself (not a float).
+    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
+    self.assertIsInstance(result, dp_event.DpEvent)
+    # With accept_zcdp, should return equivalent sigma.
+    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(
+        event, accept_zcdp=True
+    )
+    self.assertAlmostEqual(result, sigma / np.sqrt(2))
+
+  def test_effective_gaussian_noise_multiplier_zcdp_xi_positive(self):
+    # ZCDpEvent with xi > 0 should NOT be accepted even with accept_zcdp=True.
+    event = dp_event.ZCDpEvent(1.0, xi=0.5)
+    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(
+        event, accept_zcdp=True
+    )
+    self.assertIsInstance(result, dp_event.DpEvent)
+
   def test_compute_rdp_multi_zcdp(self):
     alpha = 2.0
     xi1, xi2 = 3.14159, 1.23456
@@ -312,6 +362,43 @@ class RdpPrivacyAccountantTest(
     accountant2 = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
     accountant2.compose(dp_event.ZCDpEvent(rho))
     self.assertAlmostEqual(accountant1._rdp[0], accountant2._rdp[0])
+
+  def test_poisson_sampled_zcdp_matches_gaussian(self):
+    """PoissonSampled(ZCDpEvent(xi=0)) should give same RDP as PoissonSampled(Gaussian)."""
+    orders = [1.5, 2.5, 5, 50, 100]
+    sigma = 2.5
+    rho = 0.5 / sigma**2
+    sampling_probability = 0.01
+    count = 50
+
+    gaussian_event = dp_event.SelfComposedDpEvent(
+        dp_event.PoissonSampledDpEvent(
+            sampling_probability, dp_event.GaussianDpEvent(sigma)
+        ),
+        count,
+    )
+    zcdp_event = dp_event.SelfComposedDpEvent(
+        dp_event.PoissonSampledDpEvent(
+            sampling_probability, dp_event.ZCDpEvent(rho)
+        ),
+        count,
+    )
+
+    accountant_g = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    accountant_g.compose(gaussian_event)
+
+    accountant_z = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    accountant_z.compose(zcdp_event)
+
+    np.testing.assert_allclose(accountant_g._rdp, accountant_z._rdp, rtol=1e-10)
+
+  def test_poisson_sampled_zcdp_xi_positive_unsupported(self):
+    """PoissonSampled(ZCDpEvent(xi>0)) should not be supported."""
+    event = dp_event.PoissonSampledDpEvent(
+        0.01, dp_event.ZCDpEvent(1.0, xi=0.5)
+    )
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=[2.0])
+    self.assertFalse(accountant.supports(event))
 
   _LAPLACE_EVENT = dp_event.LaplaceDpEvent(1.0)
 
@@ -520,11 +607,11 @@ class RdpPrivacyAccountantTest(
     )
 
   def test_compute_rdp_randomized_response_raises(self):
-    with self.assertRaisesRegex(ValueError, 'noise_parameter must be in'):
-      for rel in [
-          privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
-          privacy_accountant.NeighboringRelation.REPLACE_ONE,
-      ]:
+    for rel in [
+        privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+        privacy_accountant.NeighboringRelation.REPLACE_ONE,
+    ]:
+      with self.assertRaisesRegex(ValueError, 'noise_parameter must be in'):
         rdp_privacy_accountant._compute_randomized_response_rdp(
             -1, 10, [1.1, 1.2], rel
         )
