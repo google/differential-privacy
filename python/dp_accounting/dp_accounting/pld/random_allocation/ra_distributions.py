@@ -489,14 +489,17 @@ class DenseDiscreteDist(DiscreteDistBase):
 
     @property
     def x_min(self) -> float:
+        """First grid value."""
         return self.grid.x_min
 
     @property
     def step(self) -> float:
+        """Grid step size."""
         return self.grid.step
 
     @property
     def spacing_type(self) -> ra_types.SpacingType:
+        """Spacing type of the grid."""
         return self.grid.spacing_type
 
     def _validate_grid(self) -> None:
@@ -795,7 +798,8 @@ def _enforce_mass_conservation(
         )
 
     raise ValueError(
-        f"Invalid bound_type: {bound_type}. Must be ra_types.BoundType.DOMINATES or ra_types.BoundType.IS_DOMINATED."
+        f"Invalid bound_type: {bound_type}. Must be"
+        " ra_types.BoundType.DOMINATES or ra_types.BoundType.IS_DOMINATED."
     )
 
 

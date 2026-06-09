@@ -9,11 +9,12 @@ import math
 
 import numpy as np
 from absl.testing import absltest
+from scipy import stats
+
 from dp_accounting.pld.random_allocation import ra_core
 from dp_accounting.pld.random_allocation import ra_distributions
 from dp_accounting.pld.random_allocation import ra_types
 from dp_accounting.pld.random_allocation import ra_utils
-from scipy import stats
 
 
 def _make_realization() -> ra_distributions.PLDRealization:
@@ -265,13 +266,11 @@ class ComputeDiscretePmfTest(absltest.TestCase):
     def test_uniform_distribution(self):
         dist = stats.uniform(loc=0.0, scale=1.0)
         x_array = np.linspace(0.0, 1.0, 11)
-        bin_prob, p_left, p_right = (
-            ra_distributions._compute_discrete_prob(
-                dist=dist,
-                x_array=x_array,
-                bound_type=ra_types.BoundType.DOMINATES,
-                pmf_min_increment=0.0,
-            )
+        bin_prob, p_left, p_right = ra_distributions._compute_discrete_prob(
+            dist=dist,
+            x_array=x_array,
+            bound_type=ra_types.BoundType.DOMINATES,
+            pmf_min_increment=0.0,
         )
 
         self.assertEqual(len(bin_prob), 10)
@@ -283,13 +282,11 @@ class ComputeDiscretePmfTest(absltest.TestCase):
     def test_normal_distribution(self):
         dist = stats.norm(loc=0.0, scale=1.0)
         x_array = np.linspace(-3.0, 3.0, 1001)
-        bin_prob, p_left, p_right = (
-            ra_distributions._compute_discrete_prob(
-                dist=dist,
-                x_array=x_array,
-                bound_type=ra_types.BoundType.DOMINATES,
-                pmf_min_increment=0.0,
-            )
+        bin_prob, p_left, p_right = ra_distributions._compute_discrete_prob(
+            dist=dist,
+            x_array=x_array,
+            bound_type=ra_types.BoundType.DOMINATES,
+            pmf_min_increment=0.0,
         )
 
         total = math.fsum([*map(float, bin_prob), p_left, p_right])
@@ -298,13 +295,11 @@ class ComputeDiscretePmfTest(absltest.TestCase):
     def test_exponential_distribution(self):
         dist = stats.expon(scale=1.0)
         x_array = np.linspace(0.0, 5.0, 51)
-        _bin_prob, p_left, p_right = (
-            ra_distributions._compute_discrete_prob(
-                dist=dist,
-                x_array=x_array,
-                bound_type=ra_types.BoundType.DOMINATES,
-                pmf_min_increment=0.0,
-            )
+        _bin_prob, p_left, p_right = ra_distributions._compute_discrete_prob(
+            dist=dist,
+            x_array=x_array,
+            bound_type=ra_types.BoundType.DOMINATES,
+            pmf_min_increment=0.0,
         )
 
         self.assertLess(p_left, 0.01)
@@ -368,13 +363,11 @@ class PmfRemapToGridTest(absltest.TestCase):
             x_in, pmf_in, x_out, dominates=True
         )
         total_in = math.fsum(map(float, pmf_in))
-        pmf_out, pneg, ppos = (
-            ra_distributions._enforce_mass_conservation(
-                prob_arr=pmf_out,
-                expected_p_min=0.0,
-                expected_p_max=0.0,
-                bound_type=ra_types.BoundType.DOMINATES,
-            )
+        pmf_out, pneg, ppos = ra_distributions._enforce_mass_conservation(
+            prob_arr=pmf_out,
+            expected_p_min=0.0,
+            expected_p_max=0.0,
+            bound_type=ra_types.BoundType.DOMINATES,
         )
         total_out = math.fsum([*map(float, pmf_out), pneg, ppos])
         np.testing.assert_allclose(total_in, total_out, atol=1e-10, rtol=0)
@@ -384,13 +377,11 @@ class EnforceMassConservationTest(absltest.TestCase):
 
     def test_dominates_can_consume_soft_p_min(self):
         prob_arr = np.array([0.4, 0.1], dtype=np.float64)
-        prob_out, p_min, p_max = (
-            ra_distributions._enforce_mass_conservation(
-                prob_arr=prob_arr,
-                expected_p_min=0.3,
-                expected_p_max=0.4,
-                bound_type=ra_types.BoundType.DOMINATES,
-            )
+        prob_out, p_min, p_max = ra_distributions._enforce_mass_conservation(
+            prob_arr=prob_arr,
+            expected_p_min=0.3,
+            expected_p_max=0.4,
+            bound_type=ra_types.BoundType.DOMINATES,
         )
 
         np.testing.assert_allclose(prob_out, np.array([0.4, 0.1]))
@@ -401,13 +392,11 @@ class EnforceMassConservationTest(absltest.TestCase):
 
     def test_is_dominated_can_consume_soft_p_max(self):
         prob_arr = np.array([0.1, 0.4], dtype=np.float64)
-        prob_out, p_min, p_max = (
-            ra_distributions._enforce_mass_conservation(
-                prob_arr=prob_arr,
-                expected_p_min=0.4,
-                expected_p_max=0.3,
-                bound_type=ra_types.BoundType.IS_DOMINATED,
-            )
+        prob_out, p_min, p_max = ra_distributions._enforce_mass_conservation(
+            prob_arr=prob_arr,
+            expected_p_min=0.4,
+            expected_p_max=0.3,
+            bound_type=ra_types.BoundType.IS_DOMINATED,
         )
 
         np.testing.assert_allclose(prob_out, np.array([0.1, 0.4]))
@@ -462,7 +451,9 @@ class ComputeTruncationTest(absltest.TestCase):
             )
         )
 
-        np.testing.assert_allclose(new_prob_arr, np.array([0.25, 0.75], dtype=np.float64))
+        np.testing.assert_allclose(
+            new_prob_arr, np.array([0.25, 0.75], dtype=np.float64)
+        )
         np.testing.assert_allclose(new_p_min, 0.0)
         np.testing.assert_allclose(new_p_max, 0.0)
         self.assertEqual((min_ind, max_ind), (0, 1))
@@ -507,8 +498,12 @@ class ComputeTruncationTest(absltest.TestCase):
 
         result = dist.truncate_edges(0.15, ra_types.BoundType.DOMINATES)
 
-        np.testing.assert_allclose(result.x_array, np.array([1.0, 2.0], dtype=np.float64))
-        np.testing.assert_allclose(result.prob_arr, np.array([0.8, 0.1], dtype=np.float64))
+        np.testing.assert_allclose(
+            result.x_array, np.array([1.0, 2.0], dtype=np.float64)
+        )
+        np.testing.assert_allclose(
+            result.prob_arr, np.array([0.8, 0.1], dtype=np.float64)
+        )
         np.testing.assert_allclose(result.p_min, 0.0)
         np.testing.assert_allclose(result.p_max, 0.1)
 
@@ -645,9 +640,7 @@ class RediscretizeProbNumbaTest(absltest.TestCase):
             expected = ra_distributions._numpy_rediscretize_prob(
                 x_in, pmf_in, x_out, True
             )
-            actual = ra_distributions._rediscretize_prob(
-                x_in, pmf_in, x_out, True
-            )
+            actual = ra_distributions._rediscretize_prob(x_in, pmf_in, x_out, True)
         finally:
             ra_types._HAS_NUMBA = original_has_numba
 

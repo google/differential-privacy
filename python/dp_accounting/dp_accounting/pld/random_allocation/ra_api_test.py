@@ -58,7 +58,7 @@ class RandomAllocationApiTest(absltest.TestCase):
         self.assertIsInstance(pld, privacy_loss_distribution.PrivacyLossDistribution)
 
     def test_non_pld_exports_are_not_exposed(self):
-        import importlib
+        import importlib  # pylint: disable=import-outside-toplevel
 
         package = importlib.import_module("dp_accounting.pld.random_allocation")
 
@@ -68,7 +68,9 @@ class RandomAllocationApiTest(absltest.TestCase):
 
     def test_general_allocation_rejects_non_realization_inputs(self):
         config = ra_types.AllocationSchemeConfig()
-        with self.assertRaisesRegex(TypeError, "remove_realization must be PLDRealization"):
+        with self.assertRaisesRegex(
+            TypeError, "remove_realization must be PLDRealization"
+        ):
             ra_api.general_allocation_pld(
                 num_steps=2,
                 num_selected=1,

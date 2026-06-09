@@ -84,9 +84,7 @@ def general_allocation_pld(
 
     """
     # Input validation
-    ra_utils._validate_allocation_params(
-        num_steps, num_selected, num_epochs
-    )
+    ra_utils._validate_allocation_params(num_steps, num_selected, num_epochs)
     if not isinstance(remove_realization, ra_distributions.PLDRealization):
         raise TypeError(
             f"remove_realization must be PLDRealization, got {type(remove_realization)}"

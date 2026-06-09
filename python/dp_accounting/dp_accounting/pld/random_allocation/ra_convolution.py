@@ -7,10 +7,10 @@ import os
 import warnings
 
 import numpy as np
-from dp_accounting.pld.common import compute_self_convolve_bounds
 from numpy.typing import NDArray
 from scipy.fft import irfft, next_fast_len, rfft
 
+from dp_accounting.pld.common import compute_self_convolve_bounds
 from dp_accounting.pld.random_allocation import ra_distributions
 from dp_accounting.pld.random_allocation import ra_types
 from dp_accounting.pld.random_allocation import ra_utils
@@ -165,7 +165,7 @@ def _calc_fft_window_size(
 def _fft_self_convolve_direct(
     *,
     dist: ra_distributions.DenseDiscreteDist,
-    T: int,
+    T: int,  # pylint: disable=invalid-name  # T matches paper notation
     tail_truncation: float,
     bound_type: ra_types.BoundType,
 ) -> ra_distributions.DenseDiscreteDist:
@@ -260,7 +260,7 @@ def _fft_self_convolve_direct(
 def _fft_self_convolve(
     *,
     dist: ra_distributions.DenseDiscreteDist,
-    T: int,
+    T: int,  # pylint: disable=invalid-name  # T matches paper notation
     tail_truncation: float,
     bound_type: ra_types.BoundType,
     use_direct: bool,
@@ -686,7 +686,7 @@ def _geometric_convolve(
 def _geometric_self_convolve(
     *,
     dist: ra_distributions.DenseDiscreteDist,
-    T: int,
+    T: int,  # pylint: disable=invalid-name  # T matches paper notation
     tail_truncation: float,
     bound_type: ra_types.BoundType,
 ) -> ra_distributions.DenseDiscreteDist:

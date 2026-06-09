@@ -82,6 +82,7 @@ class RegularGrid:
 
     @property
     def x_array(self) -> NDArray[np.float64]:
+        """Array of grid coordinates."""
         indices = np.arange(self.size, dtype=np.float64)
         if self.spacing_type == SpacingType.LINEAR:
             return self.x_min + self.step * indices

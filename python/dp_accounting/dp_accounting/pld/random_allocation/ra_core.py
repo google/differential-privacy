@@ -6,10 +6,10 @@ from functools import partial
 from typing import Callable
 
 import numpy as np
-from dp_accounting.pld import privacy_loss_distribution
-from dp_accounting.pld.pld_pmf import DensePLDPmf
 from scipy import stats
 
+from dp_accounting.pld import privacy_loss_distribution
+from dp_accounting.pld.pld_pmf import DensePLDPmf
 from dp_accounting.pld.random_allocation import ra_convolution
 from dp_accounting.pld.random_allocation import ra_distributions
 from dp_accounting.pld.random_allocation import ra_types
@@ -34,10 +34,12 @@ def _linear_dist_to_dp_accounting_pmf(
         dp_accounting DensePLDPmf with infinity mass taken from dist.p_max.
     """
     if not (
-        isinstance(dist, ra_distributions.DenseDiscreteDist) and dist.spacing_type == ra_types.SpacingType.LINEAR
+        isinstance(dist, ra_distributions.DenseDiscreteDist)
+        and dist.spacing_type == ra_types.SpacingType.LINEAR
     ):
         raise TypeError(
-            f"linear_dist_to_dp_accounting_pmf requires ra_distributions.DenseDiscreteDist, got {type(dist)}."
+            "linear_dist_to_dp_accounting_pmf requires"
+            f" ra_distributions.DenseDiscreteDist, got {type(dist)}."
         )
 
     base_index = int(np.rint(dist.x_min / dist.step))
@@ -92,7 +94,9 @@ def _realization_remove_base_distributions(
                 "Expected ra_distributions.DenseDiscreteDist with LINEAR spacing, "
                 f"got {type(coarsened_base).__name__} with spacing {_st}"
             )
-        base_realization = ra_distributions.PLDRealization.from_linear_dist(coarsened_base)
+        base_realization = ra_distributions.PLDRealization.from_linear_dist(
+            coarsened_base
+        )
         neg_dual_dist = ra_utils._negate_reverse_linear_distribution(
             ra_utils._calc_pld_dual(base_realization)
         )
@@ -102,9 +106,7 @@ def _realization_remove_base_distributions(
     # any +inf mass before exp-space composition, so keep the lower path on the
     # plain ra_distributions.DenseDiscreteDist rediscretization route unconditionally.
     dual_realization = ra_utils._calc_pld_dual(realization)
-    neg_dual_linear = ra_utils._negate_reverse_linear_distribution(
-        dual_realization
-    )
+    neg_dual_linear = ra_utils._negate_reverse_linear_distribution(dual_realization)
     # Avoid inflating the grid when the target is finer than the original one.
     effective_disc = max(realization.step, loss_discretization)
     lower_realization_input = ra_distributions.DenseDiscreteDist(
@@ -214,12 +216,8 @@ def _allocation_full_pld(
     ``dp_accounting`` PLD object.
     """
     # Input validation
-    ra_utils._validate_allocation_params(
-        num_steps, num_selected, num_epochs
-    )
-    ra_utils._validate_discretization_params(
-        loss_discretization, tail_truncation
-    )
+    ra_utils._validate_allocation_params(num_steps, num_selected, num_epochs)
+    ra_utils._validate_discretization_params(loss_discretization, tail_truncation)
     ra_utils._validate_bound_type(bound_type)
 
     remove_dist = _allocation_directional_pld(
@@ -265,12 +263,8 @@ def _allocation_directional_pld(
     ``ra_convolution._fft_convolve(...)``.
     """
     # Input validation
-    ra_utils._validate_allocation_params(
-        num_steps, num_selected, num_epochs
-    )
-    ra_utils._validate_discretization_params(
-        loss_discretization, tail_truncation
-    )
+    ra_utils._validate_allocation_params(num_steps, num_selected, num_epochs)
+    ra_utils._validate_discretization_params(loss_discretization, tail_truncation)
     ra_utils._validate_bound_type(bound_type)
     new_num_steps_floor = int(num_steps // num_selected)
     if new_num_steps_floor < 1:
@@ -332,7 +326,8 @@ def _allocation_directional_pld(
 def _geometric_allocation_pld_base_remove(
     *,
     base_distributions_creation: Callable[
-        ..., tuple[ra_distributions.DenseDiscreteDist, ra_distributions.DenseDiscreteDist]
+        ...,
+        tuple[ra_distributions.DenseDiscreteDist, ra_distributions.DenseDiscreteDist],
     ],
     num_steps: int,
     loss_discretization: float,
@@ -347,9 +342,7 @@ def _geometric_allocation_pld_base_remove(
     # Input validation
     if num_steps < 1:
         raise ValueError(f"num_steps must be >= 1, got {num_steps}")
-    ra_utils._validate_discretization_params(
-        loss_discretization, tail_truncation
-    )
+    ra_utils._validate_discretization_params(loss_discretization, tail_truncation)
     ra_utils._validate_bound_type(bound_type)
     # For num_steps > 1 there are active convolution stages beyond base construction.
     # For num_steps == 1 neither convolution stages nor Phases 2/3 execute, so no
@@ -433,9 +426,7 @@ def _geometric_allocation_pld_base_add(
     factor, which is shifted and composed before mapping back to linear loss.
     """
     # Input validation
-    ra_utils._validate_discretization_params(
-        loss_discretization, tail_truncation
-    )
+    ra_utils._validate_discretization_params(loss_discretization, tail_truncation)
     ra_utils._validate_bound_type(bound_type)
     if num_steps < 1:
         raise ValueError(f"num_steps must be >= 1, got {num_steps}")
@@ -514,9 +505,7 @@ def _gaussian_allocation_pld_core(
         raise ValueError(f"num_steps must be >= 1, got {num_steps}")
     if sigma <= 0:
         raise ValueError(f"sigma must be positive, got {sigma}")
-    ra_utils._validate_discretization_params(
-        loss_discretization, tail_truncation
-    )
+    ra_utils._validate_discretization_params(loss_discretization, tail_truncation)
     ra_utils._validate_bound_type(bound_type)
     if direction not in (ra_types.Direction.ADD, ra_types.Direction.REMOVE):
         raise ValueError(f"Invalid direction: {direction}")
@@ -756,12 +745,8 @@ def _gaussian_remove_geom_loss_factors(
             f"got {type(base_factor_dist).__name__} with spacing {_st}"
         )
 
-    dual_loss_factor = ra_utils._log_geometric_to_linear(
-        dual_factor_dist
-    )
-    base_loss_factor = ra_utils._log_geometric_to_linear(
-        base_factor_dist
-    )
+    dual_loss_factor = ra_utils._log_geometric_to_linear(dual_factor_dist)
+    base_loss_factor = ra_utils._log_geometric_to_linear(base_factor_dist)
     # geometric_allocation_pld_base_remove expects (base, dual_base).
     return base_loss_factor, dual_loss_factor
 

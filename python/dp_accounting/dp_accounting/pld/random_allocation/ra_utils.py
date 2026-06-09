@@ -170,7 +170,7 @@ def _align_distributions_to_union_grid(
 def _binary_self_convolve(
     *,
     dist: ra_distributions.DenseDiscreteDist,
-    T: int,
+    T: int,  # pylint: disable=invalid-name  # T matches paper notation
     tail_truncation: float,
     bound_type: ra_types.BoundType,
     convolve: Callable[..., ra_distributions.DenseDiscreteDist],

@@ -13,9 +13,7 @@ from dp_accounting.pld.random_allocation import ra_utils
 def _linear_dist(n: int = 5) -> ra_distributions.DenseDiscreteDist:
     x = np.linspace(0.0, 1.0, n)
     pmf = np.ones(n, dtype=np.float64) / n
-    return ra_distributions.DenseDiscreteDist.from_x_array(
-        x_array=x, prob_arr=pmf
-    )
+    return ra_distributions.DenseDiscreteDist.from_x_array(x_array=x, prob_arr=pmf)
 
 
 def _geometric_dist(n: int = 6) -> ra_distributions.DenseDiscreteDist:
