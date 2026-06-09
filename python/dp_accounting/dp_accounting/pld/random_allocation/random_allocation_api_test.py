@@ -22,7 +22,7 @@ def _simple_realization() -> PLDRealization:
 
 def test_gaussian_allocation_pld_returns_dp_accounting_pld():
     params = PrivacyParams(sigma=2.0, num_steps=5, num_selected=1, num_epochs=1)
-    config = AllocationSchemeConfig(loss_discretization=0.05, tail_truncation=1e-6)
+    config = AllocationSchemeConfig(value_discretization_interval=0.05, tail_truncation=1e-6)
 
     pld = gaussian_allocation_pld(params=params, config=config, bound_type=BoundType.DOMINATES)
 
@@ -30,7 +30,7 @@ def test_gaussian_allocation_pld_returns_dp_accounting_pld():
 
 
 def test_general_allocation_pld_returns_dp_accounting_pld():
-    config = AllocationSchemeConfig(loss_discretization=0.05, tail_truncation=1e-6)
+    config = AllocationSchemeConfig(value_discretization_interval=0.05, tail_truncation=1e-6)
 
     pld = general_allocation_pld(
         num_steps=5,

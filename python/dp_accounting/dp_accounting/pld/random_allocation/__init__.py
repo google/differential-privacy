@@ -6,7 +6,7 @@ from .random_allocation_api import (
     general_allocation_pld,
 )
 from .random_allocation_types import (
-    DEFAULT_LOSS_DISCRETIZATION,
+    DEFAULT_VALUE_DISCRETIZATION_INTERVAL,
     DEFAULT_TAIL_TRUNCATION,
     AllocationSchemeConfig,
     BoundType,
@@ -19,7 +19,7 @@ __all__ = [
     "PLDRealization",
     "AllocationSchemeConfig",
     "BoundType",
-    "DEFAULT_LOSS_DISCRETIZATION",
+    "DEFAULT_VALUE_DISCRETIZATION_INTERVAL",
     "DEFAULT_TAIL_TRUNCATION",
     "Direction",
     "PrivacyParams",

@@ -67,7 +67,7 @@ def gaussian_allocation_pld(
         num_steps=params.num_steps,
         num_selected=params.num_selected,
         num_epochs=params.num_epochs,
-        loss_discretization=config.loss_discretization,
+        loss_discretization=config.value_discretization_interval,
         tail_truncation=config.tail_truncation,
         bound_type=bound_type,
     )
@@ -131,7 +131,7 @@ def general_allocation_pld(
         num_steps=num_steps,
         num_selected=num_selected,
         num_epochs=num_epochs,
-        loss_discretization=config.loss_discretization,
+        loss_discretization=config.value_discretization_interval,
         tail_truncation=config.tail_truncation,
         bound_type=bound_type,
     )

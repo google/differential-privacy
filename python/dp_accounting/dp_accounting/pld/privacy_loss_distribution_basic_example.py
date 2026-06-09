@@ -71,23 +71,25 @@ def main(argv):
   )
 
   # The PLDAccountant also supports the random allocation mechanism. Each
-  # element is independently assigned to k out of t calls to the mechanism.
+  # element is independently assigned to num_selected (k in the paper) out of
+  # num_steps (t in the paper) calls to the mechanism.
   noise_multiplier = 2.0
-  k = 10
-  t = 100
+  num_selected = 10
+  num_steps = 100
   accountant = PLDAccountant()
   accountant.compose(
       RandomAllocationDpEvent(
           event=GaussianDpEvent(noise_multiplier=noise_multiplier),
-          k=k,
-          t=t,
+          num_selected=num_selected,
+          num_steps=num_steps,
       )
   )
   target_delta = 1e-6
   epsilon = accountant.get_epsilon(target_delta)
   print(
       f'Random allocation with Gaussian noise (noise_multiplier={noise_multiplier},'
-      f' k={k}, t={t}) satisfies ({epsilon:.4f}, {target_delta})-DP.'
+      f' num_selected={num_selected}, num_steps={num_steps}) satisfies '
+      f'({epsilon:.4f}, {target_delta})-DP.'
   )
 
 

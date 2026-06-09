@@ -55,7 +55,7 @@ class Direction(Enum):
 
 # Defaults for AllocationSchemeConfig (independent of REALIZATION_MOMENT_TOL;
 # tail budget is a modeling choice).
-DEFAULT_LOSS_DISCRETIZATION = 1e-4
+DEFAULT_VALUE_DISCRETIZATION_INTERVAL = 1e-4
 DEFAULT_TAIL_TRUNCATION = 1e-12
 
 
@@ -75,7 +75,7 @@ class PrivacyParams:
 class AllocationSchemeConfig:
     """Configuration for privacy schemes."""
 
-    loss_discretization: float = DEFAULT_LOSS_DISCRETIZATION
+    value_discretization_interval: float = DEFAULT_VALUE_DISCRETIZATION_INTERVAL
     tail_truncation: float = DEFAULT_TAIL_TRUNCATION
     max_grid_mult: int = -1  # -1 means no upper limit on grid size
 

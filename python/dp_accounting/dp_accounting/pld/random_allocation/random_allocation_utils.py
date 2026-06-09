@@ -527,7 +527,7 @@ def validate_allocation_scheme_config(config: AllocationSchemeConfig) -> None:
     """
     if not isinstance(config, AllocationSchemeConfig):
         raise TypeError(f"config must be AllocationSchemeConfig, got {type(config)}")
-    validate_discretization_params(config.loss_discretization, config.tail_truncation)
+    validate_discretization_params(config.value_discretization_interval, config.tail_truncation)
     if config.max_grid_mult != -1 and config.max_grid_mult <= 0:
         raise ValueError(
             f"max_grid_mult must be -1 (no limit) or a positive integer, "
