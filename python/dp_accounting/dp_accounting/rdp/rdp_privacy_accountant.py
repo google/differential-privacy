@@ -570,6 +570,10 @@ def _effective_gaussian_noise_multiplier(
   elif accept_zcdp and isinstance(event, dp_event.ZCDpEvent) and event.xi == 0:
     # If xi>0 the zCDP guarantee does not correspond to a Gaussian mechanism.
     return 1 / np.sqrt(2 * event.rho)  # rho = 1/2/noise_multiplier^2
+  elif accept_zcdp and isinstance(event, dp_event.DiscreteGaussianDpEvent):
+    # Discrete Gaussian satisfies rho-zCDP with rho = sens^2 / (2*sigma^2),
+    # equivalent to GaussianDpEvent(noise_multiplier=sigma/sensitivity).
+    return event.sigma / event.sensitivity
   elif isinstance(event, dp_event.ComposedDpEvent):
     sum_sigma_inv_sq = 0
     for e in event.events:
@@ -1037,6 +1041,13 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         if event.rho < 0:
           raise ValueError(f'rho must be >= 0. Got {event.rho}')
         self._rdp += count * (event.xi + event.rho * self._orders)
+      return None
+    elif isinstance(event, dp_event.DiscreteGaussianDpEvent):
+      # Discrete Gaussian satisfies rho-zCDP with rho = sens^2 / (2 * sigma^2).
+      # See https://arxiv.org/abs/2004.00010, Proposition 5.
+      if do_compose:
+        rho = event.sensitivity**2 / (2.0 * event.sigma**2)
+        self._rdp += count * rho * self._orders
       return None
     elif isinstance(event, dp_event.ExponentialMechanismDpEvent):
       if do_compose:

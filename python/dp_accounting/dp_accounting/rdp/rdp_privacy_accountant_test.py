@@ -168,6 +168,16 @@ class RdpPrivacyAccountantTest(
     self.assertTrue(ro_accountant.supports(event))
     self.assertFalse(aor_accountant.supports(event))
 
+    event = dp_event.DiscreteGaussianDpEvent(sigma=10.0)
+    self.assertTrue(aor_accountant.supports(event))
+    self.assertTrue(ro_accountant.supports(event))
+
+    event = dp_event.PoissonSampledDpEvent(
+        0.1, dp_event.DiscreteGaussianDpEvent(sigma=10.0)
+    )
+    self.assertTrue(aor_accountant.supports(event))
+    self.assertFalse(ro_accountant.supports(event))
+
   def test_rdp_composition(self):
     base_event = dp_event.GaussianDpEvent(3.14159)
     base_rdp = _get_test_rdp(base_event)
@@ -363,6 +373,43 @@ class RdpPrivacyAccountantTest(
     accountant2.compose(dp_event.ZCDpEvent(rho))
     self.assertAlmostEqual(accountant1._rdp[0], accountant2._rdp[0])
 
+  def test_discrete_gaussian_rdp(self):
+    """DiscreteGaussian RDP should equal alpha * sensitivity^2 / (2*sigma^2)."""
+    alpha = 3.14159
+    sigma = 5.0
+    sensitivity = 2.0
+    event = dp_event.DiscreteGaussianDpEvent(
+        sigma=sigma, sensitivity=sensitivity
+    )
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
+    accountant.compose(event)
+    expected_rdp = alpha * sensitivity**2 / (2 * sigma**2)
+    self.assertAlmostEqual(accountant._rdp[0], expected_rdp)
+
+  def test_discrete_gaussian_matches_zcdp(self):
+    """DiscreteGaussian should match ZCDpEvent with rho=sens^2/(2*sigma^2)."""
+    alpha = 2.71828
+    sigma = 3.14159
+    sensitivity = 1.0
+    rho = sensitivity**2 / (2 * sigma**2)
+    accountant1 = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
+    accountant1.compose(
+        dp_event.DiscreteGaussianDpEvent(sigma=sigma, sensitivity=sensitivity)
+    )
+    accountant2 = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
+    accountant2.compose(dp_event.ZCDpEvent(rho))
+    self.assertAlmostEqual(accountant1._rdp[0], accountant2._rdp[0])
+
+  def test_discrete_gaussian_matches_continuous_gaussian(self):
+    """DiscreteGaussian(sigma, sens=1) should match Gaussian(noise_multiplier=sigma)."""
+    alpha = 2.71828
+    sigma = 3.14159
+    accountant1 = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
+    accountant1.compose(dp_event.DiscreteGaussianDpEvent(sigma=sigma))
+    accountant2 = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
+    accountant2.compose(dp_event.GaussianDpEvent(sigma))
+    self.assertAlmostEqual(accountant1._rdp[0], accountant2._rdp[0])
+
   def test_poisson_sampled_zcdp_matches_gaussian(self):
     """PoissonSampled(ZCDpEvent(xi=0)) should give same RDP as PoissonSampled(Gaussian)."""
     orders = [1.5, 2.5, 5, 50, 100]
@@ -391,6 +438,37 @@ class RdpPrivacyAccountantTest(
     accountant_z.compose(zcdp_event)
 
     np.testing.assert_allclose(accountant_g._rdp, accountant_z._rdp, rtol=1e-10)
+
+  def test_poisson_sampled_discrete_gaussian_matches_gaussian(self):
+    """PoissonSampled(DiscreteGaussian) should match PoissonSampled(Gaussian)."""
+    orders = [1.5, 2.5, 5, 50, 100]
+    sigma = 2.5
+    sampling_probability = 0.01
+    count = 50
+
+    gaussian_event = dp_event.SelfComposedDpEvent(
+        dp_event.PoissonSampledDpEvent(
+            sampling_probability, dp_event.GaussianDpEvent(sigma)
+        ),
+        count,
+    )
+    dg_event = dp_event.SelfComposedDpEvent(
+        dp_event.PoissonSampledDpEvent(
+            sampling_probability,
+            dp_event.DiscreteGaussianDpEvent(sigma=sigma),
+        ),
+        count,
+    )
+
+    accountant_g = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    accountant_g.compose(gaussian_event)
+
+    accountant_dg = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    accountant_dg.compose(dg_event)
+
+    np.testing.assert_allclose(
+        accountant_g._rdp, accountant_dg._rdp, rtol=1e-10
+    )
 
   def test_poisson_sampled_zcdp_xi_positive_unsupported(self):
     """PoissonSampled(ZCDpEvent(xi>0)) should not be supported."""
