@@ -56,7 +56,7 @@ def _realization_remove_base_distributions(
 ) -> tuple[DenseDiscreteDist, DenseDiscreteDist]:
     """Prepare remove-direction factors from a loss-space realization.
 
-    Algorithm 1 (`rand-alloc-rem`) in Appendix C.
+    Algorithm 1 (`rand-alloc-rem`) in Appendix C of https://arxiv.org/abs/2602.17284.
 
     Args:
         realization: REMOVE-direction realization in linear loss space.
@@ -151,7 +151,7 @@ def _realization_add_base_distribution(
 ) -> DenseDiscreteDist:
     """Prepare add-direction factors from a loss-space realization.
 
-    Algorithm 2 (`rand-alloc-add`) in Appendix C.
+    Algorithm 2 (`rand-alloc-add`) in Appendix C of https://arxiv.org/abs/2602.17284.
 
     Args:
         realization: ADD-direction realization in linear loss space.

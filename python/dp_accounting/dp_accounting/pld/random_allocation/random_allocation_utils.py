@@ -96,7 +96,7 @@ def _binary_self_convolve(
 ) -> DenseDiscreteDist:
     """Exponentiation by squaring-based self-convolution using a provided convolve function.
 
-    Algorithm 3 (`self-conv`) in Appendix C.
+    Algorithm 3 (`self-conv`) in Appendix C of https://arxiv.org/abs/2602.17284.
     """
     if T < 1:
         raise ValueError(f"T must be >= 1, got {T}")
@@ -242,7 +242,7 @@ def _negate_reverse_linear_distribution(
 def _calc_pld_dual(realization: PLDRealization) -> PLDRealization:
     """Compute the paper PLD dual ``D(L)`` (Definition 3.1).
 
-    Algorithm 7 (`PLD-dual`) in Appendix C.
+    Algorithm 7 (`PLD-dual`) in Appendix C of https://arxiv.org/abs/2602.17284.
 
     For a PLD realization ``L`` with support ``l`` and mass ``f_L(l)``, the dual has:
     - finite mass ``f_D(-l) = f_L(l) * exp(-l)``,
@@ -276,6 +276,32 @@ def _calc_pld_dual(realization: PLDRealization) -> PLDRealization:
 # =============================================================================
 # Internal Helper Functions
 # =============================================================================
+
+
+def _assert_dense_linear_dist(dist: object) -> None:
+    """Raise TypeError if dist is not a LINEAR DenseDiscreteDist."""
+    if not (
+        isinstance(dist, DenseDiscreteDist)
+        and dist.spacing_type == SpacingType.LINEAR
+    ):
+        _st = getattr(dist, "spacing_type", "?")
+        raise TypeError(
+            f"Expected DenseDiscreteDist with LINEAR spacing, "
+            f"got {type(dist).__name__} with spacing {_st}"
+        )
+
+
+def _assert_dense_geometric_dist(dist: object) -> None:
+    """Raise TypeError if dist is not a GEOMETRIC DenseDiscreteDist."""
+    if not (
+        isinstance(dist, DenseDiscreteDist)
+        and dist.spacing_type == SpacingType.GEOMETRIC
+    ):
+        _st = getattr(dist, "spacing_type", "?")
+        raise TypeError(
+            f"Expected DenseDiscreteDist with GEOMETRIC spacing, "
+            f"got {type(dist).__name__} with spacing {_st}"
+        )
 
 
 def _align_distributions_to_union_grid(

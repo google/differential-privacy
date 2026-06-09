@@ -27,7 +27,7 @@ _TAIL_SWITCH = 1e-10
 
 
 class Domain(Enum):
-    """Domain of a discrete distributsion's support."""
+    """Domain of a discrete distribution's support."""
 
     REALS = "reals"  # p_min = mass at −∞, p_max = mass at +∞
     POSITIVES = "positives"  # p_min = mass at 0,  p_max = mass at +∞
@@ -78,24 +78,24 @@ class DiscreteDistBase(ABC):
             self.p_max,
         )
 
+        # fsum avoids floating-point accumulation error, keeping mass sum close to 1.
         pmf_sum = math.fsum(map(float, self.prob_arr))
         total_mass = pmf_sum + self.p_min + self.p_max
         mass_error = abs(total_mass - 1.0)
         if mass_error > _PMF_MASS_TOL:
-            error_msg = "MASS CONSERVATION ERROR"
-            error_msg += f": Error={mass_error:.2e} (tolerance={_PMF_MASS_TOL:.2e})"
-            error_msg += f", PMF sum={pmf_sum:.15f}"
-            error_msg += f", min={self.p_min:.2e}"
-            error_msg += f", max={self.p_max:.2e}"
-            error_msg += f", Total mass={total_mass:.15f}"
-            raise ValueError(error_msg)
+            raise ValueError(
+                f"PMF mass does not total 1: error={mass_error:.2e} "
+                f"(tolerance={_PMF_MASS_TOL:.2e}), PMF sum={pmf_sum:.15f}, "
+                f"min={self.p_min:.2e}, max={self.p_max:.2e}, "
+                f"total mass={total_mass:.15f}"
+            )
 
         # REALS domain: both boundaries being non-zero is not allowed.
         if self.domain == Domain.REALS and self.p_min > _PMF_MASS_TOL and self.p_max > _PMF_MASS_TOL:
             raise ValueError("REALS domain: p_min and p_max cannot both be non-zero")
 
     def truncate_edges(self, tail_truncation: float, bound_type: BoundType) -> Self:
-        """Truncate distribution edges. Computation lives in distribution_utils."""
+        """Truncate distribution edges."""
         new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = _compute_truncation(
             self.prob_arr, self.p_min, self.p_max, tail_truncation, bound_type
         )
@@ -123,7 +123,15 @@ class DiscreteDistBase(ABC):
 
 
 class SparseDiscreteDist(DiscreteDistBase):
-    """General discrete distribution with explicit support values."""
+    """General discrete distribution with explicit support values.
+
+    Attributes:
+      x_array: Explicit increasing support values.
+      prob_arr: Probability mass on finite support.
+      p_min: Lower boundary mass.
+      p_max: Upper boundary mass.
+      domain: Support domain.
+    """
 
     def __init__(
         self,
@@ -187,6 +195,15 @@ class DenseDiscreteDist(DiscreteDistBase):
     spacing_type = GEOMETRIC: x[i] = x_min * exp(i * step) (step = log-ratio > 0)
 
     For geometric grids the domain is always POSITIVES (x_min > 0 enforces positivity).
+
+    Attributes:
+      x_min: Leftmost (or smallest) grid point.
+      step: Additive gap (LINEAR) or log-ratio (GEOMETRIC) between adjacent points.
+      prob_arr: Probability mass on finite support.
+      p_min: Lower boundary mass (−∞ for REALS, 0 for POSITIVES).
+      p_max: Upper boundary mass at +∞.
+      spacing_type: LINEAR or GEOMETRIC grid family.
+      domain: REALS or POSITIVES.
     """
 
     def __init__(
@@ -348,7 +365,15 @@ class DenseDiscreteDist(DiscreteDistBase):
 
 
 class PLDRealization(DenseDiscreteDist):
-    """Linear-grid PLD realization in loss space."""
+    """Linear-grid PLD realization in loss space.
+
+    Attributes:
+      x_min: Leftmost privacy-loss value on the finite support.
+      step: Linear grid spacing (additive gap between adjacent loss values).
+      prob_arr: Probability mass on finite loss values.
+      p_min: Mass at −∞ loss (must be 0 for a valid PLD realization).
+      p_max: Mass at +∞ loss.
+    """
 
     def __init__(
         self,
@@ -441,7 +466,7 @@ class PLDRealization(DenseDiscreteDist):
         max_ind: int,
     ) -> "PLDRealization":
         """Create a truncated PLD realization while preserving linear-loss semantics."""
-        del max_ind
+        del max_ind  # Unused.
         return PLDRealization(
             x_min=self.x_min + min_ind * self.step,
             step=self.step,
@@ -940,7 +965,7 @@ def _rediscretize_dist(
     Implementation trims zero/tail regions, computes new grid size, then remaps
     using domination-aware rounding (e.g., linear grids for dp_accounting output).
 
-    Algorithm 6 (`disc-dist`) in Appendix C.
+    Algorithm 6 (`disc-dist`) in Appendix C of https://arxiv.org/abs/2602.17284.
     """
 
     # Support for rediscritizing a dominating distribution into a dominated one and vice versa

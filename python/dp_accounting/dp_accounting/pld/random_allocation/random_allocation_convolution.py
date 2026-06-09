@@ -57,6 +57,7 @@ def _fft_convolve(
     nz2 = np.nonzero(dist_2.prob_arr)[0]
     min_idx = int(nz1[0] + nz2[0])
     max_idx = int(nz1[-1] + nz2[-1])
+    # fsum avoids floating-point accumulation error, keeping mass sum close to 1.
     finite_prob_1 = math.fsum(map(float, dist_1.prob_arr))
     finite_prob_2 = math.fsum(map(float, dist_2.prob_arr))
 
@@ -78,10 +79,10 @@ def _fft_convolve(
     # Zero negative roundoff and ghost mass outside reachable support
     conv_pmf[conv_pmf < 0] = 0.0
     conv_pmf[:min_idx] = 0.0
-    max_idx_plus_one = max_idx + 1
-    if max_idx_plus_one < conv_pmf.size:
-        conv_pmf[max_idx_plus_one:] = 0.0
+    if max_idx + 1 < conv_pmf.size:
+        conv_pmf[max_idx + 1:] = 0.0
 
+    # Use fsum to keep total probability mass close to 1 after FFT roundoff.
     current_finite_mass = math.fsum(map(float, conv_pmf))
     if current_finite_mass <= 0.0:
         raise ValueError("FFT convolution produced zero finite mass")
@@ -118,8 +119,7 @@ def _fft_self_convolve(
     use_direct: bool,
 ) -> DenseDiscreteDist:
     """T-fold self-convolution via FFT with optional direct exponentiation path."""
-    if not (isinstance(dist, DenseDiscreteDist) and dist.spacing_type == SpacingType.LINEAR):
-        raise TypeError("fft_self_convolve requires DenseDiscreteDist input")
+    random_allocation_utils._assert_dense_linear_dist(dist)
 
     if use_direct:
         try:
@@ -143,12 +143,6 @@ def _fft_self_convolve(
         bound_type=bound_type,
         convolve=_fft_convolve,
     )
-    if not (
-        isinstance(self_conv, DenseDiscreteDist) and self_conv.spacing_type == SpacingType.LINEAR
-    ):
-        raise TypeError(
-            f"Expected DenseDiscreteDist from FFT self-convolution, got {type(self_conv)}"
-        )
     return self_conv
 
 
@@ -171,6 +165,7 @@ def _fft_self_convolve_direct(
     # Total: 3 * (tail_truncation / 3) = tail_truncation
     tail_truncation /= 3
 
+    # fsum avoids floating-point accumulation error, keeping mass sum close to 1.
     finite_mass = math.fsum(map(float, dist.prob_arr))
     # The Chernoff window calculation expects a normalized finite PMF, so the
     # tail target must be rescaled when some mass already sits at infinity.
@@ -197,6 +192,7 @@ def _fft_self_convolve_direct(
         # For an upper bound, any dropped left-tail mass is pushed to +inf.
         cumsum = np.cumsum(rolled_conv)
         left_tail_ind = int(np.searchsorted(cumsum, tail_truncation, side="right"))
+        # fsum avoids floating-point accumulation error, keeping mass sum close to 1.
         shifted_mass = math.fsum(map(float, rolled_conv[:left_tail_ind]))
         rolled_conv[:left_tail_ind] = 0.0
         right_tail_mass = math.fsum(map(float, rolled_conv[window_size:]))
@@ -210,6 +206,7 @@ def _fft_self_convolve_direct(
             rolled_conv.size - 1 - int(np.searchsorted(cumsum, tail_truncation, side="right"))
         )
         after_right_tail = right_tail_ind + 1
+        # fsum avoids floating-point accumulation error, keeping mass sum close to 1.
         shifted_mass = math.fsum(map(float, rolled_conv[after_right_tail:]))
         rolled_conv[after_right_tail:] = 0.0
         conv_p_min += shifted_mass
@@ -295,7 +292,7 @@ def _geometric_convolve(
 ) -> DenseDiscreteDist:
     """Convolve two geometric-grid distributions.
 
-    Algorithm 4 (`conv`) in Appendix C wrapper.
+    Algorithm 4 (`conv`) in Appendix C of https://arxiv.org/abs/2602.17284.
     For POSITIVES-domain distributions the 0 atom is neutral (not absorbing),
     so cross-terms (0 + finite and finite + 0) are added to the finite PMF.
     """
@@ -389,8 +386,7 @@ def _geometric_self_convolve(
 ) -> DenseDiscreteDist:
     """Self-convolve distribution T times using binary exponentiation."""
     # Input validation
-    if not (isinstance(dist, DenseDiscreteDist) and dist.spacing_type == SpacingType.GEOMETRIC):
-        raise TypeError(f"dist must be DenseDiscreteDist, got {type(dist)}")
+    random_allocation_utils._assert_dense_geometric_dist(dist)
     random_allocation_utils._validate_bound_type(bound_type)
     if T < 1:
         raise ValueError(f"T must be >= 1, got {T}")
@@ -404,10 +400,6 @@ def _geometric_self_convolve(
         bound_type=bound_type,
         convolve=_geometric_convolve,
     )
-    if not (
-        isinstance(self_conv, DenseDiscreteDist) and self_conv.spacing_type == SpacingType.GEOMETRIC
-    ):
-        raise TypeError(f"Expected DenseDiscreteDist from self-convolution, got {type(self_conv)}")
     return self_conv
 
 
@@ -427,7 +419,7 @@ def _compute_geometric_convolution(
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Align grids, compute bin mapping parameters, and invoke the Numba kernel.
 
-    Algorithm 4 (`conv`) with internal Algorithm 5 (`range-renorm`) in Appendix C.
+    Algorithm 4 (`conv`) with internal Algorithm 5 (`range-renorm`) in Appendix C of https://arxiv.org/abs/2602.17284.
     """
     # --- A. Standardization (Swap & Pad) ---
     # We normalize such that x_base (x1) starts at the lower value.

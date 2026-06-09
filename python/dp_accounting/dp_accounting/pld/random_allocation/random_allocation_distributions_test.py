@@ -94,7 +94,7 @@ def test_dense_dist_keeps_regular_grid_as_source_of_truth():
     assert dist.step == 1e-4
 
 
-class TestDiscritizeRange:
+class TestDiscretizeRange:
     """Test discretize_aligned_range function."""
 
     def test_linear_spacing(self):
