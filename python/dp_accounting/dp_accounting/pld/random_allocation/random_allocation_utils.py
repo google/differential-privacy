@@ -58,7 +58,9 @@ def _convolve_boundary_masses(
         p_min = p_min_1 * p_min_2
     else:
         # −∞ is absorbing: Z=−∞ when either X=−∞ or Y=−∞
-        p_min = float(np.clip(-np.expm1(np.log1p(-p_min_1) + np.log1p(-p_min_2)), 0.0, 1.0))
+        p_min = float(
+            np.clip(-np.expm1(np.log1p(-p_min_1) + np.log1p(-p_min_2)), 0.0, 1.0)
+        )
 
     return p_min, p_max
 
@@ -69,14 +71,18 @@ def _self_convolve_boundary_masses(
 ) -> tuple[float, float]:
     """Compute boundary masses after ``num_convolutions`` self-convolutions."""
     # p_max: absorbing in both domains
-    p_max = float(np.clip(-np.expm1(num_convolutions * np.log1p(-dist.p_max)), 0.0, 1.0))
+    p_max = float(
+        np.clip(-np.expm1(num_convolutions * np.log1p(-dist.p_max)), 0.0, 1.0)
+    )
 
     if dist.domain == Domain.POSITIVES:
         # 0 is neutral: Z=0 only when all num_convolutions factors are 0
         p_min = dist.p_min**num_convolutions
     else:
         # −∞ is absorbing: Z=−∞ when any copy is −∞
-        p_min = float(np.clip(-np.expm1(num_convolutions * np.log1p(-dist.p_min)), 0.0, 1.0))
+        p_min = float(
+            np.clip(-np.expm1(num_convolutions * np.log1p(-dist.p_min)), 0.0, 1.0)
+        )
 
     return p_min, p_max
 
@@ -145,7 +151,9 @@ def _combine_distributions(
     else:
         raise ValueError(f"Unknown BoundType: {bound_type}")
 
-    if random_allocation_distributions._stable_array_equal(a=dist_1.x_array, b=dist_2.x_array):
+    if random_allocation_distributions._stable_array_equal(
+        a=dist_1.x_array, b=dist_2.x_array
+    ):
         dist_1_aligned, dist_2_aligned = dist_1, dist_2
     else:
         dist_1_aligned, dist_2_aligned = _align_distributions_to_union_grid(
@@ -250,7 +258,9 @@ def _calc_pld_dual(realization: PLDRealization) -> PLDRealization:
     - residual mass at ``+inf``.
     """
     if not isinstance(realization, PLDRealization):
-        raise TypeError(f"calc_pld_dual requires PLDRealization, got {type(realization)}")
+        raise TypeError(
+            f"calc_pld_dual requires PLDRealization, got {type(realization)}"
+        )
 
     dual_probs_aligned = np.zeros_like(realization.prob_arr)
     mask = realization.prob_arr > 0
@@ -281,8 +291,7 @@ def _calc_pld_dual(realization: PLDRealization) -> PLDRealization:
 def _assert_dense_linear_dist(dist: object) -> None:
     """Raise TypeError if dist is not a LINEAR DenseDiscreteDist."""
     if not (
-        isinstance(dist, DenseDiscreteDist)
-        and dist.spacing_type == SpacingType.LINEAR
+        isinstance(dist, DenseDiscreteDist) and dist.spacing_type == SpacingType.LINEAR
     ):
         _st = getattr(dist, "spacing_type", "?")
         raise TypeError(
@@ -412,7 +421,9 @@ def _validate_privacy_params(
     """
     if not isinstance(params, PrivacyParams):
         raise TypeError(f"params must be PrivacyParams, got {type(params)}")
-    _validate_gaussian_params(params.sigma, params.num_steps, params.num_selected, params.num_epochs)
+    _validate_gaussian_params(
+        params.sigma, params.num_steps, params.num_selected, params.num_epochs
+    )
     if require_delta:
         _validate_delta(params.delta)
     if require_epsilon:
@@ -464,7 +475,9 @@ def _validate_allocation_params(
             f"and num_epochs (={num_epochs}) must be >= 1"
         )
     if num_selected > num_steps:
-        raise ValueError(f"num_selected ({num_selected}) cannot exceed num_steps ({num_steps})")
+        raise ValueError(
+            f"num_selected ({num_selected}) cannot exceed num_steps ({num_steps})"
+        )
 
 
 def _validate_delta(delta: float | None) -> None:
@@ -534,7 +547,9 @@ def _validate_discretization_params(
 
     """
     if loss_discretization <= 0:
-        raise ValueError(f"loss_discretization must be positive, got {loss_discretization}")
+        raise ValueError(
+            f"loss_discretization must be positive, got {loss_discretization}"
+        )
     if tail_truncation <= 0:
         raise ValueError(f"tail_truncation must be positive, got {tail_truncation}")
 
@@ -552,7 +567,9 @@ def _validate_allocation_scheme_config(config: AllocationSchemeConfig) -> None:
     """
     if not isinstance(config, AllocationSchemeConfig):
         raise TypeError(f"config must be AllocationSchemeConfig, got {type(config)}")
-    _validate_discretization_params(config.value_discretization_interval, config.tail_truncation)
+    _validate_discretization_params(
+        config.value_discretization_interval, config.tail_truncation
+    )
     if config.max_grid_mult != -1 and config.max_grid_mult <= 0:
         raise ValueError(
             f"max_grid_mult must be -1 (no limit) or a positive integer, "
@@ -575,6 +592,10 @@ def _validate_optional_discretization_params(
 
     """
     if initial_discretization is not None and initial_discretization <= 0:
-        raise ValueError(f"initial_discretization must be positive, got {initial_discretization}")
+        raise ValueError(
+            f"initial_discretization must be positive, got {initial_discretization}"
+        )
     if initial_tail_truncation is not None and initial_tail_truncation <= 0:
-        raise ValueError(f"initial_tail_truncation must be positive, got {initial_tail_truncation}")
+        raise ValueError(
+            f"initial_tail_truncation must be positive, got {initial_tail_truncation}"
+        )

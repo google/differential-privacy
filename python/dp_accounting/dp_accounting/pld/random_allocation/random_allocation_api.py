@@ -89,13 +89,17 @@ def general_allocation_pld(
 
     """
     # Input validation
-    random_allocation_utils._validate_allocation_params(num_steps, num_selected, num_epochs)
+    random_allocation_utils._validate_allocation_params(
+        num_steps, num_selected, num_epochs
+    )
     if not isinstance(remove_realization, PLDRealization):
         raise TypeError(
             f"remove_realization must be PLDRealization, got {type(remove_realization)}"
         )
     if not isinstance(add_realization, PLDRealization):
-        raise TypeError(f"add_realization must be PLDRealization, got {type(add_realization)}")
+        raise TypeError(
+            f"add_realization must be PLDRealization, got {type(add_realization)}"
+        )
     random_allocation_utils._validate_allocation_scheme_config(config)
     random_allocation_utils._validate_bound_type(bound_type)
 

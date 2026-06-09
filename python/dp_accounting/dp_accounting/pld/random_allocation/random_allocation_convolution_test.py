@@ -4,53 +4,51 @@ import math
 
 import numpy as np
 import pytest
-from dp_accounting.pld.random_allocation.random_allocation_convolution import (
-    _fft_convolve,
-    _fft_self_convolve,
-    _geometric_convolve,
-    _geometric_kernel,
-    _numba_geometric_kernel,
-    _numpy_geometric_kernel,
-)
-from dp_accounting.pld.random_allocation.random_allocation_distributions import DenseDiscreteDist, Domain
-from dp_accounting.pld.random_allocation.random_allocation_types import BoundType, SpacingType
-from dp_accounting.pld.random_allocation.random_allocation_utils import _binary_self_convolve, _log_geometric_to_linear
+from dp_accounting.pld.random_allocation import random_allocation_convolution
+from dp_accounting.pld.random_allocation import random_allocation_distributions
 from dp_accounting.pld.random_allocation import random_allocation_types
+from dp_accounting.pld.random_allocation import random_allocation_utils
 
 
-def _linear_dist(n: int = 5) -> DenseDiscreteDist:
+def _linear_dist(n: int = 5) -> random_allocation_distributions.DenseDiscreteDist:
     x = np.linspace(0.0, 1.0, n)
     pmf = np.ones(n, dtype=np.float64) / n
-    return DenseDiscreteDist.from_x_array(x_array=x, prob_arr=pmf)
+    return random_allocation_distributions.DenseDiscreteDist.from_x_array(
+        x_array=x, prob_arr=pmf
+    )
 
 
-def _geometric_dist(n: int = 6) -> DenseDiscreteDist:
+def _geometric_dist(n: int = 6) -> random_allocation_distributions.DenseDiscreteDist:
     x = np.geomspace(0.1, 1.0, n)
     pmf = np.ones(n, dtype=np.float64) / n
-    return DenseDiscreteDist.from_x_array(
+    return random_allocation_distributions.DenseDiscreteDist.from_x_array(
         x_array=x,
         prob_arr=pmf,
-        spacing_type=SpacingType.GEOMETRIC,
-        domain=Domain.POSITIVES,
+        spacing_type=random_allocation_types.SpacingType.GEOMETRIC,
+        domain=random_allocation_distributions.Domain.POSITIVES,
     )
 
 
 def test_binary_self_convolve_rejects_invalid_t():
     dist = _linear_dist()
     with pytest.raises(ValueError, match="T must be >= 1"):
-        _binary_self_convolve(
+        random_allocation_utils._binary_self_convolve(
             dist=dist,
             T=0,
             tail_truncation=0.0,
-            bound_type=BoundType.DOMINATES,
-            convolve=_fft_convolve,
+            bound_type=random_allocation_types.BoundType.DOMINATES,
+            convolve=random_allocation_convolution._fft_convolve,
         )
 
 
 def test_binary_self_convolve_t1_identity():
     dist = _linear_dist()
-    result = _binary_self_convolve(
-        dist=dist, T=1, tail_truncation=0.0, bound_type=BoundType.DOMINATES, convolve=_fft_convolve
+    result = random_allocation_utils._binary_self_convolve(
+        dist=dist,
+        T=1,
+        tail_truncation=0.0,
+        bound_type=random_allocation_types.BoundType.DOMINATES,
+        convolve=random_allocation_convolution._fft_convolve,
     )
     assert np.allclose(result.x_array, dist.x_array)
     assert np.allclose(result.prob_arr, dist.prob_arr)
@@ -58,28 +56,43 @@ def test_binary_self_convolve_t1_identity():
 
 def test_binary_self_convolve_matches_direct_fft_t2():
     dist = _linear_dist()
-    result = _binary_self_convolve(
-        dist=dist, T=2, tail_truncation=0.0, bound_type=BoundType.DOMINATES, convolve=_fft_convolve
+    result = random_allocation_utils._binary_self_convolve(
+        dist=dist,
+        T=2,
+        tail_truncation=0.0,
+        bound_type=random_allocation_types.BoundType.DOMINATES,
+        convolve=random_allocation_convolution._fft_convolve,
     )
-    direct = _fft_convolve(dist_1=dist, dist_2=dist, tail_truncation=0.0, bound_type=BoundType.DOMINATES)
+    direct = random_allocation_convolution._fft_convolve(
+        dist_1=dist,
+        dist_2=dist,
+        tail_truncation=0.0,
+        bound_type=random_allocation_types.BoundType.DOMINATES,
+    )
     assert np.allclose(result.x_array, direct.x_array)
     assert np.allclose(result.prob_arr, direct.prob_arr, atol=1e-12)
 
 
 def test_binary_self_convolve_matches_repeated_geometric():
     dist = _geometric_dist()
-    result = _binary_self_convolve(
+    result = random_allocation_utils._binary_self_convolve(
         dist=dist,
         T=3,
         tail_truncation=0.0,
-        bound_type=BoundType.DOMINATES,
-        convolve=_geometric_convolve,
+        bound_type=random_allocation_types.BoundType.DOMINATES,
+        convolve=random_allocation_convolution._geometric_convolve,
     )
-    repeated = _geometric_convolve(
-        dist_1=dist, dist_2=dist, tail_truncation=0.0, bound_type=BoundType.DOMINATES
+    repeated = random_allocation_convolution._geometric_convolve(
+        dist_1=dist,
+        dist_2=dist,
+        tail_truncation=0.0,
+        bound_type=random_allocation_types.BoundType.DOMINATES,
     )
-    repeated = _geometric_convolve(
-        dist_1=repeated, dist_2=dist, tail_truncation=0.0, bound_type=BoundType.DOMINATES
+    repeated = random_allocation_convolution._geometric_convolve(
+        dist_1=repeated,
+        dist_2=dist,
+        tail_truncation=0.0,
+        bound_type=random_allocation_types.BoundType.DOMINATES,
     )
     assert np.allclose(result.x_array, repeated.x_array)
     assert np.allclose(result.prob_arr, repeated.prob_arr, atol=1e-12)
@@ -87,29 +100,33 @@ def test_binary_self_convolve_matches_repeated_geometric():
 
 def test_geometric_convolve_preserves_step_for_linear_round_trip():
     step = 1e-4
-    dist = DenseDiscreteDist(
+    dist = random_allocation_distributions.DenseDiscreteDist(
         x_min=1.0,
         step=step,
         prob_arr=np.array([0.5, 0.5], dtype=np.float64),
-        spacing_type=SpacingType.GEOMETRIC,
-        domain=Domain.POSITIVES,
+        spacing_type=random_allocation_types.SpacingType.GEOMETRIC,
+        domain=random_allocation_distributions.Domain.POSITIVES,
     )
 
-    result = _geometric_convolve(
+    result = random_allocation_convolution._geometric_convolve(
         dist_1=dist,
         dist_2=dist,
         tail_truncation=0.0,
-        bound_type=BoundType.DOMINATES,
+        bound_type=random_allocation_types.BoundType.DOMINATES,
     )
 
     assert result.step == step
-    assert _log_geometric_to_linear(result).step == step
+    assert random_allocation_utils._log_geometric_to_linear(result).step == step
 
 
 def test_binary_self_convolve_preserves_mass_fft():
     dist = _linear_dist()
-    result = _binary_self_convolve(
-        dist=dist, T=5, tail_truncation=0.0, bound_type=BoundType.DOMINATES, convolve=_fft_convolve
+    result = random_allocation_utils._binary_self_convolve(
+        dist=dist,
+        T=5,
+        tail_truncation=0.0,
+        bound_type=random_allocation_types.BoundType.DOMINATES,
+        convolve=random_allocation_convolution._fft_convolve,
     )
     total = math.fsum([*map(float, result.prob_arr), result.p_min, result.p_max])
     assert np.isclose(total, 1.0, atol=1e-10)
@@ -117,11 +134,19 @@ def test_binary_self_convolve_preserves_mass_fft():
 
 def test_fft_self_convolve_direct_vs_binary():
     dist = _linear_dist(n=9)
-    direct = _fft_self_convolve(
-        dist=dist, T=7, tail_truncation=0.0, bound_type=BoundType.DOMINATES, use_direct=True
+    direct = random_allocation_convolution._fft_self_convolve(
+        dist=dist,
+        T=7,
+        tail_truncation=0.0,
+        bound_type=random_allocation_types.BoundType.DOMINATES,
+        use_direct=True,
     )
-    binary = _fft_self_convolve(
-        dist=dist, T=7, tail_truncation=0.0, bound_type=BoundType.DOMINATES, use_direct=False
+    binary = random_allocation_convolution._fft_self_convolve(
+        dist=dist,
+        T=7,
+        tail_truncation=0.0,
+        bound_type=random_allocation_types.BoundType.DOMINATES,
+        use_direct=False,
     )
 
     direct_mass = math.fsum([*map(float, direct.prob_arr), direct.p_min, direct.p_max])
@@ -139,13 +164,13 @@ def test_numpy_geometric_kernel_matches_numba_kernel():
     delta_lohi = np.array([0, -1, 0, 2, 8], dtype=np.int64)
     delta_hilo = np.array([0, 0, 1, -2, 3], dtype=np.int64)
 
-    expected = _numba_geometric_kernel(
+    expected = random_allocation_convolution._numba_geometric_kernel(
         PMF_base=pmf_base,
         PMF_scaled=pmf_scaled,
         delta_lohi=delta_lohi,
         delta_hilo=delta_hilo,
     )
-    actual = _numpy_geometric_kernel(
+    actual = random_allocation_convolution._numpy_geometric_kernel(
         PMF_base=pmf_base,
         PMF_scaled=pmf_scaled,
         delta_lohi=delta_lohi,
@@ -164,13 +189,13 @@ def test_geometric_kernel_uses_numpy_fallback_without_numba():
     original_has_numba = random_allocation_types._HAS_NUMBA
     try:
         random_allocation_types._HAS_NUMBA = False
-        expected = _numpy_geometric_kernel(
+        expected = random_allocation_convolution._numpy_geometric_kernel(
             PMF_base=pmf_base,
             PMF_scaled=pmf_scaled,
             delta_lohi=delta_lohi,
             delta_hilo=delta_hilo,
         )
-        actual = _geometric_kernel(
+        actual = random_allocation_convolution._geometric_kernel(
             PMF_base=pmf_base,
             PMF_scaled=pmf_scaled,
             delta_lohi=delta_lohi,

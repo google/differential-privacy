@@ -14,8 +14,14 @@ from scipy.fft import irfft, next_fast_len, rfft
 from dp_accounting.pld.random_allocation import random_allocation_distributions
 from dp_accounting.pld.random_allocation import random_allocation_types
 from dp_accounting.pld.random_allocation import random_allocation_utils
-from dp_accounting.pld.random_allocation.random_allocation_distributions import DenseDiscreteDist, Domain
-from dp_accounting.pld.random_allocation.random_allocation_types import BoundType, SpacingType
+from dp_accounting.pld.random_allocation.random_allocation_distributions import (
+    DenseDiscreteDist,
+    Domain,
+)
+from dp_accounting.pld.random_allocation.random_allocation_types import (
+    BoundType,
+    SpacingType,
+)
 
 # Maximum bytes for a single FFT allocation (default 8 GB, override via MAX_FFT_BYTES env var)
 MAX_FFT_BYTES = int(os.environ.get("MAX_FFT_BYTES", 8 * 1024**3))
@@ -30,19 +36,29 @@ def _fft_convolve(
 ) -> DenseDiscreteDist:
     """Convolve two linear-grid distributions via FFT."""
     if not (
-        isinstance(dist_1, DenseDiscreteDist) and dist_1.spacing_type == SpacingType.LINEAR
-    ) or not (isinstance(dist_2, DenseDiscreteDist) and dist_2.spacing_type == SpacingType.LINEAR):
+        isinstance(dist_1, DenseDiscreteDist)
+        and dist_1.spacing_type == SpacingType.LINEAR
+    ) or not (
+        isinstance(dist_2, DenseDiscreteDist)
+        and dist_2.spacing_type == SpacingType.LINEAR
+    ):
         raise TypeError(
             "fft_convolve requires linear DenseDiscreteDist inputs; "
             f"got dist_1={type(dist_1).__name__} (spacing={dist_1.spacing_type}), "
             f"dist_2={type(dist_2).__name__} (spacing={dist_2.spacing_type})"
         )
     if dist_1.domain != dist_2.domain:
-        raise ValueError(f"Input domains must be identical, got {dist_1.domain} vs {dist_2.domain}")
+        raise ValueError(
+            f"Input domains must be identical, got {dist_1.domain} vs {dist_2.domain}"
+        )
     if not np.any(dist_1.prob_arr) or not np.any(dist_2.prob_arr):
         raise ValueError("FFT convolution requires nonzero finite mass in both inputs")
-    if not random_allocation_distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
-        raise ValueError(f"Grid spacing must match: w1={dist_1.step:.12g} vs w2={dist_2.step:.12g}")
+    if not random_allocation_distributions._stable_isclose(
+        a=dist_1.step, b=dist_2.step
+    ):
+        raise ValueError(
+            f"Grid spacing must match: w1={dist_1.step:.12g} vs w2={dist_2.step:.12g}"
+        )
 
     width = dist_1.step
     conv_x_min = dist_1.x_min + dist_2.x_min
@@ -80,7 +96,7 @@ def _fft_convolve(
     conv_pmf[conv_pmf < 0] = 0.0
     conv_pmf[:min_idx] = 0.0
     if max_idx + 1 < conv_pmf.size:
-        conv_pmf[max_idx + 1:] = 0.0
+        conv_pmf[max_idx + 1 :] = 0.0  # noqa: E203
 
     # Use fsum to keep total probability mass close to 1 after FFT roundoff.
     current_finite_mass = math.fsum(map(float, conv_pmf))
@@ -180,14 +196,18 @@ def _fft_self_convolve_direct(
     _check_fft_memory(fft_size, label=f"_fft_self_convolve_direct(T={T})")
     fft_data = rfft(dist.prob_arr, n=fft_size)
     fft_data **= T  # in-place power: avoids allocating a second complex buffer
-    raw_conv = np.asarray(irfft(fft_data, n=fft_size, overwrite_x=True), dtype=np.float64)
+    raw_conv = np.asarray(
+        irfft(fft_data, n=fft_size, overwrite_x=True), dtype=np.float64
+    )
     del fft_data  # free complex buffer
     raw_conv[raw_conv < 0] = 0.0
     # ``shift_left`` is the left edge of the retained convolution window. Rolling aligns
     # that window to index 0 so truncation logic can work in-place.
     rolled_conv = np.roll(raw_conv, -shift_left)
 
-    conv_p_min, conv_p_max = random_allocation_utils._self_convolve_boundary_masses(dist, num_convolutions=T)
+    conv_p_min, conv_p_max = random_allocation_utils._self_convolve_boundary_masses(
+        dist, num_convolutions=T
+    )
     if bound_type == BoundType.DOMINATES:
         # For an upper bound, any dropped left-tail mass is pushed to +inf.
         cumsum = np.cumsum(rolled_conv)
@@ -203,7 +223,9 @@ def _fft_self_convolve_direct(
         # finite bin to preserve domination direction.
         cumsum = np.cumsum(rolled_conv[::-1])
         right_tail_ind = (
-            rolled_conv.size - 1 - int(np.searchsorted(cumsum, tail_truncation, side="right"))
+            rolled_conv.size
+            - 1
+            - int(np.searchsorted(cumsum, tail_truncation, side="right"))
         )
         after_right_tail = right_tail_ind + 1
         # fsum avoids floating-point accumulation error, keeping mass sum close to 1.
@@ -218,11 +240,13 @@ def _fft_self_convolve_direct(
 
     x_min = dist.x_min * T + shift_left * dist.step
     pmf_conv = rolled_conv[:window_size]
-    pmf_conv, p_min_final, p_max_final = random_allocation_distributions._enforce_mass_conservation(
-        prob_arr=pmf_conv,
-        expected_p_min=conv_p_min,
-        expected_p_max=conv_p_max,
-        bound_type=bound_type,
+    pmf_conv, p_min_final, p_max_final = (
+        random_allocation_distributions._enforce_mass_conservation(
+            prob_arr=pmf_conv,
+            expected_p_min=conv_p_min,
+            expected_p_max=conv_p_max,
+            bound_type=bound_type,
+        )
     )
 
     return DenseDiscreteDist(
@@ -241,7 +265,9 @@ def _calc_fft_window_size(
     """Calculate FFT window bounds for ``num_convolutions`` self-convolutions with fallback."""
     # ``compute_self_convolve_bounds`` gives a Chernoff-style window [lower, upper] that
     # should contain all but ``tail_truncation`` mass after ``num_convolutions`` convolutions.
-    lower_idx, upper_idx = compute_self_convolve_bounds(pmf, num_convolutions, tail_truncation)
+    lower_idx, upper_idx = compute_self_convolve_bounds(
+        pmf.tolist(), num_convolutions, tail_truncation
+    )
     window_size = upper_idx - lower_idx + 1
 
     if not 0 < window_size < float("inf"):
@@ -273,6 +299,7 @@ def _check_fft_memory(fft_size: int, label: str = "FFT") -> None:
             f"{MAX_FFT_BYTES / 1024**3:.1f} GB. "
             f"Reduce grid size, increase loss_discretization, or raise MAX_FFT_BYTES."
         )
+
 
 # Rounding tolerance for grid bin mapping — must stay at machine-epsilon scale
 # to avoid misrouting mass between bins.
@@ -317,7 +344,9 @@ def _geometric_convolve(
         raise ValueError(f"tail_truncation must be non-negative, got {tail_truncation}")
 
     # Ensure both inputs share the same geometric log step.
-    if not random_allocation_distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
+    if not random_allocation_distributions._stable_isclose(
+        a=dist_1.step, b=dist_2.step
+    ):
         raise ValueError(
             "Geometric log steps must match: "
             f"step_1={dist_1.step:.12g}, step_2={dist_2.step:.12g}"
@@ -419,7 +448,8 @@ def _compute_geometric_convolution(
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Align grids, compute bin mapping parameters, and invoke the Numba kernel.
 
-    Algorithm 4 (`conv`) with internal Algorithm 5 (`range-renorm`) in Appendix C of https://arxiv.org/abs/2602.17284.
+    Algorithm 4 (`conv`) with internal Algorithm 5 (`range-renorm`) in
+    Appendix C of https://arxiv.org/abs/2602.17284.
     """
     # --- A. Standardization (Swap & Pad) ---
     # We normalize such that x_base (x1) starts at the lower value.
@@ -673,8 +703,10 @@ def _add_single_zero_atom_cross_term(
     if not np.any(valid):
         return pmf_conv
 
-    # The output grid is geometric: x_out_k = x_out_0 * exp(k * geom_step), and equivilently, k = log(x_out_k/x_out_0)/geom_step.
-    # This value is rounded according to the domination requirement with additional padding or numerical stability.
+    # The output grid is geometric: x_out_k = x_out_0 * exp(k * geom_step), or
+    # equivalently, k = log(x_out_k / x_out_0) / geom_step.
+    # This value is rounded according to the domination requirement with
+    # additional padding or numerical stability.
     frac_k = np.log(x_arr[valid] / x_out_0) / geom_step
     if bound_type == BoundType.DOMINATES:
         k = np.ceil(frac_k - _GRID_ROUNDING_TOL).astype(np.int64)

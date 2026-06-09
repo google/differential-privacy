@@ -13,8 +13,16 @@ from scipy import stats
 from dp_accounting.pld.random_allocation import random_allocation_convolution
 from dp_accounting.pld.random_allocation import random_allocation_distributions
 from dp_accounting.pld.random_allocation import random_allocation_utils
-from dp_accounting.pld.random_allocation.random_allocation_distributions import DenseDiscreteDist, PLDRealization
-from dp_accounting.pld.random_allocation.random_allocation_types import BoundType, Direction, SpacingType
+from dp_accounting.pld.random_allocation.random_allocation_distributions import (
+    DenseDiscreteDist,
+    PLDRealization,
+)
+from dp_accounting.pld.random_allocation.random_allocation_types import (
+    BoundType,
+    Direction,
+    SpacingType,
+)
+
 
 def _linear_dist_to_dp_accounting_pmf(
     *,
@@ -33,7 +41,9 @@ def _linear_dist_to_dp_accounting_pmf(
     Returns:
         dp_accounting DensePLDPmf with infinity mass taken from dist.p_max.
     """
-    if not (isinstance(dist, DenseDiscreteDist) and dist.spacing_type == SpacingType.LINEAR):
+    if not (
+        isinstance(dist, DenseDiscreteDist) and dist.spacing_type == SpacingType.LINEAR
+    ):
         raise TypeError(
             f"linear_dist_to_dp_accounting_pmf requires DenseDiscreteDist, got {type(dist)}."
         )
@@ -46,6 +56,7 @@ def _linear_dist_to_dp_accounting_pmf(
         infinity_mass=dist.p_max,
         pessimistic_estimate=pessimistic_estimate,
     )
+
 
 def _realization_remove_base_distributions(
     *,
@@ -90,14 +101,18 @@ def _realization_remove_base_distributions(
                 f"got {type(coarsened_base).__name__} with spacing {_st}"
             )
         base_realization = PLDRealization.from_linear_dist(coarsened_base)
-        neg_dual_dist = random_allocation_utils._negate_reverse_linear_distribution(random_allocation_utils._calc_pld_dual(base_realization))
+        neg_dual_dist = random_allocation_utils._negate_reverse_linear_distribution(
+            random_allocation_utils._calc_pld_dual(base_realization)
+        )
         return base_realization, neg_dual_dist
 
     # Lower-bound truncation can move left-tail mass into p_min and must consume
     # any +inf mass before exp-space composition, so keep the lower path on the
     # plain DenseDiscreteDist rediscretization route unconditionally.
     dual_realization = random_allocation_utils._calc_pld_dual(realization)
-    neg_dual_linear = random_allocation_utils._negate_reverse_linear_distribution(dual_realization)
+    neg_dual_linear = random_allocation_utils._negate_reverse_linear_distribution(
+        dual_realization
+    )
     # Avoid inflating the grid when the target is finer than the original one.
     effective_disc = max(realization.step, loss_discretization)
     lower_realization_input = DenseDiscreteDist(
@@ -173,7 +188,8 @@ def _realization_add_base_distribution(
         bound_type=bound_type,
     )
     if not (
-        isinstance(coarsened, DenseDiscreteDist) and coarsened.spacing_type == SpacingType.LINEAR
+        isinstance(coarsened, DenseDiscreteDist)
+        and coarsened.spacing_type == SpacingType.LINEAR
     ):
         _st = getattr(coarsened, "spacing_type", "?")
         raise TypeError(
@@ -181,6 +197,7 @@ def _realization_add_base_distribution(
             f"got {type(coarsened).__name__} with spacing {_st}"
         )
     return coarsened
+
 
 # =============================================================================
 # Public API
@@ -205,8 +222,12 @@ def _allocation_full_pld(
     ``dp_accounting`` PLD object.
     """
     # Input validation
-    random_allocation_utils._validate_allocation_params(num_steps, num_selected, num_epochs)
-    random_allocation_utils._validate_discretization_params(loss_discretization, tail_truncation)
+    random_allocation_utils._validate_allocation_params(
+        num_steps, num_selected, num_epochs
+    )
+    random_allocation_utils._validate_discretization_params(
+        loss_discretization, tail_truncation
+    )
     random_allocation_utils._validate_bound_type(bound_type)
 
     remove_dist = _allocation_directional_pld(
@@ -252,8 +273,12 @@ def _allocation_directional_pld(
     ``random_allocation_convolution._fft_convolve(...)``.
     """
     # Input validation
-    random_allocation_utils._validate_allocation_params(num_steps, num_selected, num_epochs)
-    random_allocation_utils._validate_discretization_params(loss_discretization, tail_truncation)
+    random_allocation_utils._validate_allocation_params(
+        num_steps, num_selected, num_epochs
+    )
+    random_allocation_utils._validate_discretization_params(
+        loss_discretization, tail_truncation
+    )
     random_allocation_utils._validate_bound_type(bound_type)
     new_num_steps_floor = int(num_steps // num_selected)
     if new_num_steps_floor < 1:
@@ -314,7 +339,9 @@ def _allocation_directional_pld(
 
 def _geometric_allocation_pld_base_remove(
     *,
-    base_distributions_creation: Callable[..., tuple[DenseDiscreteDist, DenseDiscreteDist]],
+    base_distributions_creation: Callable[
+        ..., tuple[DenseDiscreteDist, DenseDiscreteDist]
+    ],
     num_steps: int,
     loss_discretization: float,
     tail_truncation: float,
@@ -328,7 +355,9 @@ def _geometric_allocation_pld_base_remove(
     # Input validation
     if num_steps < 1:
         raise ValueError(f"num_steps must be >= 1, got {num_steps}")
-    random_allocation_utils._validate_discretization_params(loss_discretization, tail_truncation)
+    random_allocation_utils._validate_discretization_params(
+        loss_discretization, tail_truncation
+    )
     random_allocation_utils._validate_bound_type(bound_type)
     # For num_steps > 1 there are active convolution stages beyond base construction.
     # For num_steps == 1 neither convolution stages nor Phases 2/3 execute, so no
@@ -412,7 +441,9 @@ def _geometric_allocation_pld_base_add(
     factor, which is shifted and composed before mapping back to linear loss.
     """
     # Input validation
-    random_allocation_utils._validate_discretization_params(loss_discretization, tail_truncation)
+    random_allocation_utils._validate_discretization_params(
+        loss_discretization, tail_truncation
+    )
     random_allocation_utils._validate_bound_type(bound_type)
     if num_steps < 1:
         raise ValueError(f"num_steps must be >= 1, got {num_steps}")
@@ -457,7 +488,9 @@ def _geometric_allocation_pld_base_add(
     # Factor preparation in exp-space.
     exp_base = random_allocation_utils._exp_linear_to_geometric(centered_neg_base)
     exp_bound_type = (
-        BoundType.IS_DOMINATED if bound_type == BoundType.DOMINATES else BoundType.DOMINATES
+        BoundType.IS_DOMINATED
+        if bound_type == BoundType.DOMINATES
+        else BoundType.DOMINATES
     )
     # U_t <- self-conv(U, t, lower).
     exp_convolved = random_allocation_convolution._geometric_self_convolve(
@@ -489,7 +522,9 @@ def _gaussian_allocation_pld_core(
         raise ValueError(f"num_steps must be >= 1, got {num_steps}")
     if sigma <= 0:
         raise ValueError(f"sigma must be positive, got {sigma}")
-    random_allocation_utils._validate_discretization_params(loss_discretization, tail_truncation)
+    random_allocation_utils._validate_discretization_params(
+        loss_discretization, tail_truncation
+    )
     random_allocation_utils._validate_bound_type(bound_type)
     if direction not in (Direction.ADD, Direction.REMOVE):
         raise ValueError(f"Invalid direction: {direction}")
@@ -565,7 +600,8 @@ def _allocation_directional_pld_core(
         bound_type=bound_type,
     )
     if not (
-        isinstance(final_dist, DenseDiscreteDist) and final_dist.spacing_type == SpacingType.LINEAR
+        isinstance(final_dist, DenseDiscreteDist)
+        and final_dist.spacing_type == SpacingType.LINEAR
     ):
         _st = getattr(final_dist, "spacing_type", "?")
         raise TypeError(
@@ -696,11 +732,11 @@ def _gaussian_remove_geom_loss_factors(
         discretization=geom_step,
     )
 
-    dual_factor_dist = random_allocation_distributions._discretize_continuous_grid(
+    dual_factor_dist = random_allocation_distributions._discretize_on_grid(
         dist=exp_dual,
         grid=dual_grid,
         bound_type=bound_type,
-        PMF_min_increment=factor_tail_truncation,
+        pmf_min_increment=factor_tail_truncation,
     )
     if not (
         isinstance(dual_factor_dist, DenseDiscreteDist)
@@ -712,11 +748,11 @@ def _gaussian_remove_geom_loss_factors(
             f"got {type(dual_factor_dist).__name__} with spacing {_st}"
         )
 
-    base_factor_dist = random_allocation_distributions._discretize_continuous_grid(
+    base_factor_dist = random_allocation_distributions._discretize_on_grid(
         dist=exp_base,
         grid=base_grid,
         bound_type=bound_type,
-        PMF_min_increment=factor_tail_truncation,
+        pmf_min_increment=factor_tail_truncation,
     )
     if not (
         isinstance(base_factor_dist, DenseDiscreteDist)
@@ -728,8 +764,12 @@ def _gaussian_remove_geom_loss_factors(
             f"got {type(base_factor_dist).__name__} with spacing {_st}"
         )
 
-    dual_loss_factor = random_allocation_utils._log_geometric_to_linear(dual_factor_dist)
-    base_loss_factor = random_allocation_utils._log_geometric_to_linear(base_factor_dist)
+    dual_loss_factor = random_allocation_utils._log_geometric_to_linear(
+        dual_factor_dist
+    )
+    base_loss_factor = random_allocation_utils._log_geometric_to_linear(
+        base_factor_dist
+    )
     # geometric_allocation_pld_base_remove expects (base, dual_base).
     return base_loss_factor, dual_loss_factor
 
@@ -756,17 +796,18 @@ def _gaussian_add_geom_loss_factor(
         align_to_multiples=True,
         discretization=geom_step,
     )
-    base_dist = random_allocation_distributions._discretize_continuous_grid(
+    base_dist = random_allocation_distributions._discretize_on_grid(
         dist=base_lognorm,
         grid=base_grid,
         bound_type=bound_type,
-        PMF_min_increment=tail_truncation,
+        pmf_min_increment=tail_truncation,
     )
     if not (
-        isinstance(base_dist, DenseDiscreteDist) and base_dist.spacing_type == SpacingType.GEOMETRIC
+        isinstance(base_dist, DenseDiscreteDist)
+        and base_dist.spacing_type == SpacingType.GEOMETRIC
     ):
         raise TypeError(
             f"Expected DenseDiscreteDist with GEOMETRIC spacing, "
             f"got {type(base_dist).__name__} with spacing {getattr(base_dist, 'spacing_type', '?')}"
-    )
+        )
     return random_allocation_utils._log_geometric_to_linear(base_dist)
