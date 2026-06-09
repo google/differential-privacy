@@ -9,15 +9,15 @@ import math
 
 import numpy as np
 from absl.testing import absltest
-from dp_accounting.pld.random_allocation import random_allocation_core
-from dp_accounting.pld.random_allocation import random_allocation_distributions
-from dp_accounting.pld.random_allocation import random_allocation_types
-from dp_accounting.pld.random_allocation import random_allocation_utils
+from dp_accounting.pld.random_allocation import ra_core
+from dp_accounting.pld.random_allocation import ra_distributions
+from dp_accounting.pld.random_allocation import ra_types
+from dp_accounting.pld.random_allocation import ra_utils
 from scipy import stats
 
 
-def _make_realization() -> random_allocation_distributions.PLDRealization:
-    return random_allocation_distributions.PLDRealization(
+def _make_realization() -> ra_distributions.PLDRealization:
+    return ra_distributions.PLDRealization(
         x_min=-0.5,
         step=0.5,
         prob_arr=np.array([0.2, 0.3, 0.25, 0.15], dtype=np.float64),
@@ -29,7 +29,7 @@ class LinearDistToDpAccountingTest(absltest.TestCase):
 
     def test_preserves_shape_and_infinity_mass(self):
         original = _make_realization()
-        pmf = random_allocation_core._linear_dist_to_dp_accounting_pmf(
+        pmf = ra_core._linear_dist_to_dp_accounting_pmf(
             dist=original, pessimistic_estimate=True
         )
 
@@ -38,13 +38,13 @@ class LinearDistToDpAccountingTest(absltest.TestCase):
         self.assertEqual(pmf._discretization, original.step)
 
     def test_handles_zero_finite_mass(self):
-        realization = random_allocation_distributions.DenseDiscreteDist(
+        realization = ra_distributions.DenseDiscreteDist(
             x_min=0.0,
             step=1.0,
             prob_arr=np.array([0.0, 0.0], dtype=np.float64),
             p_max=1.0,
         )
-        pmf = random_allocation_core._linear_dist_to_dp_accounting_pmf(
+        pmf = ra_core._linear_dist_to_dp_accounting_pmf(
             dist=realization, pessimistic_estimate=True
         )
         self.assertEqual(pmf._infinity_mass, 1.0)
@@ -54,29 +54,29 @@ class LinearDistToDpAccountingTest(absltest.TestCase):
 class DenseDiscreteDistTest(absltest.TestCase):
 
     def test_exp_log_round_trip_preserves_linear_step(self):
-        original = random_allocation_distributions.DenseDiscreteDist(
+        original = ra_distributions.DenseDiscreteDist(
             x_min=0.0,
             step=1e-4,
             prob_arr=np.array([0.4, 0.6], dtype=np.float64),
         )
 
-        round_tripped = random_allocation_utils._log_geometric_to_linear(
-            random_allocation_utils._exp_linear_to_geometric(original)
+        round_tripped = ra_utils._log_geometric_to_linear(
+            ra_utils._exp_linear_to_geometric(original)
         )
 
         self.assertEqual(round_tripped.step, original.step)
 
     def test_keeps_regular_grid_as_source_of_truth(self):
-        grid = random_allocation_types.RegularGrid(
+        grid = ra_types.RegularGrid(
             x_min=1.0,
             step=1e-4,
             size=2,
-            spacing_type=random_allocation_types.SpacingType.GEOMETRIC,
+            spacing_type=ra_types.SpacingType.GEOMETRIC,
         )
-        dist = random_allocation_distributions.DenseDiscreteDist.from_grid(
+        dist = ra_distributions.DenseDiscreteDist.from_grid(
             grid=grid,
             prob_arr=np.array([0.4, 0.6], dtype=np.float64),
-            domain=random_allocation_distributions.Domain.POSITIVES,
+            domain=ra_distributions.Domain.POSITIVES,
         )
 
         self.assertEqual(dist.grid, grid)
@@ -88,10 +88,10 @@ class DiscretizeRangeTest(absltest.TestCase):
 
     def test_linear_spacing(self):
         n_grid = 100
-        x = random_allocation_distributions._discretize_aligned_range(
+        x = ra_distributions._discretize_aligned_range(
             x_min=0.0,
             x_max=10.0,
-            spacing_type=random_allocation_types.SpacingType.LINEAR,
+            spacing_type=ra_types.SpacingType.LINEAR,
             align_to_multiples=True,
             discretization=(10.0 - 0.0) / (n_grid - 1),
         )
@@ -103,10 +103,10 @@ class DiscretizeRangeTest(absltest.TestCase):
 
     def test_geometric_spacing(self):
         n_grid = 100
-        x = random_allocation_distributions._discretize_aligned_range(
+        x = ra_distributions._discretize_aligned_range(
             x_min=1.0,
             x_max=100.0,
-            spacing_type=random_allocation_types.SpacingType.GEOMETRIC,
+            spacing_type=ra_types.SpacingType.GEOMETRIC,
             align_to_multiples=True,
             discretization=np.log(100.0 / 1.0) / (n_grid - 1),
         )
@@ -118,20 +118,20 @@ class DiscretizeRangeTest(absltest.TestCase):
 
     def test_nonpositive_discretization_rejected(self):
         with self.assertRaisesRegex(ValueError, "discretization must be positive"):
-            random_allocation_distributions._discretize_aligned_range(
+            ra_distributions._discretize_aligned_range(
                 x_min=0.0,
                 x_max=10.0,
-                spacing_type=random_allocation_types.SpacingType.LINEAR,
+                spacing_type=ra_types.SpacingType.LINEAR,
                 align_to_multiples=True,
                 discretization=0.0,
             )
 
     def test_two_points_linear(self):
         n_grid = 100
-        x = random_allocation_distributions._discretize_aligned_range(
+        x = ra_distributions._discretize_aligned_range(
             x_min=1.0,
             x_max=3.0,
-            spacing_type=random_allocation_types.SpacingType.LINEAR,
+            spacing_type=ra_types.SpacingType.LINEAR,
             align_to_multiples=True,
             discretization=(3.0 - 1.0) / (n_grid - 1),
         )
@@ -146,10 +146,10 @@ class DiscretizeRangeTest(absltest.TestCase):
         x_max = 1.4160541697856062
         discretization = 0.041648652052517825
 
-        x = random_allocation_distributions._discretize_aligned_range(
+        x = ra_distributions._discretize_aligned_range(
             x_min=x_min,
             x_max=x_max,
-            spacing_type=random_allocation_types.SpacingType.LINEAR,
+            spacing_type=ra_types.SpacingType.LINEAR,
             align_to_multiples=True,
             discretization=discretization,
         )
@@ -161,40 +161,40 @@ class DiscretizeRangeTest(absltest.TestCase):
 
     def test_linear_aligned_spacing_matches_requested_step(self):
         discretization = 0.25
-        x = random_allocation_distributions._discretize_aligned_range(
+        x = ra_distributions._discretize_aligned_range(
             x_min=-1.12,
             x_max=2.18,
-            spacing_type=random_allocation_types.SpacingType.LINEAR,
+            spacing_type=ra_types.SpacingType.LINEAR,
             align_to_multiples=True,
             discretization=discretization,
         )
 
         np.testing.assert_allclose(
-            random_allocation_distributions._compute_bin_width(x), discretization
+            ra_distributions._compute_bin_width(x), discretization
         )
         np.testing.assert_allclose(x / discretization, np.round(x / discretization))
 
     def test_continuous_discretization_uses_requested_linear_step(self):
-        result = random_allocation_distributions._discretize_continuous_distribution(
+        result = ra_distributions._discretize_continuous_distribution(
             dist=stats.norm(loc=0.0, scale=1.0),
             tail_truncation=1e-3,
-            bound_type=random_allocation_types.BoundType.DOMINATES,
-            spacing_type=random_allocation_types.SpacingType.LINEAR,
+            bound_type=ra_types.BoundType.DOMINATES,
+            spacing_type=ra_types.SpacingType.LINEAR,
             step=0.1,
             align_to_multiples=True,
         )
 
         np.testing.assert_allclose(
-            random_allocation_distributions._compute_bin_width(result.x_array), 0.1
+            ra_distributions._compute_bin_width(result.x_array), 0.1
         )
 
     def test_continuous_discretization_uses_requested_geometric_step(self):
         step = np.log(1.05)
-        result = random_allocation_distributions._discretize_continuous_distribution(
+        result = ra_distributions._discretize_continuous_distribution(
             dist=stats.lognorm(s=0.5, scale=1.0),
             tail_truncation=1e-3,
-            bound_type=random_allocation_types.BoundType.DOMINATES,
-            spacing_type=random_allocation_types.SpacingType.GEOMETRIC,
+            bound_type=ra_types.BoundType.DOMINATES,
+            spacing_type=ra_types.SpacingType.GEOMETRIC,
             step=step,
             align_to_multiples=True,
         )
@@ -203,21 +203,21 @@ class DiscretizeRangeTest(absltest.TestCase):
         np.testing.assert_allclose(np.exp(result.step), 1.05)
 
     def test_generated_geometric_grid_preserves_pld_default_step(self):
-        grid = random_allocation_distributions._discretize_aligned_grid(
+        grid = ra_distributions._discretize_aligned_grid(
             x_min=0.1,
             x_max=10.0,
-            spacing_type=random_allocation_types.SpacingType.GEOMETRIC,
+            spacing_type=ra_types.SpacingType.GEOMETRIC,
             align_to_multiples=True,
             discretization=1e-4,
         )
         x = grid.x_array
 
-        dist = random_allocation_distributions.DenseDiscreteDist(
+        dist = ra_distributions.DenseDiscreteDist(
             x_min=grid.x_min,
             step=grid.step,
             prob_arr=np.full(x.size, 1.0 / x.size),
-            spacing_type=random_allocation_types.SpacingType.GEOMETRIC,
-            domain=random_allocation_distributions.Domain.POSITIVES,
+            spacing_type=ra_types.SpacingType.GEOMETRIC,
+            domain=ra_distributions.Domain.POSITIVES,
         )
 
         self.assertEqual(dist.step, 1e-4)
@@ -228,36 +228,36 @@ class ComputeBinWidthTest(absltest.TestCase):
 
     def test_uniform_grid(self):
         x = np.array([1.0, 2.0, 3.0, 4.0])
-        width = random_allocation_distributions._compute_bin_width(x)
+        width = ra_distributions._compute_bin_width(x)
         np.testing.assert_allclose(width, 1.0)
 
     def test_nonuniform_grid_raises(self):
         x = np.array([1.0, 2.0, 3.5, 6.0])
         with self.assertRaisesRegex(ValueError, "non-uniform bin widths"):
-            random_allocation_distributions._compute_bin_width(x)
+            ra_distributions._compute_bin_width(x)
 
     def test_single_point_raises(self):
         x = np.array([1.0])
         with self.assertRaisesRegex(ValueError, "less than 2 bins"):
-            random_allocation_distributions._compute_bin_width(x)
+            ra_distributions._compute_bin_width(x)
 
 
 class ComputeBinLogRatioTest(absltest.TestCase):
 
     def test_geometric_grid(self):
         x = np.array([1.0, 2.0, 4.0, 8.0])
-        step = random_allocation_distributions._compute_bin_log_ratio(x)
+        step = ra_distributions._compute_bin_log_ratio(x)
         np.testing.assert_allclose(step, np.log(2.0))
 
     def test_nonuniform_grid_raises(self):
         x = np.array([1.0, 3.0, 6.0, 18.0])
         with self.assertRaisesRegex(ValueError, "non-uniform bin widths"):
-            random_allocation_distributions._compute_bin_log_ratio(x)
+            ra_distributions._compute_bin_log_ratio(x)
 
     def test_single_point_raises(self):
         x = np.array([1.0])
         with self.assertRaisesRegex(ValueError, "less than 2 bins"):
-            random_allocation_distributions._compute_bin_log_ratio(x)
+            ra_distributions._compute_bin_log_ratio(x)
 
 
 class ComputeDiscretePmfTest(absltest.TestCase):
@@ -266,10 +266,10 @@ class ComputeDiscretePmfTest(absltest.TestCase):
         dist = stats.uniform(loc=0.0, scale=1.0)
         x_array = np.linspace(0.0, 1.0, 11)
         bin_prob, p_left, p_right = (
-            random_allocation_distributions._compute_discrete_prob(
+            ra_distributions._compute_discrete_prob(
                 dist=dist,
                 x_array=x_array,
-                bound_type=random_allocation_types.BoundType.DOMINATES,
+                bound_type=ra_types.BoundType.DOMINATES,
                 pmf_min_increment=0.0,
             )
         )
@@ -284,10 +284,10 @@ class ComputeDiscretePmfTest(absltest.TestCase):
         dist = stats.norm(loc=0.0, scale=1.0)
         x_array = np.linspace(-3.0, 3.0, 1001)
         bin_prob, p_left, p_right = (
-            random_allocation_distributions._compute_discrete_prob(
+            ra_distributions._compute_discrete_prob(
                 dist=dist,
                 x_array=x_array,
-                bound_type=random_allocation_types.BoundType.DOMINATES,
+                bound_type=ra_types.BoundType.DOMINATES,
                 pmf_min_increment=0.0,
             )
         )
@@ -299,10 +299,10 @@ class ComputeDiscretePmfTest(absltest.TestCase):
         dist = stats.expon(scale=1.0)
         x_array = np.linspace(0.0, 5.0, 51)
         _bin_prob, p_left, p_right = (
-            random_allocation_distributions._compute_discrete_prob(
+            ra_distributions._compute_discrete_prob(
                 dist=dist,
                 x_array=x_array,
-                bound_type=random_allocation_types.BoundType.DOMINATES,
+                bound_type=ra_types.BoundType.DOMINATES,
                 pmf_min_increment=0.0,
             )
         )
@@ -318,7 +318,7 @@ class PmfRemapToGridTest(absltest.TestCase):
         pmf_in = np.array([0.2, 0.5, 0.3], dtype=np.float64)
         x_out = x_in.copy()
 
-        pmf_out = random_allocation_distributions._rediscretize_prob(
+        pmf_out = ra_distributions._rediscretize_prob(
             x_in, pmf_in, x_out, dominates=True
         )
         np.testing.assert_allclose(pmf_out, pmf_in)
@@ -328,7 +328,7 @@ class PmfRemapToGridTest(absltest.TestCase):
         pmf_in = np.array([0.3, 0.4, 0.3], dtype=np.float64)
         x_out = np.array([1.0, 2.0, 3.0, 4.0])
 
-        pmf_out = random_allocation_distributions._rediscretize_prob(
+        pmf_out = ra_distributions._rediscretize_prob(
             x_in, pmf_in, x_out, dominates=True
         )
         self.assertGreaterEqual(pmf_out[2], 0.4)
@@ -338,7 +338,7 @@ class PmfRemapToGridTest(absltest.TestCase):
         pmf_in = np.array([0.3, 0.4, 0.3], dtype=np.float64)
         x_out = np.array([1.0, 2.0, 3.0, 4.0])
 
-        pmf_out = random_allocation_distributions._rediscretize_prob(
+        pmf_out = ra_distributions._rediscretize_prob(
             x_in, pmf_in, x_out, dominates=False
         )
         self.assertGreaterEqual(pmf_out[1], 0.4)
@@ -348,14 +348,14 @@ class PmfRemapToGridTest(absltest.TestCase):
         pmf_in = np.array([0.3, 0.4, 0.3], dtype=np.float64)
         x_out = np.array([1.0, 2.0, 3.0])
 
-        pmf_out = random_allocation_distributions._rediscretize_prob(
+        pmf_out = ra_distributions._rediscretize_prob(
             x_in, pmf_in, x_out, dominates=True
         )
-        _, _, ppos = random_allocation_distributions._enforce_mass_conservation(
+        _, _, ppos = ra_distributions._enforce_mass_conservation(
             prob_arr=pmf_out,
             expected_p_min=0.0,
             expected_p_max=0.0,
-            bound_type=random_allocation_types.BoundType.DOMINATES,
+            bound_type=ra_types.BoundType.DOMINATES,
         )
         self.assertGreaterEqual(ppos, 0.3)
 
@@ -364,16 +364,16 @@ class PmfRemapToGridTest(absltest.TestCase):
         pmf_in = np.array([0.1, 0.3, 0.4, 0.2], dtype=np.float64)
         x_out = np.array([1.0, 2.0, 3.0])
 
-        pmf_out = random_allocation_distributions._rediscretize_prob(
+        pmf_out = ra_distributions._rediscretize_prob(
             x_in, pmf_in, x_out, dominates=True
         )
         total_in = math.fsum(map(float, pmf_in))
         pmf_out, pneg, ppos = (
-            random_allocation_distributions._enforce_mass_conservation(
+            ra_distributions._enforce_mass_conservation(
                 prob_arr=pmf_out,
                 expected_p_min=0.0,
                 expected_p_max=0.0,
-                bound_type=random_allocation_types.BoundType.DOMINATES,
+                bound_type=ra_types.BoundType.DOMINATES,
             )
         )
         total_out = math.fsum([*map(float, pmf_out), pneg, ppos])
@@ -385,11 +385,11 @@ class EnforceMassConservationTest(absltest.TestCase):
     def test_dominates_can_consume_soft_p_min(self):
         prob_arr = np.array([0.4, 0.1], dtype=np.float64)
         prob_out, p_min, p_max = (
-            random_allocation_distributions._enforce_mass_conservation(
+            ra_distributions._enforce_mass_conservation(
                 prob_arr=prob_arr,
                 expected_p_min=0.3,
                 expected_p_max=0.4,
-                bound_type=random_allocation_types.BoundType.DOMINATES,
+                bound_type=ra_types.BoundType.DOMINATES,
             )
         )
 
@@ -402,11 +402,11 @@ class EnforceMassConservationTest(absltest.TestCase):
     def test_is_dominated_can_consume_soft_p_max(self):
         prob_arr = np.array([0.1, 0.4], dtype=np.float64)
         prob_out, p_min, p_max = (
-            random_allocation_distributions._enforce_mass_conservation(
+            ra_distributions._enforce_mass_conservation(
                 prob_arr=prob_arr,
                 expected_p_min=0.4,
                 expected_p_max=0.3,
-                bound_type=random_allocation_types.BoundType.IS_DOMINATED,
+                bound_type=ra_types.BoundType.IS_DOMINATED,
             )
         )
 
@@ -421,12 +421,12 @@ class ComputeTruncationTest(absltest.TestCase):
 
     def test_strips_zero_edges_before_tail_truncation(self):
         new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = (
-            random_allocation_distributions._compute_truncation(
+            ra_distributions._compute_truncation(
                 prob_arr=np.array([0.0, 0.8], dtype=np.float64),
                 p_min=0.0,
                 p_max=0.2,
                 tail_truncation=0.1,
-                bound_type=random_allocation_types.BoundType.DOMINATES,
+                bound_type=ra_types.BoundType.DOMINATES,
             )
         )
 
@@ -437,12 +437,12 @@ class ComputeTruncationTest(absltest.TestCase):
 
     def test_keeps_boundary_when_it_is_the_first_remaining_element(self):
         new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = (
-            random_allocation_distributions._compute_truncation(
+            ra_distributions._compute_truncation(
                 prob_arr=np.array([0.0, 0.2, 0.5], dtype=np.float64),
                 p_min=0.3,
                 p_max=0.0,
                 tail_truncation=0.1,
-                bound_type=random_allocation_types.BoundType.DOMINATES,
+                bound_type=ra_types.BoundType.DOMINATES,
             )
         )
 
@@ -453,12 +453,12 @@ class ComputeTruncationTest(absltest.TestCase):
 
     def test_truncation_folds_consumed_boundary_into_first_finite_bin(self):
         new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = (
-            random_allocation_distributions._compute_truncation(
+            ra_distributions._compute_truncation(
                 prob_arr=np.array([0.2, 0.75], dtype=np.float64),
                 p_min=0.05,
                 p_max=0.0,
                 tail_truncation=0.1,
-                bound_type=random_allocation_types.BoundType.DOMINATES,
+                bound_type=ra_types.BoundType.DOMINATES,
             )
         )
 
@@ -469,12 +469,12 @@ class ComputeTruncationTest(absltest.TestCase):
 
     def test_strips_zero_edges_for_is_dominated_right_tail(self):
         new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = (
-            random_allocation_distributions._compute_truncation(
+            ra_distributions._compute_truncation(
                 prob_arr=np.array([0.8, 0.0], dtype=np.float64),
                 p_min=0.2,
                 p_max=0.0,
                 tail_truncation=0.1,
-                bound_type=random_allocation_types.BoundType.IS_DOMINATED,
+                bound_type=ra_types.BoundType.IS_DOMINATED,
             )
         )
 
@@ -484,14 +484,14 @@ class ComputeTruncationTest(absltest.TestCase):
         self.assertEqual((min_ind, max_ind), (0, 0))
 
     def test_dense_truncate_edges_updates_x_min_after_zero_edge_removal(self):
-        dist = random_allocation_distributions.DenseDiscreteDist(
+        dist = ra_distributions.DenseDiscreteDist(
             x_min=0.0,
             step=1.0,
             prob_arr=np.array([0.0, 0.8], dtype=np.float64),
             p_max=0.2,
         )
 
-        result = dist.truncate_edges(0.1, random_allocation_types.BoundType.DOMINATES)
+        result = dist.truncate_edges(0.1, ra_types.BoundType.DOMINATES)
 
         np.testing.assert_allclose(result.x_array, np.array([1.0], dtype=np.float64))
         np.testing.assert_allclose(result.prob_arr, np.array([0.8], dtype=np.float64))
@@ -499,13 +499,13 @@ class ComputeTruncationTest(absltest.TestCase):
         np.testing.assert_allclose(result.p_max, 0.2)
 
     def test_dense_truncate_edges_removes_right_tail_under_truncation_budget(self):
-        dist = random_allocation_distributions.DenseDiscreteDist(
+        dist = ra_distributions.DenseDiscreteDist(
             x_min=1.0,
             step=1.0,
             prob_arr=np.array([0.8, 0.1, 0.1], dtype=np.float64),
         )
 
-        result = dist.truncate_edges(0.15, random_allocation_types.BoundType.DOMINATES)
+        result = dist.truncate_edges(0.15, ra_types.BoundType.DOMINATES)
 
         np.testing.assert_allclose(result.x_array, np.array([1.0, 2.0], dtype=np.float64))
         np.testing.assert_allclose(result.prob_arr, np.array([0.8, 0.1], dtype=np.float64))
@@ -519,7 +519,7 @@ class ZeroMassTest(absltest.TestCase):
         with self.assertRaisesRegex(
             ValueError, "mass must be smaller than total array mass"
         ):
-            random_allocation_distributions._zero_mass(
+            ra_distributions._zero_mass(
                 values=np.array([0.2, 0.8], dtype=np.float64),
                 mass=1.0,
                 from_left=True,
@@ -530,18 +530,18 @@ class ZeroMassTest(absltest.TestCase):
 class RediscretizeBoundaryFoldingTest(absltest.TestCase):
 
     def test_rediscretize_near_point_mass_distribution(self):
-        dist = random_allocation_distributions.DenseDiscreteDist(
+        dist = ra_distributions.DenseDiscreteDist(
             x_min=0.5,
             step=0.5,
             prob_arr=np.array([1.0 - 1e-6, 1e-6], dtype=np.float64),
         )
 
-        result = random_allocation_distributions._rediscretize_dist(
+        result = ra_distributions._rediscretize_dist(
             dist=dist,
             tail_truncation=1e-8,
             loss_discretization=1e-2,
-            spacing_type=random_allocation_types.SpacingType.LINEAR,
-            bound_type=random_allocation_types.BoundType.DOMINATES,
+            spacing_type=ra_types.SpacingType.LINEAR,
+            bound_type=ra_types.BoundType.DOMINATES,
         )
 
         np.testing.assert_allclose(result.step, 1e-2)
@@ -551,18 +551,18 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
         np.testing.assert_allclose(total, 1.0)
 
     def test_is_dominated_moves_p_max_into_last_finite_cell(self):
-        dist = random_allocation_distributions.DenseDiscreteDist.from_x_array(
+        dist = ra_distributions.DenseDiscreteDist.from_x_array(
             x_array=np.array([0.0, 1.0, 2.0], dtype=np.float64),
             prob_arr=np.array([0.2, 0.3, 0.4], dtype=np.float64),
             p_max=0.1,
         )
 
-        result = random_allocation_distributions._rediscretize_dist(
+        result = ra_distributions._rediscretize_dist(
             dist=dist,
             tail_truncation=0.0,
             loss_discretization=1.0,
-            spacing_type=random_allocation_types.SpacingType.LINEAR,
-            bound_type=random_allocation_types.BoundType.IS_DOMINATED,
+            spacing_type=ra_types.SpacingType.LINEAR,
+            bound_type=ra_types.BoundType.IS_DOMINATED,
         )
 
         np.testing.assert_allclose(result.p_max, 0.0)
@@ -571,18 +571,18 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
         np.testing.assert_allclose(total, 1.0)
 
     def test_dominates_linear_moves_p_min_into_first_finite_cell(self):
-        dist = random_allocation_distributions.DenseDiscreteDist.from_x_array(
+        dist = ra_distributions.DenseDiscreteDist.from_x_array(
             x_array=np.array([0.0, 1.0, 2.0], dtype=np.float64),
             prob_arr=np.array([0.2, 0.3, 0.4], dtype=np.float64),
             p_min=0.1,
         )
 
-        result = random_allocation_distributions._rediscretize_dist(
+        result = ra_distributions._rediscretize_dist(
             dist=dist,
             tail_truncation=0.0,
             loss_discretization=1.0,
-            spacing_type=random_allocation_types.SpacingType.LINEAR,
-            bound_type=random_allocation_types.BoundType.DOMINATES,
+            spacing_type=ra_types.SpacingType.LINEAR,
+            bound_type=ra_types.BoundType.DOMINATES,
         )
 
         np.testing.assert_allclose(result.p_min, 0.0)
@@ -591,20 +591,20 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
         np.testing.assert_allclose(total, 1.0)
 
     def test_dominates_geometric_keeps_zero_atom(self):
-        dist = random_allocation_distributions.DenseDiscreteDist.from_x_array(
+        dist = ra_distributions.DenseDiscreteDist.from_x_array(
             x_array=np.array([1.0, 2.0, 4.0], dtype=np.float64),
             prob_arr=np.array([0.2, 0.3, 0.4], dtype=np.float64),
             p_min=0.1,
-            spacing_type=random_allocation_types.SpacingType.GEOMETRIC,
-            domain=random_allocation_distributions.Domain.POSITIVES,
+            spacing_type=ra_types.SpacingType.GEOMETRIC,
+            domain=ra_distributions.Domain.POSITIVES,
         )
 
-        result = random_allocation_distributions._rediscretize_dist(
+        result = ra_distributions._rediscretize_dist(
             dist=dist,
             tail_truncation=0.0,
             loss_discretization=np.log(2.0),
-            spacing_type=random_allocation_types.SpacingType.GEOMETRIC,
-            bound_type=random_allocation_types.BoundType.DOMINATES,
+            spacing_type=ra_types.SpacingType.GEOMETRIC,
+            bound_type=ra_types.BoundType.DOMINATES,
         )
 
         np.testing.assert_allclose(result.p_min, 0.1)
@@ -619,10 +619,10 @@ class RediscretizeProbNumbaTest(absltest.TestCase):
         pmf_in = np.array([0.2, 0.0, 0.15, 0.25, 0.1, 0.3], dtype=np.float64)
         x_out = np.array([0.5, 1.0, 1.5, 3.0], dtype=np.float64)
 
-        expected = random_allocation_distributions._numba_rediscretize_prob(
+        expected = ra_distributions._numba_rediscretize_prob(
             x_in, pmf_in, x_out, dominates
         )
-        actual = random_allocation_distributions._numpy_rediscretize_prob(
+        actual = ra_distributions._numpy_rediscretize_prob(
             x_in, pmf_in, x_out, dominates
         )
 
@@ -639,17 +639,17 @@ class RediscretizeProbNumbaTest(absltest.TestCase):
         pmf_in = np.array([0.2, 0.5, 0.3], dtype=np.float64)
         x_out = np.array([0.5, 1.0, 1.5], dtype=np.float64)
 
-        original_has_numba = random_allocation_types._HAS_NUMBA
+        original_has_numba = ra_types._HAS_NUMBA
         try:
-            random_allocation_types._HAS_NUMBA = False
-            expected = random_allocation_distributions._numpy_rediscretize_prob(
+            ra_types._HAS_NUMBA = False
+            expected = ra_distributions._numpy_rediscretize_prob(
                 x_in, pmf_in, x_out, True
             )
-            actual = random_allocation_distributions._rediscretize_prob(
+            actual = ra_distributions._rediscretize_prob(
                 x_in, pmf_in, x_out, True
             )
         finally:
-            random_allocation_types._HAS_NUMBA = original_has_numba
+            ra_types._HAS_NUMBA = original_has_numba
 
         np.testing.assert_allclose(actual, expected, rtol=0.0, atol=0.0)
 
