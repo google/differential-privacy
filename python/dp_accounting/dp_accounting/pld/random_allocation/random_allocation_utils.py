@@ -6,9 +6,9 @@ import math
 from typing import Any, Callable
 
 import numpy as np
-from numba import njit
 from numpy.typing import NDArray
 
+from . import random_allocation_types
 from .random_allocation_distributions import (
     DenseDiscreteDist,
     DiscreteDistBase,
@@ -333,7 +333,7 @@ def _ccdf_from_pmf(dist: DiscreteDistBase) -> NDArray[np.float64]:
     )
 
 
-@njit(cache=True)
+@random_allocation_types._optional_njit()
 def _kahan_reverse_exclusive_cumsum(
     padded_probs: NDArray[np.float64],
 ) -> NDArray[np.float64]:

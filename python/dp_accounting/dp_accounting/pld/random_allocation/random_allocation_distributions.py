@@ -8,12 +8,12 @@ from enum import Enum
 from typing import Any
 
 import numpy as np
-from numba import njit
 from numpy.typing import NDArray
 from scipy import stats
 from scipy.stats._distn_infrastructure import rv_frozen
 from typing_extensions import Self
 
+from . import random_allocation_types
 from .random_allocation_types import (
     BoundType,
     RegularGrid,
@@ -1153,20 +1153,66 @@ def discretize_aligned_range(
     ).x_array
 
 
-@njit(cache=True)
 def rediscretize_prob(
     x_array: NDArray[np.float64],
     prob_arr: NDArray[np.float64],
     x_array_out: NDArray[np.float64],
     dominates: bool,
 ) -> NDArray[np.float64]:
-    """Remap PMF onto new grid with domination-aware rounding.
+    """Remap PMF onto new grid with domination-aware rounding."""
+    if random_allocation_types.has_numba():
+        return _numba_rediscretize_prob(x_array, prob_arr, x_array_out, dominates)
+    return _numpy_rediscretize_prob(x_array, prob_arr, x_array_out, dominates)
 
-    Maps each probability mass to output grid position based on domination semantics.
-    Implementation: dominates=True uses ceil (pessimistic), False uses floor (optimistic).
-    Uses Kahan summation for numerical accuracy.
-    Returns: remapped PMF array.
 
+def _numpy_rediscretize_prob(
+    x_array: NDArray[np.float64],
+    prob_arr: NDArray[np.float64],
+    x_array_out: NDArray[np.float64],
+    dominates: bool,
+) -> NDArray[np.float64]:
+    """Vectorised PMF remap using np.searchsorted + np.add.at.
+
+    Uses binary search to locate each input value's target output bin in one
+    pass, then scatters masses with np.add.at.  Overflow/underflow values
+    (indices outside [0, n_out)) are dropped; enforce_mass_conservation
+    later folds that lost mass into p_max or p_min.
+    """
+    n_out = x_array_out.size
+    prob_arr_out = np.zeros(n_out, dtype=np.float64)
+
+    positive_mass = prob_arr > 0.0
+    if not np.any(positive_mass):
+        return prob_arr_out
+
+    x = x_array[positive_mass]
+    mass = prob_arr[positive_mass]
+    if dominates:
+        indices = np.searchsorted(x_array_out, x, side="left")
+        valid = indices < n_out
+    else:
+        indices = np.searchsorted(x_array_out, x, side="right") - 1
+        valid = indices >= 0
+
+    np.add.at(prob_arr_out, indices[valid], mass[valid])
+    return prob_arr_out
+
+
+@random_allocation_types._optional_njit()
+def _numba_rediscretize_prob(
+    x_array: NDArray[np.float64],
+    prob_arr: NDArray[np.float64],
+    x_array_out: NDArray[np.float64],
+    dominates: bool,
+) -> NDArray[np.float64]:
+    """PMF remap using a single forward scan with Kahan-compensated summation.
+
+    Exploits the fact that both grids are sorted: a single pointer j advances
+    monotonically through x_array_out as i steps through x_array, giving
+    O(n) bin lookup.  Kahan summation accumulates mass into each output bin
+    to minimise floating-point error when many small values land in the same
+    bin.  Overflow/underflow values are dropped; enforce_mass_conservation
+    later folds that lost mass into p_max or p_min.
     """
     n_out = x_array_out.size
     prob_arr_out = np.zeros(n_out)
@@ -1228,7 +1274,7 @@ def rediscretize_prob(
 # =============================================================================
 
 
-@njit(cache=True)
+@random_allocation_types._optional_njit()
 def _adaptive_bins_from_cdf(
     *,
     cdf: NDArray[np.float64],
@@ -1260,7 +1306,7 @@ def _adaptive_bins_from_cdf(
     return bin_probs
 
 
-@njit(cache=True)
+@random_allocation_types._optional_njit()
 def _adaptive_bins_from_sf(
     *,
     sf: NDArray[np.float64],

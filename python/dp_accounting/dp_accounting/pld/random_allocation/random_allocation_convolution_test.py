@@ -4,10 +4,18 @@ import math
 
 import numpy as np
 import pytest
-from .random_allocation_convolution import fft_convolve, fft_self_convolve, geometric_convolve
+from .random_allocation_convolution import (
+    _geometric_kernel,
+    _numba_geometric_kernel,
+    _numpy_geometric_kernel,
+    fft_convolve,
+    fft_self_convolve,
+    geometric_convolve,
+)
 from .random_allocation_distributions import DenseDiscreteDist, Domain
 from .random_allocation_types import BoundType, SpacingType
 from .random_allocation_utils import binary_self_convolve, log_geometric_to_linear
+from . import random_allocation_types
 
 
 def _linear_dist(n: int = 5) -> DenseDiscreteDist:
@@ -123,3 +131,52 @@ def test_fft_self_convolve_direct_vs_binary():
 
     assert direct.x_array.size >= 2
     assert binary.x_array.size >= 2
+
+
+def test_numpy_geometric_kernel_matches_numba_kernel():
+    pmf_base = np.array([0.2, 0.0, 0.3, 0.1, 0.4], dtype=np.float64)
+    pmf_scaled = np.array([0.1, 0.25, 0.0, 0.15, 0.5], dtype=np.float64)
+    delta_lohi = np.array([0, -1, 0, 2, 8], dtype=np.int64)
+    delta_hilo = np.array([0, 0, 1, -2, 3], dtype=np.int64)
+
+    expected = _numba_geometric_kernel(
+        PMF_base=pmf_base,
+        PMF_scaled=pmf_scaled,
+        delta_lohi=delta_lohi,
+        delta_hilo=delta_hilo,
+    )
+    actual = _numpy_geometric_kernel(
+        PMF_base=pmf_base,
+        PMF_scaled=pmf_scaled,
+        delta_lohi=delta_lohi,
+        delta_hilo=delta_hilo,
+    )
+
+    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=1e-15)
+
+
+def test_geometric_kernel_uses_numpy_fallback_without_numba():
+    pmf_base = np.array([0.2, 0.3, 0.5], dtype=np.float64)
+    pmf_scaled = np.array([0.4, 0.1, 0.5], dtype=np.float64)
+    delta_lohi = np.array([0, 0, 1], dtype=np.int64)
+    delta_hilo = np.array([0, 1, -1], dtype=np.int64)
+
+    original_has_numba = random_allocation_types._HAS_NUMBA
+    try:
+        random_allocation_types._HAS_NUMBA = False
+        expected = _numpy_geometric_kernel(
+            PMF_base=pmf_base,
+            PMF_scaled=pmf_scaled,
+            delta_lohi=delta_lohi,
+            delta_hilo=delta_hilo,
+        )
+        actual = _geometric_kernel(
+            PMF_base=pmf_base,
+            PMF_scaled=pmf_scaled,
+            delta_lohi=delta_lohi,
+            delta_hilo=delta_hilo,
+        )
+    finally:
+        random_allocation_types._HAS_NUMBA = original_has_numba
+
+    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=0.0)

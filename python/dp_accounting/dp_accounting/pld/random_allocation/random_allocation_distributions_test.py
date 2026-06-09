@@ -15,6 +15,8 @@ from .random_allocation_distributions import (
     Domain,
     PLDRealization,
     _compute_discrete_prob as compute_discrete_PMF,
+    _numba_rediscretize_prob,
+    _numpy_rediscretize_prob,
     _zero_mass,
     compute_bin_log_ratio,
     compute_bin_width,
@@ -29,6 +31,7 @@ from .random_allocation_distributions import (
 from .random_allocation_core import linear_dist_to_dp_accounting_pmf
 from .random_allocation_types import BoundType, RegularGrid, SpacingType
 from .random_allocation_utils import exp_linear_to_geometric, log_geometric_to_linear
+from . import random_allocation_types
 from scipy import stats
 
 
@@ -560,3 +563,31 @@ class TestRediscretizeBoundaryFolding:
         assert np.isclose(
             math.fsum([*map(float, result.prob_arr), result.p_min, result.p_max]), 1.0
         )
+
+
+@pytest.mark.parametrize("dominates", [True, False])
+def test_numpy_rediscretize_prob_matches_numba(dominates):
+    x_in = np.array([0.2, 0.8, 1.0, 1.7, 2.9, 4.2], dtype=np.float64)
+    pmf_in = np.array([0.2, 0.0, 0.15, 0.25, 0.1, 0.3], dtype=np.float64)
+    x_out = np.array([0.5, 1.0, 1.5, 3.0], dtype=np.float64)
+
+    expected = _numba_rediscretize_prob(x_in, pmf_in, x_out, dominates)
+    actual = _numpy_rediscretize_prob(x_in, pmf_in, x_out, dominates)
+
+    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=1e-15)
+
+
+def test_rediscretize_prob_dispatch_uses_numpy_fallback_without_numba():
+    x_in = np.array([0.2, 1.0, 1.7], dtype=np.float64)
+    pmf_in = np.array([0.2, 0.5, 0.3], dtype=np.float64)
+    x_out = np.array([0.5, 1.0, 1.5], dtype=np.float64)
+
+    original_has_numba = random_allocation_types._HAS_NUMBA
+    try:
+        random_allocation_types._HAS_NUMBA = False
+        expected = _numpy_rediscretize_prob(x_in, pmf_in, x_out, True)
+        actual = pmf_remap_to_grid_kernel(x_in, pmf_in, x_out, True)
+    finally:
+        random_allocation_types._HAS_NUMBA = original_has_numba
+
+    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=0.0)

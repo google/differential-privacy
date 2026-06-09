@@ -13,6 +13,7 @@ from .random_allocation_types import (
     Direction,
     PrivacyParams,
     SpacingType,
+    has_numba,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "SpacingType",
     "gaussian_allocation_pld",
     "general_allocation_pld",
+    "has_numba",
 ]

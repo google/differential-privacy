@@ -2,11 +2,54 @@
 
 from __future__ import annotations
 
+import warnings as _warnings
 from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
 from numpy.typing import NDArray
+
+# numba is an optional dependency: if installed, JIT-compiled functions run
+# significantly faster; if not, callers can dispatch to NumPy fallbacks. _NJIT
+# is imported as a private name so callers must use _optional_njit() and cannot
+# accidentally bypass the fallback by using @njit directly.
+_NJIT = None
+try:
+    from numba import njit as _NJIT  # type: ignore[assignment]
+
+    _HAS_NUMBA = True
+except ImportError:
+    _HAS_NUMBA = False
+    _warnings.warn(
+        "numba is not installed; some operations will use NumPy fallbacks "
+        "and may be slower. Install numba for full performance.",
+        ImportWarning,
+        stacklevel=2,
+    )
+
+
+def _optional_njit():
+    """Return a cached numba njit decorator, or the identity decorator.
+
+    Use as a decorator at function-definition time for kernels whose Python
+    body is valid (just slow) without JIT compilation.  The function runs
+    correctly either way; numba only accelerates it.
+    """
+    if _HAS_NUMBA:
+        assert _NJIT is not None
+        return _NJIT(cache=True)
+    return lambda x: x
+
+
+def has_numba() -> bool:
+    """Return whether numba JIT compilation is available.
+
+    Use at call time to dispatch between a JIT kernel and a separate NumPy
+    fallback when the two implementations differ structurally (e.g. a
+    scalar loop vs. a vectorised array operation).  Unlike _optional_njit,
+    this lets callers choose a fundamentally different code path at runtime.
+    """
+    return _HAS_NUMBA
 
 # =============================================================================
 # Discrete Distribution Types

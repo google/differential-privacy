@@ -8,10 +8,10 @@ import warnings
 
 import numpy as np
 from dp_accounting.pld.common import compute_self_convolve_bounds
-from numba import njit
 from numpy.typing import NDArray
 from scipy.fft import irfft, next_fast_len, rfft
 
+from . import random_allocation_types
 from .random_allocation_distributions import DenseDiscreteDist, Domain
 from .random_allocation_distributions import enforce_mass_conservation, stable_isclose
 from .random_allocation_types import BoundType, SpacingType
@@ -510,7 +510,7 @@ def _compute_geometric_convolution(
         raise ValueError(f"Unknown BoundType: {bound_type}")
 
     # --- C. Kernel Execution ---
-    pmf_out = _numba_geometric_kernel(
+    pmf_out = _geometric_kernel(
         PMF_base=pmf_base,
         PMF_scaled=pmf_scaled,
         delta_lohi=delta_lohi,
@@ -545,7 +545,74 @@ def _pad_right_geometric(
     return x_ext, p_ext
 
 
-@njit(cache=True)
+def _geometric_kernel(
+    *,
+    PMF_base: NDArray[np.float64],
+    PMF_scaled: NDArray[np.float64],
+    delta_lohi: NDArray[np.int64],
+    delta_hilo: NDArray[np.int64],
+) -> NDArray[np.float64]:
+    """Dispatch geometric-grid convolution to numba or NumPy fallback."""
+    if random_allocation_types.has_numba():
+        return _numba_geometric_kernel(
+            PMF_base=PMF_base,
+            PMF_scaled=PMF_scaled,
+            delta_lohi=delta_lohi,
+            delta_hilo=delta_hilo,
+        )
+    return _numpy_geometric_kernel(
+        PMF_base=PMF_base,
+        PMF_scaled=PMF_scaled,
+        delta_lohi=delta_lohi,
+        delta_hilo=delta_hilo,
+    )
+
+
+def _numpy_geometric_kernel(
+    *,
+    PMF_base: NDArray[np.float64],
+    PMF_scaled: NDArray[np.float64],
+    delta_lohi: NDArray[np.int64],
+    delta_hilo: NDArray[np.int64],
+) -> NDArray[np.float64]:
+    """Pure-NumPy fallback for the geometric-grid convolution kernel.
+
+    For each output bin k, collects all source pairs (i, i+d) that map to it
+    via the precomputed shifts delta_lohi and delta_hilo.
+    """
+    n = PMF_base.size
+    # d=0 (diagonal): both ordered pairs (i, i) are identical, so the d>0 loop
+    # below would double-count it; computed once here as an element-wise product.
+    pmf_out = PMF_base * PMF_scaled
+    if n <= 1:
+        return pmf_out
+
+    # For each output bin k, the contributing source index is i = k - delta[d].
+    # Pair (i, i+d) maps to bin i+delta_lohi[d]; symmetric pair (i+d, i) to i+delta_hilo[d].
+    d = np.arange(1, n, dtype=np.int64)
+    for k in range(n):
+        i_lohi = k - delta_lohi[1:]
+        valid_lohi = (0 <= i_lohi) & (i_lohi < n - d)
+        if np.any(valid_lohi):
+            pmf_out[k] += np.sum(
+                PMF_base[i_lohi[valid_lohi]]
+                * PMF_scaled[i_lohi[valid_lohi] + d[valid_lohi]],
+                dtype=np.float64,
+            )
+
+        i_hilo = k - delta_hilo[1:]
+        valid_hilo = (0 <= i_hilo) & (i_hilo < n - d)
+        if np.any(valid_hilo):
+            pmf_out[k] += np.sum(
+                PMF_base[i_hilo[valid_hilo] + d[valid_hilo]]
+                * PMF_scaled[i_hilo[valid_hilo]],
+                dtype=np.float64,
+            )
+
+    return pmf_out
+
+
+@random_allocation_types._optional_njit()
 def _numba_geometric_kernel(
     *,
     PMF_base: NDArray[np.float64],
@@ -553,15 +620,17 @@ def _numba_geometric_kernel(
     delta_lohi: NDArray[np.int64],
     delta_hilo: NDArray[np.int64],
 ) -> NDArray[np.float64]:
-    """Core convolution loop.
+    """Scatter source pairs (i, i+d) to output bins via precomputed delta shifts.
 
-    Calculates Z = X + Y by iterating over the difference 'd' between indices.
-
+    Mass PMF_base[i]*PMF_scaled[i+d] is placed at bin i+delta_lohi[d]; the
+    symmetric term at i+delta_hilo[d].  Kahan summation (comp) reduces
+    floating-point error when many small contributions land in the same bin.
     """
     n = PMF_base.size
     pmf_out = np.zeros(n, dtype=np.float64)
     comp = np.zeros(n, dtype=np.float64)
 
+    # d=0: diagonal counted once (see _numpy_geometric_kernel for the rationale).
     for i in range(n):
         mass = PMF_base[i] * PMF_scaled[i]
         y = mass - comp[i]
@@ -571,8 +640,8 @@ def _numba_geometric_kernel(
 
     for d in range(1, n):
         imax = n - d
-        kshift1 = int(delta_lohi[d])
-        kshift2 = int(delta_hilo[d])
+        kshift1 = delta_lohi[d]
+        kshift2 = delta_hilo[d]
 
         for i in range(imax):
             k1 = i + kshift1
@@ -604,54 +673,37 @@ def _add_single_zero_atom_cross_term(
     geom_step: float,
     bound_type: BoundType,
 ) -> NDArray[np.float64]:
-    """Map one family of 0+finite cross-terms onto the fixed output grid."""
+    """Add mass from one zero atom and the other input's finite support.
+
+    Each mass ``zero_prob * prob_arr[i]`` is mapped to the output geometric grid
+    using the rounding and underflow rule required by ``bound_type``.
+    """
     if zero_prob == 0.0:
         return pmf_conv
 
-    return _numba_add_single_zero_atom_cross_term(
-        pmf_out=pmf_conv,
-        x_vals=np.asarray(x_arr, dtype=np.float64),
-        prob_arr=np.asarray(prob_arr, dtype=np.float64),
-        zero_prob=float(zero_prob),
-        x_out_0=float(x_out_0),
-        log_r=float(geom_step),
-        dominates=(bound_type == BoundType.DOMINATES),
-    )
+    weights = prob_arr * zero_prob
+    valid = (weights != 0.0) & (x_arr > 0.0)
+    if not np.any(valid):
+        return pmf_conv
 
+    # The output grid is geometric: x_out_k = x_out_0 * exp(k * geom_step), and equivilently, k = log(x_out_k/x_out_0)/geom_step.
+    # This value is rounded according to the domination requirement with additional padding or numerical stability.
+    frac_k = np.log(x_arr[valid] / x_out_0) / geom_step
+    if bound_type == BoundType.DOMINATES:
+        k = np.ceil(frac_k - _GRID_ROUNDING_TOL).astype(np.int64)
+    else:
+        k = np.floor(frac_k + _GRID_ROUNDING_TOL).astype(np.int64)
 
-@njit(cache=True)
-def _numba_add_single_zero_atom_cross_term(
-    *,
-    pmf_out: NDArray[np.float64],
-    x_vals: NDArray[np.float64],
-    prob_arr: NDArray[np.float64],
-    zero_prob: float,
-    x_out_0: float,
-    log_r: float,
-    dominates: bool,
-) -> NDArray[np.float64]:
-    """Core loop for one 0+finite cross-term family."""
-    n = pmf_out.size
+    weights = weights[valid]
+    n = pmf_conv.size
+    if bound_type == BoundType.DOMINATES:
+        mapped = k.copy()
+        mapped[mapped < 0] = 0
+        valid_k = mapped < n
+    else:
+        mapped = k
+        valid_k = (0 <= mapped) & (mapped < n)
 
-    for i in range(prob_arr.size):
-        weight = prob_arr[i] * zero_prob
-        if weight == 0.0:
-            continue
+    np.add.at(pmf_conv, mapped[valid_k], weights[valid_k])
 
-        x = x_vals[i]
-        if x <= 0.0:
-            continue
-
-        frac_k = math.log(x / x_out_0) / log_r
-        if dominates:
-            k = int(math.ceil(frac_k - _GRID_ROUNDING_TOL))
-        else:
-            k = int(math.floor(frac_k + _GRID_ROUNDING_TOL))
-
-        if 0 <= k < n:
-            pmf_out[k] += weight
-        elif k < 0 and dominates:
-            # Upper-bound rounding maps sub-grid mass to the first finite bin.
-            pmf_out[0] += weight
-
-    return pmf_out
+    return pmf_conv
