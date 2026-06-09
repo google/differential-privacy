@@ -18,6 +18,26 @@ from dp_accounting.pld.random_allocation import ra_utils
 # Maximum bytes for a single FFT allocation (default 8 GB, override via MAX_FFT_BYTES env var)
 MAX_FFT_BYTES = int(os.environ.get("MAX_FFT_BYTES", 8 * 1024**3))
 
+# Rounding tolerance for grid bin mapping — must stay at machine-epsilon scale
+# to avoid misrouting mass between bins.
+_GRID_ROUNDING_TOL = 10 * np.finfo(np.float64).eps
+
+
+def _check_fft_memory(fft_size: int, label: str = "FFT") -> None:
+    """Raise MemoryError if an FFT of this size would exceed the safety limit.
+
+    rfft produces complex128 output (~16 bytes per element) and the input is
+    float64 (~8 bytes), so peak usage is roughly 24 * fft_size bytes.
+    """
+    estimated_bytes = 24 * fft_size
+    if estimated_bytes > MAX_FFT_BYTES:
+        raise MemoryError(
+            f"{label}: estimated {estimated_bytes / 1024**3:.1f} GB for "
+            f"fft_size={fft_size:,} exceeds safety limit of "
+            f"{MAX_FFT_BYTES / 1024**3:.1f} GB. "
+            f"Reduce grid size, increase loss_discretization, or raise MAX_FFT_BYTES."
+        )
+
 
 def _fft_convolve(
     *,
@@ -45,9 +65,7 @@ def _fft_convolve(
         )
     if not np.any(dist_1.prob_arr) or not np.any(dist_2.prob_arr):
         raise ValueError("FFT convolution requires nonzero finite mass in both inputs")
-    if not ra_distributions._stable_isclose(
-        a=dist_1.step, b=dist_2.step
-    ):
+    if not ra_distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
         raise ValueError(
             f"Grid spacing must match: w1={dist_1.step:.12g} vs w2={dist_2.step:.12g}"
         )
@@ -118,40 +136,30 @@ def _fft_convolve(
     ).truncate_edges(tail_truncation, bound_type)
 
 
-def _fft_self_convolve(
-    *,
-    dist: ra_distributions.DenseDiscreteDist,
-    T: int,
-    tail_truncation: float,
-    bound_type: ra_types.BoundType,
-    use_direct: bool,
-) -> ra_distributions.DenseDiscreteDist:
-    """T-fold self-convolution via FFT with optional direct exponentiation path."""
-    ra_utils._assert_dense_linear_dist(dist)
-
-    if use_direct:
-        try:
-            return _fft_self_convolve_direct(
-                dist=dist,
-                T=T,
-                tail_truncation=tail_truncation,
-                bound_type=bound_type,
-            )
-        except MemoryError:
-            warnings.warn(
-                f"fft_self_convolve: direct method exceeded {MAX_FFT_BYTES / 1024**3:.0f} GB "
-                f"memory limit for T={T}, pmf_size={dist.prob_arr.size:,}. "
-                f"Falling back to binary self-convolution."
-            )
-
-    self_conv = ra_utils._binary_self_convolve(
-        dist=dist,
-        T=T,
-        tail_truncation=tail_truncation,
-        bound_type=bound_type,
-        convolve=_fft_convolve,
+def _calc_fft_window_size(
+    *, pmf: np.ndarray, num_convolutions: int, tail_truncation: float
+) -> tuple[int, int]:
+    """Calculate FFT window bounds for ``num_convolutions`` self-convolutions with fallback."""
+    # ``compute_self_convolve_bounds`` gives a Chernoff-style window [lower, upper] that
+    # should contain all but ``tail_truncation`` mass after ``num_convolutions`` convolutions.
+    lower_idx, upper_idx = compute_self_convolve_bounds(
+        pmf.tolist(), num_convolutions, tail_truncation
     )
-    return self_conv
+    window_size = upper_idx - lower_idx + 1
+
+    if not 0 < window_size < float("inf"):
+        lower_idx = 0
+        n = len(pmf)
+        # Fallback to the exact full-support FFT length when the bound becomes
+        # numerically unusable for extreme truncation parameters.
+        window_size = num_convolutions * (n - 1) + 1
+        warnings.warn(
+            "calc_fft_window_size: Chernoff bounds failed "
+            f"(tail_truncation={tail_truncation:.3e}, num_convolutions={num_convolutions}). "
+            f"Using fallback lower_idx=0, window_size={window_size:,} (n={n})."
+        )
+
+    return int(lower_idx), int(window_size)
 
 
 def _fft_self_convolve_direct(
@@ -232,13 +240,11 @@ def _fft_self_convolve_direct(
 
     x_min = dist.x_min * T + shift_left * dist.step
     pmf_conv = rolled_conv[:window_size]
-    pmf_conv, p_min_final, p_max_final = (
-        ra_distributions._enforce_mass_conservation(
-            prob_arr=pmf_conv,
-            expected_p_min=conv_p_min,
-            expected_p_max=conv_p_max,
-            bound_type=bound_type,
-        )
+    pmf_conv, p_min_final, p_max_final = ra_distributions._enforce_mass_conservation(
+        prob_arr=pmf_conv,
+        expected_p_min=conv_p_min,
+        expected_p_max=conv_p_max,
+        bound_type=bound_type,
     )
 
     return ra_distributions.DenseDiscreteDist(
@@ -251,182 +257,180 @@ def _fft_self_convolve_direct(
     ).truncate_edges(tail_truncation, bound_type)
 
 
-def _calc_fft_window_size(
-    *, pmf: np.ndarray, num_convolutions: int, tail_truncation: float
-) -> tuple[int, int]:
-    """Calculate FFT window bounds for ``num_convolutions`` self-convolutions with fallback."""
-    # ``compute_self_convolve_bounds`` gives a Chernoff-style window [lower, upper] that
-    # should contain all but ``tail_truncation`` mass after ``num_convolutions`` convolutions.
-    lower_idx, upper_idx = compute_self_convolve_bounds(
-        pmf.tolist(), num_convolutions, tail_truncation
-    )
-    window_size = upper_idx - lower_idx + 1
-
-    if not 0 < window_size < float("inf"):
-        lower_idx = 0
-        n = len(pmf)
-        # Fallback to the exact full-support FFT length when the bound becomes
-        # numerically unusable for extreme truncation parameters.
-        window_size = num_convolutions * (n - 1) + 1
-        warnings.warn(
-            "calc_fft_window_size: Chernoff bounds failed "
-            f"(tail_truncation={tail_truncation:.3e}, num_convolutions={num_convolutions}). "
-            f"Using fallback lower_idx=0, window_size={window_size:,} (n={n})."
-        )
-
-    return int(lower_idx), int(window_size)
-
-
-def _check_fft_memory(fft_size: int, label: str = "FFT") -> None:
-    """Raise MemoryError if an FFT of this size would exceed the safety limit.
-
-    rfft produces complex128 output (~16 bytes per element) and the input is
-    float64 (~8 bytes), so peak usage is roughly 24 * fft_size bytes.
-    """
-    estimated_bytes = 24 * fft_size
-    if estimated_bytes > MAX_FFT_BYTES:
-        raise MemoryError(
-            f"{label}: estimated {estimated_bytes / 1024**3:.1f} GB for "
-            f"fft_size={fft_size:,} exceeds safety limit of "
-            f"{MAX_FFT_BYTES / 1024**3:.1f} GB. "
-            f"Reduce grid size, increase loss_discretization, or raise MAX_FFT_BYTES."
-        )
-
-
-# Rounding tolerance for grid bin mapping — must stay at machine-epsilon scale
-# to avoid misrouting mass between bins.
-_GRID_ROUNDING_TOL = 10 * np.finfo(np.float64).eps
-
-# =============================================================================
-# PUBLIC API
-# =============================================================================
-
-
-def _geometric_convolve(
-    *,
-    dist_1: ra_distributions.DenseDiscreteDist,
-    dist_2: ra_distributions.DenseDiscreteDist,
-    tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.DenseDiscreteDist:
-    """Convolve two geometric-grid distributions.
-
-    Algorithm 4 (`conv`) in Appendix C of https://arxiv.org/abs/2602.17284.
-    For POSITIVES-domain distributions the 0 atom is neutral (not absorbing),
-    so cross-terms (0 + finite and finite + 0) are added to the finite PMF.
-    """
-    # Input validation
-    if not (
-        isinstance(dist_1, ra_distributions.DenseDiscreteDist)
-        and dist_1.spacing_type == ra_types.SpacingType.GEOMETRIC
-        and dist_1.domain == ra_distributions.Domain.POSITIVES
-    ) or not (
-        isinstance(dist_2, ra_distributions.DenseDiscreteDist)
-        and dist_2.spacing_type == ra_types.SpacingType.GEOMETRIC
-        and dist_2.domain == ra_distributions.Domain.POSITIVES
-    ):
-        raise TypeError(
-            "_geometric_convolve requires geometric ra_distributions.DenseDiscreteDist inputs on "
-            f"ra_distributions.Domain.POSITIVES; got dist_1={type(dist_1).__name__} "
-            f"(spacing={dist_1.spacing_type}, domain={dist_1.domain}), "
-            f"dist_2={type(dist_2).__name__} "
-            f"(spacing={dist_2.spacing_type}, domain={dist_2.domain})"
-        )
-    if tail_truncation < 0:
-        raise ValueError(f"tail_truncation must be non-negative, got {tail_truncation}")
-
-    # Ensure both inputs share the same geometric log step.
-    if not ra_distributions._stable_isclose(
-        a=dist_1.step, b=dist_2.step
-    ):
-        raise ValueError(
-            "Geometric log steps must match: "
-            f"step_1={dist_1.step:.12g}, step_2={dist_2.step:.12g}"
-        )
-    geom_step = dist_1.step
-
-    # Core Numeric Convolution
-    x_out, pmf_conv = _compute_geometric_convolution(
-        x1=dist_1.x_array,
-        p1=dist_1.prob_arr,
-        x2=dist_2.x_array,
-        p2=dist_2.prob_arr,
-        geom_step=geom_step,
-        bound_type=bound_type,
-    )
-
-    # Add cross-terms from the 0 atom
-    x_out_0 = float(x_out[0])
-    pmf_conv = _add_single_zero_atom_cross_term(
-        pmf_conv=pmf_conv,
-        x_arr=dist_2.x_array,
-        prob_arr=dist_2.prob_arr,
-        zero_prob=dist_1.p_min,
-        x_out_0=x_out_0,
-        geom_step=geom_step,
-        bound_type=bound_type,
-    )
-    pmf_conv = _add_single_zero_atom_cross_term(
-        pmf_conv=pmf_conv,
-        x_arr=dist_1.x_array,
-        prob_arr=dist_1.prob_arr,
-        zero_prob=dist_2.p_min,
-        x_out_0=x_out_0,
-        geom_step=geom_step,
-        bound_type=bound_type,
-    )
-
-    expected_p_min, expected_p_max = ra_utils._convolve_boundary_masses(
-        dist_1.p_min, dist_1.p_max, dist_2.p_min, dist_2.p_max, dist_1.domain
-    )
-
-    pmf_conv, p_min, p_max = ra_distributions._enforce_mass_conservation(
-        prob_arr=pmf_conv,
-        expected_p_min=expected_p_min,
-        expected_p_max=expected_p_max,
-        bound_type=bound_type,
-    )
-
-    return ra_distributions.DenseDiscreteDist(
-        x_min=float(x_out[0]),
-        step=geom_step,
-        prob_arr=pmf_conv,
-        p_min=p_min,
-        p_max=p_max,
-        spacing_type=ra_types.SpacingType.GEOMETRIC,
-        domain=ra_distributions.Domain.POSITIVES,
-    ).truncate_edges(tail_truncation, bound_type)
-
-
-def _geometric_self_convolve(
+def _fft_self_convolve(
     *,
     dist: ra_distributions.DenseDiscreteDist,
     T: int,
     tail_truncation: float,
     bound_type: ra_types.BoundType,
+    use_direct: bool,
 ) -> ra_distributions.DenseDiscreteDist:
-    """Self-convolve distribution T times using binary exponentiation."""
-    # Input validation
-    ra_utils._assert_dense_geometric_dist(dist)
-    ra_utils._validate_bound_type(bound_type)
-    if T < 1:
-        raise ValueError(f"T must be >= 1, got {T}")
-    if tail_truncation < 0:
-        raise ValueError(f"tail_truncation must be non-negative, got {tail_truncation}")
+    """T-fold self-convolution via FFT with optional direct exponentiation path."""
+    ra_utils._validate_dense_linear_dist(dist)
+
+    if use_direct:
+        try:
+            return _fft_self_convolve_direct(
+                dist=dist,
+                T=T,
+                tail_truncation=tail_truncation,
+                bound_type=bound_type,
+            )
+        except MemoryError:
+            warnings.warn(
+                f"fft_self_convolve: direct method exceeded {MAX_FFT_BYTES / 1024**3:.0f} GB "
+                f"memory limit for T={T}, pmf_size={dist.prob_arr.size:,}. "
+                f"Falling back to binary self-convolution."
+            )
 
     self_conv = ra_utils._binary_self_convolve(
         dist=dist,
         T=T,
         tail_truncation=tail_truncation,
         bound_type=bound_type,
-        convolve=_geometric_convolve,
+        convolve=_fft_convolve,
     )
     return self_conv
 
 
-# =============================================================================
-# INTERNAL KERNEL IMPLEMENTATION
-# =============================================================================
+def _pad_right_geometric(
+    *,
+    x: NDArray[np.float64],
+    p: NDArray[np.float64],
+    geom_step: float,
+    target_n: int,
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Extend grid to the right to reach target_n using geometric log step."""
+    x = np.asarray(x, dtype=np.float64)
+    p = np.asarray(p, dtype=np.float64)
+    n = x.size
+    if n >= target_n:
+        return x, p
+
+    k = target_n - n
+    tail = x[-1] * np.exp(geom_step * np.arange(1, k + 1, dtype=np.float64))
+
+    x_ext = np.concatenate([x, tail])
+    p_ext = np.pad(p, (0, k), mode="constant")
+    return x_ext, p_ext
+
+
+def _numpy_geometric_kernel(
+    *,
+    PMF_base: NDArray[np.float64],
+    PMF_scaled: NDArray[np.float64],
+    delta_lohi: NDArray[np.int64],
+    delta_hilo: NDArray[np.int64],
+) -> NDArray[np.float64]:
+    """Pure-NumPy fallback for the geometric-grid convolution kernel.
+
+    For each output bin k, collects all source pairs (i, i+d) that map to it
+    via the precomputed shifts delta_lohi and delta_hilo.
+    """
+    n = PMF_base.size
+    # d=0 (diagonal): both ordered pairs (i, i) are identical, so the d>0 loop
+    # below would double-count it; computed once here as an element-wise product.
+    pmf_out = PMF_base * PMF_scaled
+    if n <= 1:
+        return pmf_out
+
+    # For each output bin k, the contributing source index is i = k - delta[d].
+    # Pair (i, i+d) maps to bin i+delta_lohi[d]; symmetric pair (i+d, i) to i+delta_hilo[d].
+    d = np.arange(1, n, dtype=np.int64)
+    for k in range(n):
+        i_lohi = k - delta_lohi[1:]
+        valid_lohi = (0 <= i_lohi) & (i_lohi < n - d)
+        if np.any(valid_lohi):
+            pmf_out[k] += np.sum(
+                PMF_base[i_lohi[valid_lohi]]
+                * PMF_scaled[i_lohi[valid_lohi] + d[valid_lohi]],
+                dtype=np.float64,
+            )
+
+        i_hilo = k - delta_hilo[1:]
+        valid_hilo = (0 <= i_hilo) & (i_hilo < n - d)
+        if np.any(valid_hilo):
+            pmf_out[k] += np.sum(
+                PMF_base[i_hilo[valid_hilo] + d[valid_hilo]]
+                * PMF_scaled[i_hilo[valid_hilo]],
+                dtype=np.float64,
+            )
+
+    return pmf_out
+
+
+@ra_types._optional_njit()
+def _numba_geometric_kernel(
+    *,
+    PMF_base: NDArray[np.float64],
+    PMF_scaled: NDArray[np.float64],
+    delta_lohi: NDArray[np.int64],
+    delta_hilo: NDArray[np.int64],
+) -> NDArray[np.float64]:
+    """Scatter source pairs (i, i+d) to output bins via precomputed delta shifts.
+
+    Mass PMF_base[i]*PMF_scaled[i+d] is placed at bin i+delta_lohi[d]; the
+    symmetric term at i+delta_hilo[d].  Kahan summation (comp) reduces
+    floating-point error when many small contributions land in the same bin.
+    """
+    n = PMF_base.size
+    pmf_out = np.zeros(n, dtype=np.float64)
+    comp = np.zeros(n, dtype=np.float64)
+
+    # d=0: diagonal counted once (see _numpy_geometric_kernel for the rationale).
+    for i in range(n):
+        mass = PMF_base[i] * PMF_scaled[i]
+        y = mass - comp[i]
+        t = pmf_out[i] + y
+        comp[i] = (t - pmf_out[i]) - y
+        pmf_out[i] = t
+
+    for d in range(1, n):
+        imax = n - d
+        kshift1 = delta_lohi[d]
+        kshift2 = delta_hilo[d]
+
+        for i in range(imax):
+            k1 = i + kshift1
+            mass1 = PMF_base[i] * PMF_scaled[i + d]
+            if 0 <= k1 < n:
+                y = mass1 - comp[k1]
+                t = pmf_out[k1] + y
+                comp[k1] = (t - pmf_out[k1]) - y
+                pmf_out[k1] = t
+
+            k2 = i + kshift2
+            mass2 = PMF_base[i + d] * PMF_scaled[i]
+            if 0 <= k2 < n:
+                y = mass2 - comp[k2]
+                t = pmf_out[k2] + y
+                comp[k2] = (t - pmf_out[k2]) - y
+                pmf_out[k2] = t
+
+    return pmf_out
+
+
+def _geometric_kernel(
+    *,
+    PMF_base: NDArray[np.float64],
+    PMF_scaled: NDArray[np.float64],
+    delta_lohi: NDArray[np.int64],
+    delta_hilo: NDArray[np.int64],
+) -> NDArray[np.float64]:
+    """Dispatch geometric-grid convolution to numba or NumPy fallback."""
+    if ra_types.has_numba():
+        return _numba_geometric_kernel(
+            PMF_base=PMF_base,
+            PMF_scaled=PMF_scaled,
+            delta_lohi=delta_lohi,
+            delta_hilo=delta_hilo,
+        )
+    return _numpy_geometric_kernel(
+        PMF_base=PMF_base,
+        PMF_scaled=PMF_scaled,
+        delta_lohi=delta_lohi,
+        delta_hilo=delta_hilo,
+    )
 
 
 def _compute_geometric_convolution(
@@ -532,146 +536,6 @@ def _compute_geometric_convolution(
     return x_out, pmf_out
 
 
-def _pad_right_geometric(
-    *,
-    x: NDArray[np.float64],
-    p: NDArray[np.float64],
-    geom_step: float,
-    target_n: int,
-) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-    """Extend grid to the right to reach target_n using geometric log step."""
-    x = np.asarray(x, dtype=np.float64)
-    p = np.asarray(p, dtype=np.float64)
-    n = x.size
-    if n >= target_n:
-        return x, p
-
-    k = target_n - n
-    tail = x[-1] * np.exp(geom_step * np.arange(1, k + 1, dtype=np.float64))
-
-    x_ext = np.concatenate([x, tail])
-    p_ext = np.pad(p, (0, k), mode="constant")
-    return x_ext, p_ext
-
-
-def _geometric_kernel(
-    *,
-    PMF_base: NDArray[np.float64],
-    PMF_scaled: NDArray[np.float64],
-    delta_lohi: NDArray[np.int64],
-    delta_hilo: NDArray[np.int64],
-) -> NDArray[np.float64]:
-    """Dispatch geometric-grid convolution to numba or NumPy fallback."""
-    if ra_types.has_numba():
-        return _numba_geometric_kernel(
-            PMF_base=PMF_base,
-            PMF_scaled=PMF_scaled,
-            delta_lohi=delta_lohi,
-            delta_hilo=delta_hilo,
-        )
-    return _numpy_geometric_kernel(
-        PMF_base=PMF_base,
-        PMF_scaled=PMF_scaled,
-        delta_lohi=delta_lohi,
-        delta_hilo=delta_hilo,
-    )
-
-
-def _numpy_geometric_kernel(
-    *,
-    PMF_base: NDArray[np.float64],
-    PMF_scaled: NDArray[np.float64],
-    delta_lohi: NDArray[np.int64],
-    delta_hilo: NDArray[np.int64],
-) -> NDArray[np.float64]:
-    """Pure-NumPy fallback for the geometric-grid convolution kernel.
-
-    For each output bin k, collects all source pairs (i, i+d) that map to it
-    via the precomputed shifts delta_lohi and delta_hilo.
-    """
-    n = PMF_base.size
-    # d=0 (diagonal): both ordered pairs (i, i) are identical, so the d>0 loop
-    # below would double-count it; computed once here as an element-wise product.
-    pmf_out = PMF_base * PMF_scaled
-    if n <= 1:
-        return pmf_out
-
-    # For each output bin k, the contributing source index is i = k - delta[d].
-    # Pair (i, i+d) maps to bin i+delta_lohi[d]; symmetric pair (i+d, i) to i+delta_hilo[d].
-    d = np.arange(1, n, dtype=np.int64)
-    for k in range(n):
-        i_lohi = k - delta_lohi[1:]
-        valid_lohi = (0 <= i_lohi) & (i_lohi < n - d)
-        if np.any(valid_lohi):
-            pmf_out[k] += np.sum(
-                PMF_base[i_lohi[valid_lohi]]
-                * PMF_scaled[i_lohi[valid_lohi] + d[valid_lohi]],
-                dtype=np.float64,
-            )
-
-        i_hilo = k - delta_hilo[1:]
-        valid_hilo = (0 <= i_hilo) & (i_hilo < n - d)
-        if np.any(valid_hilo):
-            pmf_out[k] += np.sum(
-                PMF_base[i_hilo[valid_hilo] + d[valid_hilo]]
-                * PMF_scaled[i_hilo[valid_hilo]],
-                dtype=np.float64,
-            )
-
-    return pmf_out
-
-
-@ra_types._optional_njit()
-def _numba_geometric_kernel(
-    *,
-    PMF_base: NDArray[np.float64],
-    PMF_scaled: NDArray[np.float64],
-    delta_lohi: NDArray[np.int64],
-    delta_hilo: NDArray[np.int64],
-) -> NDArray[np.float64]:
-    """Scatter source pairs (i, i+d) to output bins via precomputed delta shifts.
-
-    Mass PMF_base[i]*PMF_scaled[i+d] is placed at bin i+delta_lohi[d]; the
-    symmetric term at i+delta_hilo[d].  Kahan summation (comp) reduces
-    floating-point error when many small contributions land in the same bin.
-    """
-    n = PMF_base.size
-    pmf_out = np.zeros(n, dtype=np.float64)
-    comp = np.zeros(n, dtype=np.float64)
-
-    # d=0: diagonal counted once (see _numpy_geometric_kernel for the rationale).
-    for i in range(n):
-        mass = PMF_base[i] * PMF_scaled[i]
-        y = mass - comp[i]
-        t = pmf_out[i] + y
-        comp[i] = (t - pmf_out[i]) - y
-        pmf_out[i] = t
-
-    for d in range(1, n):
-        imax = n - d
-        kshift1 = delta_lohi[d]
-        kshift2 = delta_hilo[d]
-
-        for i in range(imax):
-            k1 = i + kshift1
-            mass1 = PMF_base[i] * PMF_scaled[i + d]
-            if 0 <= k1 < n:
-                y = mass1 - comp[k1]
-                t = pmf_out[k1] + y
-                comp[k1] = (t - pmf_out[k1]) - y
-                pmf_out[k1] = t
-
-            k2 = i + kshift2
-            mass2 = PMF_base[i + d] * PMF_scaled[i]
-            if 0 <= k2 < n:
-                y = mass2 - comp[k2]
-                t = pmf_out[k2] + y
-                comp[k2] = (t - pmf_out[k2]) - y
-                pmf_out[k2] = t
-
-    return pmf_out
-
-
 def _add_single_zero_atom_cross_term(
     *,
     pmf_conv: NDArray[np.float64],
@@ -718,3 +582,128 @@ def _add_single_zero_atom_cross_term(
     np.add.at(pmf_conv, mapped[valid_k], weights[valid_k])
 
     return pmf_conv
+
+
+# =============================================================================
+# PUBLIC API
+# =============================================================================
+
+
+def _geometric_convolve(
+    *,
+    dist_1: ra_distributions.DenseDiscreteDist,
+    dist_2: ra_distributions.DenseDiscreteDist,
+    tail_truncation: float,
+    bound_type: ra_types.BoundType,
+) -> ra_distributions.DenseDiscreteDist:
+    """Convolve two geometric-grid distributions.
+
+    Algorithm 4 (`conv`) in Appendix C of https://arxiv.org/abs/2602.17284.
+    For POSITIVES-domain distributions the 0 atom is neutral (not absorbing),
+    so cross-terms (0 + finite and finite + 0) are added to the finite PMF.
+    """
+    # Input validation
+    if not (
+        isinstance(dist_1, ra_distributions.DenseDiscreteDist)
+        and dist_1.spacing_type == ra_types.SpacingType.GEOMETRIC
+        and dist_1.domain == ra_distributions.Domain.POSITIVES
+    ) or not (
+        isinstance(dist_2, ra_distributions.DenseDiscreteDist)
+        and dist_2.spacing_type == ra_types.SpacingType.GEOMETRIC
+        and dist_2.domain == ra_distributions.Domain.POSITIVES
+    ):
+        raise TypeError(
+            "_geometric_convolve requires geometric ra_distributions.DenseDiscreteDist inputs on "
+            f"ra_distributions.Domain.POSITIVES; got dist_1={type(dist_1).__name__} "
+            f"(spacing={dist_1.spacing_type}, domain={dist_1.domain}), "
+            f"dist_2={type(dist_2).__name__} "
+            f"(spacing={dist_2.spacing_type}, domain={dist_2.domain})"
+        )
+    if tail_truncation < 0:
+        raise ValueError(f"tail_truncation must be non-negative, got {tail_truncation}")
+
+    # Ensure both inputs share the same geometric log step.
+    if not ra_distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
+        raise ValueError(
+            "Geometric log steps must match: "
+            f"step_1={dist_1.step:.12g}, step_2={dist_2.step:.12g}"
+        )
+    geom_step = dist_1.step
+
+    # Core Numeric Convolution
+    x_out, pmf_conv = _compute_geometric_convolution(
+        x1=dist_1.x_array,
+        p1=dist_1.prob_arr,
+        x2=dist_2.x_array,
+        p2=dist_2.prob_arr,
+        geom_step=geom_step,
+        bound_type=bound_type,
+    )
+
+    # Add cross-terms from the 0 atom
+    x_out_0 = float(x_out[0])
+    pmf_conv = _add_single_zero_atom_cross_term(
+        pmf_conv=pmf_conv,
+        x_arr=dist_2.x_array,
+        prob_arr=dist_2.prob_arr,
+        zero_prob=dist_1.p_min,
+        x_out_0=x_out_0,
+        geom_step=geom_step,
+        bound_type=bound_type,
+    )
+    pmf_conv = _add_single_zero_atom_cross_term(
+        pmf_conv=pmf_conv,
+        x_arr=dist_1.x_array,
+        prob_arr=dist_1.prob_arr,
+        zero_prob=dist_2.p_min,
+        x_out_0=x_out_0,
+        geom_step=geom_step,
+        bound_type=bound_type,
+    )
+
+    expected_p_min, expected_p_max = ra_utils._convolve_boundary_masses(
+        dist_1.p_min, dist_1.p_max, dist_2.p_min, dist_2.p_max, dist_1.domain
+    )
+
+    pmf_conv, p_min, p_max = ra_distributions._enforce_mass_conservation(
+        prob_arr=pmf_conv,
+        expected_p_min=expected_p_min,
+        expected_p_max=expected_p_max,
+        bound_type=bound_type,
+    )
+
+    return ra_distributions.DenseDiscreteDist(
+        x_min=float(x_out[0]),
+        step=geom_step,
+        prob_arr=pmf_conv,
+        p_min=p_min,
+        p_max=p_max,
+        spacing_type=ra_types.SpacingType.GEOMETRIC,
+        domain=ra_distributions.Domain.POSITIVES,
+    ).truncate_edges(tail_truncation, bound_type)
+
+
+def _geometric_self_convolve(
+    *,
+    dist: ra_distributions.DenseDiscreteDist,
+    T: int,
+    tail_truncation: float,
+    bound_type: ra_types.BoundType,
+) -> ra_distributions.DenseDiscreteDist:
+    """Self-convolve distribution T times using binary exponentiation."""
+    # Input validation
+    ra_utils._validate_dense_geometric_dist(dist)
+    ra_utils._validate_bound_type(bound_type)
+    if T < 1:
+        raise ValueError(f"T must be >= 1, got {T}")
+    if tail_truncation < 0:
+        raise ValueError(f"tail_truncation must be non-negative, got {tail_truncation}")
+
+    self_conv = ra_utils._binary_self_convolve(
+        dist=dist,
+        T=T,
+        tail_truncation=tail_truncation,
+        bound_type=bound_type,
+        convolve=_geometric_convolve,
+    )
+    return self_conv

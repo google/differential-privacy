@@ -75,6 +75,94 @@ def _self_convolve_boundary_masses(
 
 
 # =============================================================================
+# Helpers used by _combine_distributions
+# =============================================================================
+
+
+@ra_types._optional_njit()
+def _kahan_reverse_exclusive_cumsum(
+    padded_probs: NDArray[np.float64],
+) -> NDArray[np.float64]:
+    """Compute exclusive CCDF using Kahan summation for numerical stability.
+
+    Computes exclusive reverse cumulative sum: CCDF[i] = sum(padded_probs[i+1:]).
+    Uses Kahan compensated summation to minimize floating-point rounding errors.
+    """
+    n = len(padded_probs)
+    ccdf = np.zeros(n, dtype=np.float64)
+
+    # Start from the right (highest index) and accumulate backwards
+    running_sum = 0.0
+    compensation = 0.0
+
+    for i in range(n - 1, -1, -1):
+        # Store the running sum BEFORE adding current element (exclusive)
+        ccdf[i] = running_sum
+
+        # Kahan summation: compensated addition of current element
+        y = padded_probs[i] - compensation
+        t = running_sum + y
+        compensation = (t - running_sum) - y
+        running_sum = t
+
+    return ccdf
+
+
+def _ccdf_from_pmf(dist: ra_distributions.DiscreteDistBase) -> NDArray[np.float64]:
+    """Convert distribution PMF to padded complementary CDF.
+
+    Returns CCDF over [−∞/0, l_0, l_1, ..., +∞]:
+      CCDF[i] = P(X > position[i])
+
+    Includes both boundary atoms (p_min at the left, p_max at the right).
+    """
+    padded_probs = np.concatenate(([dist.p_min], dist.prob_arr, [dist.p_max]))
+    return _kahan_reverse_exclusive_cumsum(
+        padded_probs=padded_probs,
+    )
+
+
+def _expand_to_grid(
+    *,
+    dist: ra_distributions.DiscreteDistBase,
+    grid: NDArray[np.float64],
+) -> ra_distributions.SparseDiscreteDist:
+    """Insert zero-mass points for missing support values."""
+    x = dist.x_array
+    pmf = dist.prob_arr
+    expanded_pmf = np.zeros_like(grid, dtype=np.float64)
+    indices = np.searchsorted(grid, x)
+    if not np.all(grid[indices] == x):
+        raise ValueError("Target grid must contain all original support points")
+    expanded_pmf[indices] = pmf
+    return ra_distributions.SparseDiscreteDist(
+        x_array=grid,
+        prob_arr=expanded_pmf,
+        p_min=dist.p_min,
+        p_max=dist.p_max,
+    )
+
+
+def _align_distributions_to_union_grid(
+    *,
+    dist_1: ra_distributions.DiscreteDistBase,
+    dist_2: ra_distributions.DiscreteDistBase,
+) -> tuple[ra_distributions.SparseDiscreteDist, ra_distributions.SparseDiscreteDist]:
+    """Return distributions on a shared grid by inserting zero-mass points."""
+    x_union = np.unique(np.concatenate((dist_1.x_array, dist_2.x_array)))
+    return (
+        _expand_to_grid(
+            dist=dist_1,
+            grid=x_union,
+        ),
+        _expand_to_grid(
+            dist=dist_2,
+            grid=x_union,
+        ),
+    )
+
+
+# =============================================================================
 # Public Convolution Utilities
 # =============================================================================
 
@@ -123,7 +211,10 @@ def _binary_self_convolve(
 
 
 def _combine_distributions(
-    *, dist_1: ra_distributions.DiscreteDistBase, dist_2: ra_distributions.DiscreteDistBase, bound_type: ra_types.BoundType
+    *,
+    dist_1: ra_distributions.DiscreteDistBase,
+    dist_2: ra_distributions.DiscreteDistBase,
+    bound_type: ra_types.BoundType,
 ) -> ra_distributions.SparseDiscreteDist:
     """Combine two distributions by tightening bounds via CCDF min/max.
 
@@ -138,9 +229,7 @@ def _combine_distributions(
     else:
         raise ValueError(f"Unknown ra_types.BoundType: {bound_type}")
 
-    if ra_distributions._stable_array_equal(
-        a=dist_1.x_array, b=dist_2.x_array
-    ):
+    if ra_distributions._stable_array_equal(a=dist_1.x_array, b=dist_2.x_array):
         dist_1_aligned, dist_2_aligned = dist_1, dist_2
     else:
         dist_1_aligned, dist_2_aligned = _align_distributions_to_union_grid(
@@ -174,7 +263,9 @@ def _combine_distributions(
 # =============================================================================
 
 
-def _exp_linear_to_geometric(dist: ra_distributions.DenseDiscreteDist) -> ra_distributions.DenseDiscreteDist:
+def _exp_linear_to_geometric(
+    dist: ra_distributions.DenseDiscreteDist,
+) -> ra_distributions.DenseDiscreteDist:
     """Apply exp(.) to a linear-grid distribution, producing a geometric-grid distribution.
 
     Maps REALS domain → POSITIVES domain.
@@ -197,7 +288,9 @@ def _exp_linear_to_geometric(dist: ra_distributions.DenseDiscreteDist) -> ra_dis
     )
 
 
-def _log_geometric_to_linear(dist: ra_distributions.DenseDiscreteDist) -> ra_distributions.DenseDiscreteDist:
+def _log_geometric_to_linear(
+    dist: ra_distributions.DenseDiscreteDist,
+) -> ra_distributions.DenseDiscreteDist:
     """Apply log(.) to a geometric-grid distribution, producing a linear-grid distribution.
 
     Maps POSITIVES domain → REALS domain.
@@ -234,7 +327,9 @@ def _negate_reverse_linear_distribution(
     )
 
 
-def _calc_pld_dual(realization: ra_distributions.PLDRealization) -> ra_distributions.PLDRealization:
+def _calc_pld_dual(
+    realization: ra_distributions.PLDRealization,
+) -> ra_distributions.PLDRealization:
     """Compute the paper PLD dual ``D(L)`` (Definition 3.1).
 
     Algorithm 7 (`PLD-dual`) in Appendix C of https://arxiv.org/abs/2602.17284.
@@ -275,10 +370,11 @@ def _calc_pld_dual(realization: ra_distributions.PLDRealization) -> ra_distribut
 # =============================================================================
 
 
-def _assert_dense_linear_dist(dist: object) -> None:
+def _validate_dense_linear_dist(dist: object) -> None:
     """Raise TypeError if dist is not a LINEAR ra_distributions.DenseDiscreteDist."""
     if not (
-        isinstance(dist, ra_distributions.DenseDiscreteDist) and dist.spacing_type == ra_types.SpacingType.LINEAR
+        isinstance(dist, ra_distributions.DenseDiscreteDist)
+        and dist.spacing_type == ra_types.SpacingType.LINEAR
     ):
         _st = getattr(dist, "spacing_type", "?")
         raise TypeError(
@@ -287,7 +383,7 @@ def _assert_dense_linear_dist(dist: object) -> None:
         )
 
 
-def _assert_dense_geometric_dist(dist: object) -> None:
+def _validate_dense_geometric_dist(dist: object) -> None:
     """Raise TypeError if dist is not a GEOMETRIC ra_distributions.DenseDiscreteDist."""
     if not (
         isinstance(dist, ra_distributions.DenseDiscreteDist)
@@ -298,89 +394,6 @@ def _assert_dense_geometric_dist(dist: object) -> None:
             f"Expected ra_distributions.DenseDiscreteDist with GEOMETRIC spacing, "
             f"got {type(dist).__name__} with spacing {_st}"
         )
-
-
-def _align_distributions_to_union_grid(
-    *,
-    dist_1: ra_distributions.DiscreteDistBase,
-    dist_2: ra_distributions.DiscreteDistBase,
-) -> tuple[ra_distributions.SparseDiscreteDist, ra_distributions.SparseDiscreteDist]:
-    """Return distributions on a shared grid by inserting zero-mass points."""
-    x_union = np.unique(np.concatenate((dist_1.x_array, dist_2.x_array)))
-    return (
-        _expand_to_grid(
-            dist=dist_1,
-            grid=x_union,
-        ),
-        _expand_to_grid(
-            dist=dist_2,
-            grid=x_union,
-        ),
-    )
-
-
-def _expand_to_grid(
-    *,
-    dist: ra_distributions.DiscreteDistBase,
-    grid: NDArray[np.float64],
-) -> ra_distributions.SparseDiscreteDist:
-    """Insert zero-mass points for missing support values."""
-    x = dist.x_array
-    pmf = dist.prob_arr
-    expanded_pmf = np.zeros_like(grid, dtype=np.float64)
-    indices = np.searchsorted(grid, x)
-    if not np.all(grid[indices] == x):
-        raise ValueError("Target grid must contain all original support points")
-    expanded_pmf[indices] = pmf
-    return ra_distributions.SparseDiscreteDist(
-        x_array=grid,
-        prob_arr=expanded_pmf,
-        p_min=dist.p_min,
-        p_max=dist.p_max,
-    )
-
-
-def _ccdf_from_pmf(dist: ra_distributions.DiscreteDistBase) -> NDArray[np.float64]:
-    """Convert distribution PMF to padded complementary CDF.
-
-    Returns CCDF over [−∞/0, l_0, l_1, ..., +∞]:
-      CCDF[i] = P(X > position[i])
-
-    Includes both boundary atoms (p_min at the left, p_max at the right).
-    """
-    padded_probs = np.concatenate(([dist.p_min], dist.prob_arr, [dist.p_max]))
-    return _kahan_reverse_exclusive_cumsum(
-        padded_probs=padded_probs,
-    )
-
-
-@ra_types._optional_njit()
-def _kahan_reverse_exclusive_cumsum(
-    padded_probs: NDArray[np.float64],
-) -> NDArray[np.float64]:
-    """Compute exclusive CCDF using Kahan summation for numerical stability.
-
-    Computes exclusive reverse cumulative sum: CCDF[i] = sum(padded_probs[i+1:]).
-    Uses Kahan compensated summation to minimize floating-point rounding errors.
-    """
-    n = len(padded_probs)
-    ccdf = np.zeros(n, dtype=np.float64)
-
-    # Start from the right (highest index) and accumulate backwards
-    running_sum = 0.0
-    compensation = 0.0
-
-    for i in range(n - 1, -1, -1):
-        # Store the running sum BEFORE adding current element (exclusive)
-        ccdf[i] = running_sum
-
-        # Kahan summation: compensated addition of current element
-        y = padded_probs[i] - compensation
-        t = running_sum + y
-        compensation = (t - running_sum) - y
-        running_sum = t
-
-    return ccdf
 
 
 # =============================================================================
@@ -510,7 +523,10 @@ def _validate_bound_type(bound_type: ra_types.BoundType) -> None:
         ValueError: If bound_type is not DOMINATES or IS_DOMINATED.
 
     """
-    if bound_type not in (ra_types.BoundType.DOMINATES, ra_types.BoundType.IS_DOMINATED):
+    if bound_type not in (
+        ra_types.BoundType.DOMINATES,
+        ra_types.BoundType.IS_DOMINATED,
+    ):
         raise ValueError(f"Invalid bound_type: {bound_type}")
 
 
@@ -553,7 +569,9 @@ def _validate_allocation_scheme_config(config: ra_types.AllocationSchemeConfig) 
 
     """
     if not isinstance(config, ra_types.AllocationSchemeConfig):
-        raise TypeError(f"config must be ra_types.AllocationSchemeConfig, got {type(config)}")
+        raise TypeError(
+            f"config must be ra_types.AllocationSchemeConfig, got {type(config)}"
+        )
     _validate_discretization_params(
         config.value_discretization_interval, config.tail_truncation
     )
