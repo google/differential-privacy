@@ -10,28 +10,28 @@ import math
 
 import numpy as np
 import pytest
-from .random_allocation_distributions import (
+from dp_accounting.pld.random_allocation.random_allocation_distributions import (
     DenseDiscreteDist,
     Domain,
     PLDRealization,
     _compute_discrete_prob as compute_discrete_PMF,
+    _compute_bin_log_ratio,
+    _compute_bin_width,
+    _compute_truncation,
+    _discretize_aligned_grid,
+    _discretize_aligned_range,
+    _discretize_continuous_distribution,
+    _enforce_mass_conservation,
     _numba_rediscretize_prob,
     _numpy_rediscretize_prob,
+    _rediscretize_dist,
+    _rediscretize_prob as pmf_remap_to_grid_kernel,
     _zero_mass,
-    compute_bin_log_ratio,
-    compute_bin_width,
-    compute_truncation,
-    discretize_aligned_grid,
-    discretize_aligned_range,
-    discretize_continuous_distribution,
-    enforce_mass_conservation,
-    rediscretize_dist,
-    rediscretize_prob as pmf_remap_to_grid_kernel,
 )
-from .random_allocation_core import linear_dist_to_dp_accounting_pmf
-from .random_allocation_types import BoundType, RegularGrid, SpacingType
-from .random_allocation_utils import exp_linear_to_geometric, log_geometric_to_linear
-from . import random_allocation_types
+from dp_accounting.pld.random_allocation.random_allocation_core import _linear_dist_to_dp_accounting_pmf
+from dp_accounting.pld.random_allocation.random_allocation_types import BoundType, RegularGrid, SpacingType
+from dp_accounting.pld.random_allocation.random_allocation_utils import _exp_linear_to_geometric, _log_geometric_to_linear
+from dp_accounting.pld.random_allocation import random_allocation_types
 from scipy import stats
 
 
@@ -46,7 +46,7 @@ def _make_realization() -> PLDRealization:
 
 def test_linear_dist_to_dp_accounting_preserves_shape_and_infinity_mass():
     original = _make_realization()
-    pmf = linear_dist_to_dp_accounting_pmf(dist=original, pessimistic_estimate=True)
+    pmf = _linear_dist_to_dp_accounting_pmf(dist=original, pessimistic_estimate=True)
 
     assert pmf._probs.shape == original.prob_arr.shape
     assert pmf._infinity_mass == original.p_max
@@ -60,7 +60,7 @@ def test_linear_dist_to_dp_accounting_handles_zero_finite_mass():
         prob_arr=np.array([0.0, 0.0], dtype=np.float64),
         p_max=1.0,
     )
-    pmf = linear_dist_to_dp_accounting_pmf(dist=realization, pessimistic_estimate=True)
+    pmf = _linear_dist_to_dp_accounting_pmf(dist=realization, pessimistic_estimate=True)
     assert pmf._infinity_mass == 1.0
     assert np.allclose(pmf._probs, np.array([0.0, 0.0]))
 
@@ -72,7 +72,7 @@ def test_exp_log_round_trip_preserves_linear_step():
         prob_arr=np.array([0.4, 0.6], dtype=np.float64),
     )
 
-    round_tripped = log_geometric_to_linear(exp_linear_to_geometric(original))
+    round_tripped = _log_geometric_to_linear(_exp_linear_to_geometric(original))
 
     assert round_tripped.step == original.step
 
@@ -99,7 +99,7 @@ class TestDiscritizeRange:
 
     def test_linear_spacing(self):
         n_grid = 100
-        x = discretize_aligned_range(
+        x = _discretize_aligned_range(
             x_min=0.0,
             x_max=10.0,
             spacing_type=SpacingType.LINEAR,
@@ -114,7 +114,7 @@ class TestDiscritizeRange:
 
     def test_geometric_spacing(self):
         n_grid = 100
-        x = discretize_aligned_range(
+        x = _discretize_aligned_range(
             x_min=1.0,
             x_max=100.0,
             spacing_type=SpacingType.GEOMETRIC,
@@ -129,7 +129,7 @@ class TestDiscritizeRange:
 
     def test_nonpositive_discretization_rejected(self):
         with pytest.raises(ValueError, match="discretization must be positive"):
-            discretize_aligned_range(
+            _discretize_aligned_range(
                 x_min=0.0,
                 x_max=10.0,
                 spacing_type=SpacingType.LINEAR,
@@ -139,7 +139,7 @@ class TestDiscritizeRange:
 
     def test_two_points_linear(self):
         n_grid = 100
-        x = discretize_aligned_range(
+        x = _discretize_aligned_range(
             x_min=1.0,
             x_max=3.0,
             spacing_type=SpacingType.LINEAR,
@@ -157,7 +157,7 @@ class TestDiscritizeRange:
         x_max = 1.4160541697856062
         discretization = 0.041648652052517825
 
-        x = discretize_aligned_range(
+        x = _discretize_aligned_range(
             x_min=x_min,
             x_max=x_max,
             spacing_type=SpacingType.LINEAR,
@@ -172,7 +172,7 @@ class TestDiscritizeRange:
 
     def test_linear_aligned_spacing_matches_requested_step(self):
         discretization = 0.25
-        x = discretize_aligned_range(
+        x = _discretize_aligned_range(
             x_min=-1.12,
             x_max=2.18,
             spacing_type=SpacingType.LINEAR,
@@ -180,11 +180,11 @@ class TestDiscritizeRange:
             discretization=discretization,
         )
 
-        assert np.isclose(compute_bin_width(x), discretization)
+        assert np.isclose(_compute_bin_width(x), discretization)
         assert np.allclose(x / discretization, np.round(x / discretization))
 
     def test_continuous_discretization_uses_requested_linear_step(self):
-        result = discretize_continuous_distribution(
+        result = _discretize_continuous_distribution(
             dist=stats.norm(loc=0.0, scale=1.0),
             tail_truncation=1e-3,
             bound_type=BoundType.DOMINATES,
@@ -193,11 +193,11 @@ class TestDiscritizeRange:
             align_to_multiples=True,
         )
 
-        assert np.isclose(compute_bin_width(result.x_array), 0.1)
+        assert np.isclose(_compute_bin_width(result.x_array), 0.1)
 
     def test_continuous_discretization_uses_requested_geometric_step(self):
         step = np.log(1.05)
-        result = discretize_continuous_distribution(
+        result = _discretize_continuous_distribution(
             dist=stats.lognorm(s=0.5, scale=1.0),
             tail_truncation=1e-3,
             bound_type=BoundType.DOMINATES,
@@ -210,7 +210,7 @@ class TestDiscritizeRange:
         assert np.isclose(np.exp(result.step), 1.05)
 
     def test_generated_geometric_grid_preserves_pld_default_step(self):
-        grid = discretize_aligned_grid(
+        grid = _discretize_aligned_grid(
             x_min=0.1,
             x_max=10.0,
             spacing_type=SpacingType.GEOMETRIC,
@@ -234,35 +234,35 @@ class TestDiscritizeRange:
 class TestComputeBinWidth:
     def test_uniform_grid(self):
         x = np.array([1.0, 2.0, 3.0, 4.0])
-        width = compute_bin_width(x)
+        width = _compute_bin_width(x)
         assert np.isclose(width, 1.0)
 
     def test_nonuniform_grid_raises(self):
         x = np.array([1.0, 2.0, 3.5, 6.0])
         with pytest.raises(ValueError, match="non-uniform bin widths"):
-            compute_bin_width(x)
+            _compute_bin_width(x)
 
     def test_single_point_raises(self):
         x = np.array([1.0])
         with pytest.raises(ValueError, match="less than 2 bins"):
-            compute_bin_width(x)
+            _compute_bin_width(x)
 
 
 class TestComputeBinLogRatio:
     def test_geometric_grid(self):
         x = np.array([1.0, 2.0, 4.0, 8.0])
-        step = compute_bin_log_ratio(x)
+        step = _compute_bin_log_ratio(x)
         assert np.isclose(step, np.log(2.0))
 
     def test_nonuniform_grid_raises(self):
         x = np.array([1.0, 3.0, 6.0, 18.0])
         with pytest.raises(ValueError, match="non-uniform bin widths"):
-            compute_bin_log_ratio(x)
+            _compute_bin_log_ratio(x)
 
     def test_single_point_raises(self):
         x = np.array([1.0])
         with pytest.raises(ValueError, match="less than 2 bins"):
-            compute_bin_log_ratio(x)
+            _compute_bin_log_ratio(x)
 
 
 class TestComputeDiscretePMF:
@@ -331,7 +331,7 @@ class TestPMFRemapToGrid:
         x_out = np.array([1.0, 2.0, 3.0])
 
         pmf_out = pmf_remap_to_grid_kernel(x_in, pmf_in, x_out, dominates=True)
-        _, _, ppos = enforce_mass_conservation(
+        _, _, ppos = _enforce_mass_conservation(
             prob_arr=pmf_out, expected_p_min=0.0, expected_p_max=0.0, bound_type=BoundType.DOMINATES
         )
         assert ppos >= 0.3
@@ -343,7 +343,7 @@ class TestPMFRemapToGrid:
 
         pmf_out = pmf_remap_to_grid_kernel(x_in, pmf_in, x_out, dominates=True)
         total_in = math.fsum(map(float, pmf_in))
-        pmf_out, pneg, ppos = enforce_mass_conservation(
+        pmf_out, pneg, ppos = _enforce_mass_conservation(
             prob_arr=pmf_out, expected_p_min=0.0, expected_p_max=0.0, bound_type=BoundType.DOMINATES
         )
         total_out = math.fsum([*map(float, pmf_out), pneg, ppos])
@@ -353,7 +353,7 @@ class TestPMFRemapToGrid:
 class TestEnforceMassConservation:
     def test_dominates_can_consume_soft_p_min(self):
         prob_arr = np.array([0.4, 0.1], dtype=np.float64)
-        prob_out, p_min, p_max = enforce_mass_conservation(
+        prob_out, p_min, p_max = _enforce_mass_conservation(
             prob_arr=prob_arr,
             expected_p_min=0.3,
             expected_p_max=0.4,
@@ -367,7 +367,7 @@ class TestEnforceMassConservation:
 
     def test_is_dominated_can_consume_soft_p_max(self):
         prob_arr = np.array([0.1, 0.4], dtype=np.float64)
-        prob_out, p_min, p_max = enforce_mass_conservation(
+        prob_out, p_min, p_max = _enforce_mass_conservation(
             prob_arr=prob_arr,
             expected_p_min=0.4,
             expected_p_max=0.3,
@@ -382,7 +382,7 @@ class TestEnforceMassConservation:
 
 class TestComputeTruncation:
     def test_strips_zero_edges_before_tail_truncation(self):
-        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = compute_truncation(
+        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = _compute_truncation(
             prob_arr=np.array([0.0, 0.8], dtype=np.float64),
             p_min=0.0,
             p_max=0.2,
@@ -396,7 +396,7 @@ class TestComputeTruncation:
         assert (min_ind, max_ind) == (1, 1)
 
     def test_keeps_boundary_when_it_is_the_first_remaining_element(self):
-        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = compute_truncation(
+        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = _compute_truncation(
             prob_arr=np.array([0.0, 0.2, 0.5], dtype=np.float64),
             p_min=0.3,
             p_max=0.0,
@@ -410,7 +410,7 @@ class TestComputeTruncation:
         assert (min_ind, max_ind) == (1, 2)
 
     def test_truncation_folds_consumed_boundary_into_first_finite_bin(self):
-        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = compute_truncation(
+        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = _compute_truncation(
             prob_arr=np.array([0.2, 0.75], dtype=np.float64),
             p_min=0.05,
             p_max=0.0,
@@ -424,7 +424,7 @@ class TestComputeTruncation:
         assert (min_ind, max_ind) == (0, 1)
 
     def test_strips_zero_edges_for_is_dominated_right_tail(self):
-        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = compute_truncation(
+        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = _compute_truncation(
             prob_arr=np.array([0.8, 0.0], dtype=np.float64),
             p_min=0.2,
             p_max=0.0,
@@ -486,7 +486,7 @@ class TestRediscretizeBoundaryFolding:
             prob_arr=np.array([1.0 - 1e-6, 1e-6], dtype=np.float64),
         )
 
-        result = rediscretize_dist(
+        result = _rediscretize_dist(
             dist=dist,
             tail_truncation=1e-8,
             loss_discretization=1e-2,
@@ -507,7 +507,7 @@ class TestRediscretizeBoundaryFolding:
             p_max=0.1,
         )
 
-        result = rediscretize_dist(
+        result = _rediscretize_dist(
             dist=dist,
             tail_truncation=0.0,
             loss_discretization=1.0,
@@ -528,7 +528,7 @@ class TestRediscretizeBoundaryFolding:
             p_min=0.1,
         )
 
-        result = rediscretize_dist(
+        result = _rediscretize_dist(
             dist=dist,
             tail_truncation=0.0,
             loss_discretization=1.0,
@@ -551,7 +551,7 @@ class TestRediscretizeBoundaryFolding:
             domain=Domain.POSITIVES,
         )
 
-        result = rediscretize_dist(
+        result = _rediscretize_dist(
             dist=dist,
             tail_truncation=0.0,
             loss_discretization=np.log(2.0),

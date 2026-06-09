@@ -128,7 +128,7 @@ class AllocationSchemeConfig:
 # =============================================================================
 
 
-def validate_discrete_pmf_and_boundaries(
+def _validate_discrete_pmf_and_boundaries(
     prob_arr: NDArray[np.float64],
     p_min: float,
     p_max: float,

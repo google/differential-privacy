@@ -11,22 +11,17 @@ from dp_accounting.pld.common import compute_self_convolve_bounds
 from numpy.typing import NDArray
 from scipy.fft import irfft, next_fast_len, rfft
 
-from . import random_allocation_types
-from .random_allocation_distributions import DenseDiscreteDist, Domain
-from .random_allocation_distributions import enforce_mass_conservation, stable_isclose
-from .random_allocation_types import BoundType, SpacingType
-from .random_allocation_utils import (
-    binary_self_convolve,
-    convolve_boundary_masses,
-    self_convolve_boundary_masses,
-    validate_bound_type,
-)
+from dp_accounting.pld.random_allocation import random_allocation_distributions
+from dp_accounting.pld.random_allocation import random_allocation_types
+from dp_accounting.pld.random_allocation import random_allocation_utils
+from dp_accounting.pld.random_allocation.random_allocation_distributions import DenseDiscreteDist, Domain
+from dp_accounting.pld.random_allocation.random_allocation_types import BoundType, SpacingType
 
 # Maximum bytes for a single FFT allocation (default 8 GB, override via MAX_FFT_BYTES env var)
 MAX_FFT_BYTES = int(os.environ.get("MAX_FFT_BYTES", 8 * 1024**3))
 
 
-def fft_convolve(
+def _fft_convolve(
     *,
     dist_1: DenseDiscreteDist,
     dist_2: DenseDiscreteDist,
@@ -46,7 +41,7 @@ def fft_convolve(
         raise ValueError(f"Input domains must be identical, got {dist_1.domain} vs {dist_2.domain}")
     if not np.any(dist_1.prob_arr) or not np.any(dist_2.prob_arr):
         raise ValueError("FFT convolution requires nonzero finite mass in both inputs")
-    if not stable_isclose(a=dist_1.step, b=dist_2.step):
+    if not random_allocation_distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
         raise ValueError(f"Grid spacing must match: w1={dist_1.step:.12g} vs w2={dist_2.step:.12g}")
 
     width = dist_1.step
@@ -94,10 +89,10 @@ def fft_convolve(
     # infinity masses. This corrects small drift from FFT arithmetic/clipping.
     conv_pmf *= finite_prob_1 * finite_prob_2 / current_finite_mass
 
-    expected_p_min, expected_p_max = convolve_boundary_masses(
+    expected_p_min, expected_p_max = random_allocation_utils._convolve_boundary_masses(
         dist_1.p_min, dist_1.p_max, dist_2.p_min, dist_2.p_max, dist_1.domain
     )
-    conv_pmf, p_min, p_max = enforce_mass_conservation(
+    conv_pmf, p_min, p_max = random_allocation_distributions._enforce_mass_conservation(
         prob_arr=conv_pmf,
         expected_p_min=expected_p_min,
         expected_p_max=expected_p_max,
@@ -114,7 +109,7 @@ def fft_convolve(
     ).truncate_edges(tail_truncation, bound_type)
 
 
-def fft_self_convolve(
+def _fft_self_convolve(
     *,
     dist: DenseDiscreteDist,
     T: int,
@@ -141,12 +136,12 @@ def fft_self_convolve(
                 f"Falling back to binary self-convolution."
             )
 
-    self_conv = binary_self_convolve(
+    self_conv = random_allocation_utils._binary_self_convolve(
         dist=dist,
         T=T,
         tail_truncation=tail_truncation,
         bound_type=bound_type,
-        convolve=fft_convolve,
+        convolve=_fft_convolve,
     )
     if not (
         isinstance(self_conv, DenseDiscreteDist) and self_conv.spacing_type == SpacingType.LINEAR
@@ -197,7 +192,7 @@ def _fft_self_convolve_direct(
     # that window to index 0 so truncation logic can work in-place.
     rolled_conv = np.roll(raw_conv, -shift_left)
 
-    conv_p_min, conv_p_max = self_convolve_boundary_masses(dist, num_convolutions=T)
+    conv_p_min, conv_p_max = random_allocation_utils._self_convolve_boundary_masses(dist, num_convolutions=T)
     if bound_type == BoundType.DOMINATES:
         # For an upper bound, any dropped left-tail mass is pushed to +inf.
         cumsum = np.cumsum(rolled_conv)
@@ -226,7 +221,7 @@ def _fft_self_convolve_direct(
 
     x_min = dist.x_min * T + shift_left * dist.step
     pmf_conv = rolled_conv[:window_size]
-    pmf_conv, p_min_final, p_max_final = enforce_mass_conservation(
+    pmf_conv, p_min_final, p_max_final = random_allocation_distributions._enforce_mass_conservation(
         prob_arr=pmf_conv,
         expected_p_min=conv_p_min,
         expected_p_max=conv_p_max,
@@ -291,7 +286,7 @@ _GRID_ROUNDING_TOL = 10 * np.finfo(np.float64).eps
 # =============================================================================
 
 
-def geometric_convolve(
+def _geometric_convolve(
     *,
     dist_1: DenseDiscreteDist,
     dist_2: DenseDiscreteDist,
@@ -315,7 +310,7 @@ def geometric_convolve(
         and dist_2.domain == Domain.POSITIVES
     ):
         raise TypeError(
-            "geometric_convolve requires geometric DenseDiscreteDist inputs on "
+            "_geometric_convolve requires geometric DenseDiscreteDist inputs on "
             f"Domain.POSITIVES; got dist_1={type(dist_1).__name__} "
             f"(spacing={dist_1.spacing_type}, domain={dist_1.domain}), "
             f"dist_2={type(dist_2).__name__} "
@@ -325,7 +320,7 @@ def geometric_convolve(
         raise ValueError(f"tail_truncation must be non-negative, got {tail_truncation}")
 
     # Ensure both inputs share the same geometric log step.
-    if not stable_isclose(a=dist_1.step, b=dist_2.step):
+    if not random_allocation_distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
         raise ValueError(
             "Geometric log steps must match: "
             f"step_1={dist_1.step:.12g}, step_2={dist_2.step:.12g}"
@@ -363,11 +358,11 @@ def geometric_convolve(
         bound_type=bound_type,
     )
 
-    expected_p_min, expected_p_max = convolve_boundary_masses(
+    expected_p_min, expected_p_max = random_allocation_utils._convolve_boundary_masses(
         dist_1.p_min, dist_1.p_max, dist_2.p_min, dist_2.p_max, dist_1.domain
     )
 
-    pmf_conv, p_min, p_max = enforce_mass_conservation(
+    pmf_conv, p_min, p_max = random_allocation_distributions._enforce_mass_conservation(
         prob_arr=pmf_conv,
         expected_p_min=expected_p_min,
         expected_p_max=expected_p_max,
@@ -385,7 +380,7 @@ def geometric_convolve(
     ).truncate_edges(tail_truncation, bound_type)
 
 
-def geometric_self_convolve(
+def _geometric_self_convolve(
     *,
     dist: DenseDiscreteDist,
     T: int,
@@ -396,18 +391,18 @@ def geometric_self_convolve(
     # Input validation
     if not (isinstance(dist, DenseDiscreteDist) and dist.spacing_type == SpacingType.GEOMETRIC):
         raise TypeError(f"dist must be DenseDiscreteDist, got {type(dist)}")
-    validate_bound_type(bound_type)
+    random_allocation_utils._validate_bound_type(bound_type)
     if T < 1:
         raise ValueError(f"T must be >= 1, got {T}")
     if tail_truncation < 0:
         raise ValueError(f"tail_truncation must be non-negative, got {tail_truncation}")
 
-    self_conv = binary_self_convolve(
+    self_conv = random_allocation_utils._binary_self_convolve(
         dist=dist,
         T=T,
         tail_truncation=tail_truncation,
         bound_type=bound_type,
-        convolve=geometric_convolve,
+        convolve=_geometric_convolve,
     )
     if not (
         isinstance(self_conv, DenseDiscreteDist) and self_conv.spacing_type == SpacingType.GEOMETRIC

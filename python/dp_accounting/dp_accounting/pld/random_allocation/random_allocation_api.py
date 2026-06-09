@@ -6,26 +6,14 @@ from functools import partial
 
 from dp_accounting.pld import privacy_loss_distribution
 
-from .random_allocation_distributions import PLDRealization
-from .random_allocation_core import (
-    allocation_full_pld,
-    gaussian_allocation_pld_core,
-    geometric_allocation_pld_base_add,
-    geometric_allocation_pld_base_remove,
-    realization_add_base_distribution,
-    realization_remove_base_distributions,
-)
-from .random_allocation_types import (
+from dp_accounting.pld.random_allocation import random_allocation_core
+from dp_accounting.pld.random_allocation import random_allocation_utils
+from dp_accounting.pld.random_allocation.random_allocation_distributions import PLDRealization
+from dp_accounting.pld.random_allocation.random_allocation_types import (
     AllocationSchemeConfig,
     BoundType,
     Direction,
     PrivacyParams,
-)
-from .random_allocation_utils import (
-    validate_allocation_params,
-    validate_allocation_scheme_config,
-    validate_bound_type,
-    validate_privacy_params,
 )
 
 
@@ -47,21 +35,21 @@ def gaussian_allocation_pld(
 
     """
     # Input validation
-    validate_privacy_params(params)
-    validate_allocation_scheme_config(config)
-    validate_bound_type(bound_type)
+    random_allocation_utils._validate_privacy_params(params)
+    random_allocation_utils._validate_allocation_scheme_config(config)
+    random_allocation_utils._validate_bound_type(bound_type)
 
     compute_base_pld_remove = partial(
-        gaussian_allocation_pld_core,
+        random_allocation_core._gaussian_allocation_pld_core,
         direction=Direction.REMOVE,
         sigma=params.sigma,
     )
     compute_base_pld_add = partial(
-        gaussian_allocation_pld_core,
+        random_allocation_core._gaussian_allocation_pld_core,
         direction=Direction.ADD,
         sigma=params.sigma,
     )
-    return allocation_full_pld(
+    return random_allocation_core._allocation_full_pld(
         compute_base_pld_remove=compute_base_pld_remove,
         compute_base_pld_add=compute_base_pld_add,
         num_steps=params.num_steps,
@@ -101,31 +89,31 @@ def general_allocation_pld(
 
     """
     # Input validation
-    validate_allocation_params(num_steps, num_selected, num_epochs)
+    random_allocation_utils._validate_allocation_params(num_steps, num_selected, num_epochs)
     if not isinstance(remove_realization, PLDRealization):
         raise TypeError(
             f"remove_realization must be PLDRealization, got {type(remove_realization)}"
         )
     if not isinstance(add_realization, PLDRealization):
         raise TypeError(f"add_realization must be PLDRealization, got {type(add_realization)}")
-    validate_allocation_scheme_config(config)
-    validate_bound_type(bound_type)
+    random_allocation_utils._validate_allocation_scheme_config(config)
+    random_allocation_utils._validate_bound_type(bound_type)
 
     compute_base_pld_remove = partial(
-        geometric_allocation_pld_base_remove,
+        random_allocation_core._geometric_allocation_pld_base_remove,
         base_distributions_creation=partial(
-            realization_remove_base_distributions,
+            random_allocation_core._realization_remove_base_distributions,
             realization=remove_realization,
         ),
     )
     compute_base_pld_add = partial(
-        geometric_allocation_pld_base_add,
+        random_allocation_core._geometric_allocation_pld_base_add,
         base_distributions_creation=partial(
-            realization_add_base_distribution,
+            random_allocation_core._realization_add_base_distribution,
             realization=add_realization,
         ),
     )
-    return allocation_full_pld(
+    return random_allocation_core._allocation_full_pld(
         compute_base_pld_remove=compute_base_pld_remove,
         compute_base_pld_add=compute_base_pld_add,
         num_steps=num_steps,

@@ -8,17 +8,16 @@ from typing import Any, Callable
 import numpy as np
 from numpy.typing import NDArray
 
-from . import random_allocation_types
-from .random_allocation_distributions import (
+from dp_accounting.pld.random_allocation import random_allocation_distributions
+from dp_accounting.pld.random_allocation import random_allocation_types
+from dp_accounting.pld.random_allocation.random_allocation_distributions import (
     DenseDiscreteDist,
     DiscreteDistBase,
     Domain,
     PLDRealization,
     SparseDiscreteDist,
-    enforce_mass_conservation,
-    stable_array_equal,
 )
-from .random_allocation_types import (
+from dp_accounting.pld.random_allocation.random_allocation_types import (
     AllocationSchemeConfig,
     BoundType,
     PrivacyParams,
@@ -31,7 +30,7 @@ from .random_allocation_types import (
 # =============================================================================
 
 
-def convolve_boundary_masses(
+def _convolve_boundary_masses(
     p_min_1: float,
     p_max_1: float,
     p_min_2: float,
@@ -64,7 +63,7 @@ def convolve_boundary_masses(
     return p_min, p_max
 
 
-def self_convolve_boundary_masses(
+def _self_convolve_boundary_masses(
     dist: DiscreteDistBase,
     num_convolutions: int,
 ) -> tuple[float, float]:
@@ -87,7 +86,7 @@ def self_convolve_boundary_masses(
 # =============================================================================
 
 
-def binary_self_convolve(
+def _binary_self_convolve(
     *,
     dist: DenseDiscreteDist,
     T: int,
@@ -130,7 +129,7 @@ def binary_self_convolve(
     return acc_dist if acc_dist is not None else base_dist
 
 
-def combine_distributions(
+def _combine_distributions(
     *, dist_1: DiscreteDistBase, dist_2: DiscreteDistBase, bound_type: BoundType
 ) -> SparseDiscreteDist:
     """Combine two distributions by tightening bounds via CCDF min/max.
@@ -146,7 +145,7 @@ def combine_distributions(
     else:
         raise ValueError(f"Unknown BoundType: {bound_type}")
 
-    if stable_array_equal(a=dist_1.x_array, b=dist_2.x_array):
+    if random_allocation_distributions._stable_array_equal(a=dist_1.x_array, b=dist_2.x_array):
         dist_1_aligned, dist_2_aligned = dist_1, dist_2
     else:
         dist_1_aligned, dist_2_aligned = _align_distributions_to_union_grid(
@@ -160,7 +159,7 @@ def combine_distributions(
     combined_ccdf = ccdf_op(ccdf_1, ccdf_2)
     prob_arr = combined_ccdf[:-2] - combined_ccdf[1:-1]
 
-    prob_arr, p_min, p_max = enforce_mass_conservation(
+    prob_arr, p_min, p_max = random_allocation_distributions._enforce_mass_conservation(
         prob_arr=prob_arr,
         expected_p_min=max(dist_1_aligned.p_min, dist_2_aligned.p_min),
         expected_p_max=max(dist_1_aligned.p_max, dist_2_aligned.p_max),
@@ -180,7 +179,7 @@ def combine_distributions(
 # =============================================================================
 
 
-def exp_linear_to_geometric(dist: DenseDiscreteDist) -> DenseDiscreteDist:
+def _exp_linear_to_geometric(dist: DenseDiscreteDist) -> DenseDiscreteDist:
     """Apply exp(.) to a linear-grid distribution, producing a geometric-grid distribution.
 
     Maps REALS domain → POSITIVES domain.
@@ -203,7 +202,7 @@ def exp_linear_to_geometric(dist: DenseDiscreteDist) -> DenseDiscreteDist:
     )
 
 
-def log_geometric_to_linear(dist: DenseDiscreteDist) -> DenseDiscreteDist:
+def _log_geometric_to_linear(dist: DenseDiscreteDist) -> DenseDiscreteDist:
     """Apply log(.) to a geometric-grid distribution, producing a linear-grid distribution.
 
     Maps POSITIVES domain → REALS domain.
@@ -226,7 +225,7 @@ def log_geometric_to_linear(dist: DenseDiscreteDist) -> DenseDiscreteDist:
     )
 
 
-def negate_reverse_linear_distribution(
+def _negate_reverse_linear_distribution(
     dist: DenseDiscreteDist,
 ) -> DenseDiscreteDist:
     """Map X -> -X, reverse PMF order, and swap boundary atoms."""
@@ -240,7 +239,7 @@ def negate_reverse_linear_distribution(
     )
 
 
-def calc_pld_dual(realization: PLDRealization) -> PLDRealization:
+def _calc_pld_dual(realization: PLDRealization) -> PLDRealization:
     """Compute the paper PLD dual ``D(L)`` (Definition 3.1).
 
     Algorithm 7 (`PLD-dual`) in Appendix C.
@@ -367,7 +366,7 @@ def _kahan_reverse_exclusive_cumsum(
 # =============================================================================
 
 
-def validate_privacy_params(
+def _validate_privacy_params(
     params: PrivacyParams,
     *,
     require_delta: bool = False,
@@ -387,14 +386,14 @@ def validate_privacy_params(
     """
     if not isinstance(params, PrivacyParams):
         raise TypeError(f"params must be PrivacyParams, got {type(params)}")
-    validate_gaussian_params(params.sigma, params.num_steps, params.num_selected, params.num_epochs)
+    _validate_gaussian_params(params.sigma, params.num_steps, params.num_selected, params.num_epochs)
     if require_delta:
-        validate_delta(params.delta)
+        _validate_delta(params.delta)
     if require_epsilon:
-        validate_epsilon(params.epsilon)
+        _validate_epsilon(params.epsilon)
 
 
-def validate_gaussian_params(
+def _validate_gaussian_params(
     sigma: float,
     num_steps: int,
     num_selected: int,
@@ -414,10 +413,10 @@ def validate_gaussian_params(
     """
     if sigma <= 0:
         raise ValueError(f"sigma must be positive, got {sigma}")
-    validate_allocation_params(num_steps, num_selected, num_epochs)
+    _validate_allocation_params(num_steps, num_selected, num_epochs)
 
 
-def validate_allocation_params(
+def _validate_allocation_params(
     num_steps: int,
     num_selected: int,
     num_epochs: int,
@@ -442,7 +441,7 @@ def validate_allocation_params(
         raise ValueError(f"num_selected ({num_selected}) cannot exceed num_steps ({num_steps})")
 
 
-def validate_delta(delta: float | None) -> None:
+def _validate_delta(delta: float | None) -> None:
     """Validate delta value.
 
     Args:
@@ -456,7 +455,7 @@ def validate_delta(delta: float | None) -> None:
         raise ValueError(f"delta must be in (0, 1), got {delta}")
 
 
-def validate_epsilon(epsilon: float | None) -> None:
+def _validate_epsilon(epsilon: float | None) -> None:
     """Validate epsilon value.
 
     Args:
@@ -475,7 +474,7 @@ def validate_epsilon(epsilon: float | None) -> None:
 # =============================================================================
 
 
-def validate_bound_type(bound_type: BoundType) -> None:
+def _validate_bound_type(bound_type: BoundType) -> None:
     """Validate BoundType enum value.
 
     Args:
@@ -494,7 +493,7 @@ def validate_bound_type(bound_type: BoundType) -> None:
 # =============================================================================
 
 
-def validate_discretization_params(
+def _validate_discretization_params(
     loss_discretization: float,
     tail_truncation: float,
 ) -> None:
@@ -514,7 +513,7 @@ def validate_discretization_params(
         raise ValueError(f"tail_truncation must be positive, got {tail_truncation}")
 
 
-def validate_allocation_scheme_config(config: AllocationSchemeConfig) -> None:
+def _validate_allocation_scheme_config(config: AllocationSchemeConfig) -> None:
     """Validate AllocationSchemeConfig fields.
 
     Args:
@@ -527,7 +526,7 @@ def validate_allocation_scheme_config(config: AllocationSchemeConfig) -> None:
     """
     if not isinstance(config, AllocationSchemeConfig):
         raise TypeError(f"config must be AllocationSchemeConfig, got {type(config)}")
-    validate_discretization_params(config.value_discretization_interval, config.tail_truncation)
+    _validate_discretization_params(config.value_discretization_interval, config.tail_truncation)
     if config.max_grid_mult != -1 and config.max_grid_mult <= 0:
         raise ValueError(
             f"max_grid_mult must be -1 (no limit) or a positive integer, "
@@ -535,7 +534,7 @@ def validate_allocation_scheme_config(config: AllocationSchemeConfig) -> None:
         )
 
 
-def validate_optional_discretization_params(
+def _validate_optional_discretization_params(
     initial_discretization: float | None = None,
     initial_tail_truncation: float | None = None,
 ) -> None:

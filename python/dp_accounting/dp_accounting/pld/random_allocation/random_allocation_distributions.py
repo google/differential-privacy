@@ -13,22 +13,17 @@ from scipy import stats
 from scipy.stats._distn_infrastructure import rv_frozen
 from typing_extensions import Self
 
-from . import random_allocation_types
-from .random_allocation_types import (
-    BoundType,
-    RegularGrid,
-    SpacingType,
-    validate_discrete_pmf_and_boundaries,
-)
+from dp_accounting.pld.random_allocation import random_allocation_types
+from dp_accounting.pld.random_allocation.random_allocation_types import BoundType, RegularGrid, SpacingType
 
-PMF_MASS_TOL = 10 * np.finfo(float).eps  # total-mass tolerance (10× machine epsilon)
-RENORMALIZATION_THRESHOLD = 10 * np.finfo(float).eps
-REALIZATION_MOMENT_TOL = 1e-12
-SPACING_ATOL = 1e-12
-SPACING_RTOL = 1e-6
-MIN_GRID_SIZE = 100  # Minimum number of points in a  discretization grid.
-MAX_SAFE_EXP_ARG = math.log(np.finfo(np.float64).max)
-TAIL_SWITCH = 1e-10
+_PMF_MASS_TOL = 10 * np.finfo(float).eps  # total-mass tolerance (10× machine epsilon)
+_RENORMALIZATION_THRESHOLD = 10 * np.finfo(float).eps
+_REALIZATION_MOMENT_TOL = 1e-12
+_SPACING_ATOL = 1e-12
+_SPACING_RTOL = 1e-6
+_MIN_GRID_SIZE = 100  # Minimum number of points in a  discretization grid.
+_MAX_SAFE_EXP_ARG = math.log(np.finfo(np.float64).max)
+_TAIL_SWITCH = 1e-10
 
 
 class Domain(Enum):
@@ -77,7 +72,7 @@ class DiscreteDistBase(ABC):
         return self.get_x_array()
 
     def _validate_basic(self) -> None:
-        validate_discrete_pmf_and_boundaries(
+        random_allocation_types._validate_discrete_pmf_and_boundaries(
             self.prob_arr,
             self.p_min,
             self.p_max,
@@ -86,9 +81,9 @@ class DiscreteDistBase(ABC):
         pmf_sum = math.fsum(map(float, self.prob_arr))
         total_mass = pmf_sum + self.p_min + self.p_max
         mass_error = abs(total_mass - 1.0)
-        if mass_error > PMF_MASS_TOL:
+        if mass_error > _PMF_MASS_TOL:
             error_msg = "MASS CONSERVATION ERROR"
-            error_msg += f": Error={mass_error:.2e} (tolerance={PMF_MASS_TOL:.2e})"
+            error_msg += f": Error={mass_error:.2e} (tolerance={_PMF_MASS_TOL:.2e})"
             error_msg += f", PMF sum={pmf_sum:.15f}"
             error_msg += f", min={self.p_min:.2e}"
             error_msg += f", max={self.p_max:.2e}"
@@ -96,12 +91,12 @@ class DiscreteDistBase(ABC):
             raise ValueError(error_msg)
 
         # REALS domain: both boundaries being non-zero is not allowed.
-        if self.domain == Domain.REALS and self.p_min > PMF_MASS_TOL and self.p_max > PMF_MASS_TOL:
+        if self.domain == Domain.REALS and self.p_min > _PMF_MASS_TOL and self.p_max > _PMF_MASS_TOL:
             raise ValueError("REALS domain: p_min and p_max cannot both be non-zero")
 
     def truncate_edges(self, tail_truncation: float, bound_type: BoundType) -> Self:
         """Truncate distribution edges. Computation lives in distribution_utils."""
-        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = compute_truncation(
+        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = _compute_truncation(
             self.prob_arr, self.p_min, self.p_max, tail_truncation, bound_type
         )
         return self._create_truncated(new_prob_arr, new_p_min, new_p_max, min_ind, max_ind)
@@ -283,9 +278,9 @@ class DenseDiscreteDist(DiscreteDistBase):
     ) -> "DenseDiscreteDist":
         """Create DenseDiscreteDist from x_array by extracting x_min and step."""
         if spacing_type == SpacingType.LINEAR:
-            step = compute_bin_width(x_array)
+            step = _compute_bin_width(x_array)
         else:
-            step = compute_bin_log_ratio(x_array)
+            step = _compute_bin_log_ratio(x_array)
         return cls(
             x_min=float(x_array[0]),
             step=step,
@@ -397,16 +392,16 @@ class PLDRealization(DenseDiscreteDist):
         2. E[e^(-X)] <= 1.
         """
         # PLD realizations must have zero mass at negative-infinity loss.
-        if self.p_min > PMF_MASS_TOL:
+        if self.p_min > _PMF_MASS_TOL:
             raise ValueError(f"PLD realization requires p_min = 0, got {self.p_min:.2e}")
 
-        exp_moment_val = exp_moment_terms(prob_arr=self.prob_arr, x_vals=self.x_array)
+        exp_moment_val = _exp_moment_terms(prob_arr=self.prob_arr, x_vals=self.x_array)
         if np.any(np.isinf(exp_moment_val)):
             raise ValueError(
                 "Exponential moment E[exp(-L)] is infinite, not a valid PLD realization"
             )
         exp_moment_total = math.fsum(map(float, exp_moment_val))
-        if exp_moment_total > 1.0 + REALIZATION_MOMENT_TOL:
+        if exp_moment_total > 1.0 + _REALIZATION_MOMENT_TOL:
             raise ValueError(
                 f"Exponential moment E[exp(-L)] = {exp_moment_total:.15f} > 1.0, "
                 "not a valid PLD realization"
@@ -460,7 +455,7 @@ class PLDRealization(DenseDiscreteDist):
 # =============================================================================
 
 
-def enforce_mass_conservation(
+def _enforce_mass_conservation(
     *,
     prob_arr: NDArray[np.float64],
     expected_p_min: float,
@@ -480,7 +475,7 @@ def enforce_mass_conservation(
     Any remaining slack is assigned to the enforced boundary.
     """
     prob_arr = np.asarray(prob_arr, dtype=np.float64).copy()
-    validate_discrete_pmf_and_boundaries(
+    random_allocation_types._validate_discrete_pmf_and_boundaries(
         prob_arr,
         expected_p_min,
         expected_p_max,
@@ -498,7 +493,7 @@ def enforce_mass_conservation(
         current_mass = math.fsum(map(float, extended))
         excess = current_mass - target_mass
         if excess > 0:
-            if excess < RENORMALIZATION_THRESHOLD:
+            if excess < _RENORMALIZATION_THRESHOLD:
                 # Tiny excess (numerical noise): renormalize instead of trimming bins
                 extended = extended * (target_mass / current_mass)
             else:
@@ -518,7 +513,7 @@ def enforce_mass_conservation(
         current_mass = math.fsum(map(float, extended))
         excess = current_mass - target_mass
         if excess > 0:
-            if excess < RENORMALIZATION_THRESHOLD:
+            if excess < _RENORMALIZATION_THRESHOLD:
                 # Tiny excess (numerical noise): renormalize instead of trimming bins
                 extended = extended * (target_mass / current_mass)
             else:
@@ -535,13 +530,13 @@ def enforce_mass_conservation(
     )
 
 
-def compute_bin_width_two_arrays(
+def _compute_bin_width_two_arrays(
     *, x_array_1: NDArray[np.float64], x_array_2: NDArray[np.float64]
 ) -> float:
     """Compute linear spacing width for two grids and return their average."""
-    w1 = compute_bin_width(x_array_1)
-    w2 = compute_bin_width(x_array_2)
-    if not stable_isclose(a=w1, b=w2):
+    w1 = _compute_bin_width(x_array_1)
+    w2 = _compute_bin_width(x_array_2)
+    if not _stable_isclose(a=w1, b=w2):
         raise ValueError(f"Grid spacing must match: w1={w1:.12g} vs w2={w2:.12g}")
     return (w1 + w2) / 2
 
@@ -551,7 +546,7 @@ def compute_bin_width_two_arrays(
 # =============================================================================
 
 
-def compute_bin_log_ratio(x_array: NDArray[np.float64]) -> float:
+def _compute_bin_log_ratio(x_array: NDArray[np.float64]) -> float:
     """Compute geometric log-ratio spacing for a grid."""
     if x_array.size < 2:
         raise ValueError("Cannot compute geometric bin ratio with less than 2 bins")
@@ -560,7 +555,7 @@ def compute_bin_log_ratio(x_array: NDArray[np.float64]) -> float:
     log_x = np.log(x_array)
     log_ratio = float((log_x[-1] - log_x[0]) / (x_array.size - 1))
     diffs = np.diff(log_x)
-    if not np.allclose(log_ratio, diffs, rtol=SPACING_RTOL, atol=SPACING_ATOL):
+    if not np.allclose(log_ratio, diffs, rtol=_SPACING_RTOL, atol=_SPACING_ATOL):
         max_diff = np.max(np.abs(log_ratio - diffs))
         raise ValueError(
             "Distribution has non-uniform bin widths: "
@@ -569,13 +564,13 @@ def compute_bin_log_ratio(x_array: NDArray[np.float64]) -> float:
     return log_ratio
 
 
-def compute_bin_width(x_array: NDArray[np.float64]) -> float:
+def _compute_bin_width(x_array: NDArray[np.float64]) -> float:
     """Compute linear spacing width for a grid."""
     if x_array.size < 2:
         raise ValueError("Cannot compute width with less than 2 bins")
     diffs = np.diff(x_array)
     median_diff = np.median(diffs)
-    if not np.allclose(median_diff, diffs, rtol=SPACING_RTOL, atol=SPACING_ATOL):
+    if not np.allclose(median_diff, diffs, rtol=_SPACING_RTOL, atol=_SPACING_ATOL):
         max_diff = np.max(np.abs(median_diff - diffs))
         raise ValueError(
             "Distribution has non-uniform bin widths: "
@@ -584,17 +579,17 @@ def compute_bin_width(x_array: NDArray[np.float64]) -> float:
     return float(median_diff)
 
 
-def stable_isclose(*, a: float, b: float) -> bool:
+def _stable_isclose(*, a: float, b: float) -> bool:
     """Consistent closeness check using shared spacing tolerances."""
-    return bool(np.isclose(a, b, rtol=SPACING_RTOL, atol=SPACING_ATOL))
+    return bool(np.isclose(a, b, rtol=_SPACING_RTOL, atol=_SPACING_ATOL))
 
 
-def stable_array_equal(*, a: NDArray[np.float64], b: NDArray[np.float64]) -> bool:
+def _stable_array_equal(*, a: NDArray[np.float64], b: NDArray[np.float64]) -> bool:
     """Consistent array closeness check using shared spacing tolerances."""
-    return a.shape == b.shape and np.allclose(a, b, rtol=SPACING_RTOL, atol=SPACING_ATOL)
+    return a.shape == b.shape and np.allclose(a, b, rtol=_SPACING_RTOL, atol=_SPACING_ATOL)
 
 
-def exp_moment_terms(
+def _exp_moment_terms(
     *,
     prob_arr: NDArray[np.float64],
     x_vals: NDArray[np.float64],
@@ -614,15 +609,15 @@ def exp_moment_terms(
 
     terms = np.zeros_like(prob_arr, dtype=np.float64)
     positive_mask = prob_arr > 0.0
-    safe_mask = positive_mask & (x_vals >= -MAX_SAFE_EXP_ARG)
+    safe_mask = positive_mask & (x_vals >= -_MAX_SAFE_EXP_ARG)
     if np.any(safe_mask):
         terms[safe_mask] = prob_arr[safe_mask] * np.exp(-x_vals[safe_mask])
 
-    extreme_mask = positive_mask & (x_vals < -MAX_SAFE_EXP_ARG)
+    extreme_mask = positive_mask & (x_vals < -_MAX_SAFE_EXP_ARG)
     if np.any(extreme_mask):
         log_terms = np.log(prob_arr[extreme_mask]) - x_vals[extreme_mask]
-        terms_extreme = np.exp(np.minimum(log_terms, MAX_SAFE_EXP_ARG))
-        terms_extreme[log_terms > MAX_SAFE_EXP_ARG] = np.inf
+        terms_extreme = np.exp(np.minimum(log_terms, _MAX_SAFE_EXP_ARG))
+        terms_extreme[log_terms > _MAX_SAFE_EXP_ARG] = np.inf
         terms[extreme_mask] = terms_extreme
 
     return terms
@@ -633,7 +628,7 @@ def exp_moment_terms(
 # =============================================================================
 
 
-def compute_truncation(
+def _compute_truncation(
     prob_arr: NDArray[np.float64],
     p_min: float,
     p_max: float,
@@ -777,7 +772,7 @@ def _zero_mass(
 # =============================================================================
 
 
-def discretize_continuous_distribution(
+def _discretize_continuous_distribution(
     *,
     dist: stats.rv_continuous | rv_frozen[Any, Any],
     tail_truncation: float,
@@ -817,7 +812,7 @@ def discretize_continuous_distribution(
         )
 
     # 2. Map density to PMF with semantics.
-    return discretize_continuous_grid(
+    return _discretize_continuous_grid(
         dist=dist,
         grid=grid,
         bound_type=bound_type,
@@ -826,7 +821,7 @@ def discretize_continuous_distribution(
     )
 
 
-def discretize_continuous_dist(
+def _discretize_continuous_dist(
     *,
     dist: stats.rv_continuous | rv_frozen[Any, Any],
     x_array: NDArray[np.float64],
@@ -865,7 +860,7 @@ def discretize_continuous_dist(
     raise ValueError(f"Invalid spacing_type: {spacing_type}")
 
 
-def discretize_continuous_grid(
+def _discretize_continuous_grid(
     *,
     dist: stats.rv_continuous | rv_frozen[Any, Any],
     grid: RegularGrid,
@@ -931,7 +926,7 @@ def _discretize_continuous_prob_arr(
     raise ValueError(f"Unknown BoundType: {bound_type}")
 
 
-def rediscretize_dist(
+def _rediscretize_dist(
     *,
     dist: DiscreteDistBase,
     tail_truncation: float,
@@ -970,7 +965,7 @@ def rediscretize_dist(
     x_min = x_array[0]
     x_max = x_array[-1]
 
-    grid_out = discretize_aligned_grid(
+    grid_out = _discretize_aligned_grid(
         x_min=x_min,
         x_max=x_max,
         spacing_type=spacing_type,
@@ -979,14 +974,14 @@ def rediscretize_dist(
     )
     x_array_out = grid_out.x_array
 
-    prob_arr_out = rediscretize_prob(
+    prob_arr_out = _rediscretize_prob(
         x_array=x_array,
         prob_arr=trunc_dist.prob_arr,
         x_array_out=x_array_out,
         dominates=(bound_type == BoundType.DOMINATES),
     )
 
-    prob_arr_out, p_min, p_max = enforce_mass_conservation(
+    prob_arr_out, p_min, p_max = _enforce_mass_conservation(
         prob_arr=prob_arr_out,
         expected_p_min=working_dist.p_min,
         expected_p_max=working_dist.p_max,
@@ -1013,7 +1008,7 @@ def rediscretize_dist(
     raise ValueError(f"Invalid spacing_type: {spacing_type}")
 
 
-def discretize_aligned_grid(
+def _discretize_aligned_grid(
     *,
     x_min: float,
     x_max: float,
@@ -1135,7 +1130,7 @@ def discretize_aligned_grid(
     )
 
 
-def discretize_aligned_range(
+def _discretize_aligned_range(
     *,
     x_min: float,
     x_max: float,
@@ -1144,7 +1139,7 @@ def discretize_aligned_range(
     discretization: float,
 ) -> NDArray[np.float64]:
     """Return a grid covering [x_min, x_max]."""
-    return discretize_aligned_grid(
+    return _discretize_aligned_grid(
         x_min=x_min,
         x_max=x_max,
         spacing_type=spacing_type,
@@ -1153,7 +1148,7 @@ def discretize_aligned_range(
     ).x_array
 
 
-def rediscretize_prob(
+def _rediscretize_prob(
     x_array: NDArray[np.float64],
     prob_arr: NDArray[np.float64],
     x_array_out: NDArray[np.float64],
@@ -1427,7 +1422,7 @@ def _discretize_continuous_to_grid(
             raise ValueError(f"Linear step must be positive, got {step}")
         discretization = float(step)
 
-    return discretize_aligned_grid(
+    return _discretize_aligned_grid(
         x_min=x_min,
         x_max=x_max,
         spacing_type=spacing_type,

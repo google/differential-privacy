@@ -1,11 +1,11 @@
 """Public entry points for random-allocation privacy accounting."""
 
-from .random_allocation_distributions import PLDRealization
-from .random_allocation_api import (
+from dp_accounting.pld.random_allocation.random_allocation_distributions import PLDRealization
+from dp_accounting.pld.random_allocation.random_allocation_api import (
     gaussian_allocation_pld,
     general_allocation_pld,
 )
-from .random_allocation_types import (
+from dp_accounting.pld.random_allocation.random_allocation_types import (
     DEFAULT_VALUE_DISCRETIZATION_INTERVAL,
     DEFAULT_TAIL_TRUNCATION,
     AllocationSchemeConfig,
