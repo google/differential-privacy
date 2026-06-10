@@ -17,6 +17,7 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
@@ -171,38 +172,75 @@ double GeometricDistribution::GetUniformDouble() { return UniformDouble(); }
 
 int64_t GeometricDistribution::Sample() { return Sample(1.0); }
 
+const std::vector<double>& GeometricDistribution::GetProbs(double lambda) {
+  if (probs_.empty() || lambda != cached_lambda_) {
+    probs_.clear();
+    probs_.reserve(63);
+    for (int i = 0; i < 63; ++i) {
+      double c = lambda * (1LL << i);
+      if (c > 100) {
+        // If c is large, exp(c) is huge and 1 / (exp(c) + 1) is close to 0, no
+        // need to compute them.
+        break;
+      } else {
+        probs_.push_back(1.0 / (std::exp(c) + 1));
+      }
+    }
+    cached_lambda_ = lambda;
+  }
+  return probs_;
+}
+
 int64_t GeometricDistribution::Sample(double scale) {
   if (lambda_ == std::numeric_limits<double>::infinity()) {
     return 0;
   }
   double lambda = lambda_ / scale;
+  // Samples an integer in [0, 2^63 - 1] from a Geometric distribution (q =
+  // e^-lambda). lambda is order of 2^-40, see the comment to
+  // kLaplaceGranularityParam.
+  //
+  // For exceedingly small lambda values (e.g., 10^-12), standard inverse
+  // transform sampling (k = floor(ln(U) / -lambda)) suffers from catastrophic
+  // floating-point precision loss. This algorithm avoids calculating absolute
+  // cumulative probabilities entirely by conditionally generating the result
+  // bit-by-bit.
+  //
+  // MATHEMATICAL FOUNDATION:
+  // We perform a binary search over the integer space. Due to the memoryless
+  // property of the Geometric distribution, the probability of the sample
+  // falling into the right half of any interval depends ONLY on the size of the
+  // half-interval (d), not on its starting position (L).
+  //
+  // Specifically, if an interval has 2d elements, the probability of branching
+  // right is:
+  //     P(Right) = 1 / (1 + exp(d * lambda))
+  //
+  // BITWISE MAPPING:
+  // Constructing a 63-bit integer from MSB (bit 62) down to LSB (bit 0) is
+  // perfectly isomorphic to this binary search:
+  //
+  // 1. Loop Index (i): Represents the current bit. The half-interval size is d
+  // = 2^i.
+  // 2. Precomputation: Because 'd' only takes 63 deterministic values (2^62
+  // down to 2^0), we precompute the exact branching probability for each bit
+  // and store it in `probs`. probs[i] = 1 / (1 + exp(2^i * lambda)).
+  // 3. Branching: We draw a uniform random float. If U < probs[i], the sample
+  // belongs in the right half of the current sub-interval.
+  // 4. Accumulation: Setting the i-th bit to 1 (result |= 1LL << i) adds 2^i to
+  // the result. This is mathematically equivalent to moving the left boundary
+  // of our search space (L = L + d). Leaving it as 0 is equivalent to narrowing
+  // the right boundary.
 
-  if (GetUniformDouble() >
-      -1.0 * std::expm1(-1.0 * lambda * std::numeric_limits<int64_t>::max())) {
-    return std::numeric_limits<int64_t>::max();
-  }
+  const std::vector<double>& probs = GetProbs(lambda);
 
-  // Performs a binary search for the sample over the range of possible output
-  // values. At each step we split the remaining range in two and pick the left
-  // or right side proportional to the probability that the output falls within
-  // that range, ending when we have only a single possible sample remaining.
-  int64_t lo = 0;
-  int64_t hi = std::numeric_limits<int64_t>::max();
-  while (hi - lo > 1) {
-    int64_t mid =
-        lo - static_cast<int64_t>(std::floor(
-                 (std::log(0.5) + std::log1p(std::exp(lambda * (lo - hi)))) /
-                 lambda));
-    mid = std::min(std::max(mid, lo + 1), hi - 1);
-
-    double q = std::expm1(lambda * (lo - mid)) / std::expm1(lambda * (lo - hi));
-    if (GetUniformDouble() <= q) {
-      hi = mid;
-    } else {
-      lo = mid;
+  int64_t result = 0;
+  for (int i = probs.size() - 1; i >= 0; --i) {
+    if (GetUniformDouble() < probs[i]) {
+      result |= (1LL << i);
     }
   }
-  return hi - 1;
+  return result;
 }
 
 double GeometricDistribution::Lambda() { return lambda_; }

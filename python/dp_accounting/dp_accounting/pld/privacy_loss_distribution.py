@@ -23,6 +23,7 @@ supplementary material below for more details:
 import collections
 import logging
 import math
+import numbers
 from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -324,6 +325,122 @@ class PrivacyLossDistribution:
         self._pmf_add.compute_mixture(other._pmf_add, self_weight),
     )
     # pylint:enable=protected-access
+
+  def get_true_positive_rates(
+      self,
+      false_positive_rates: Union[float, np.ndarray],
+      deltas: Optional[np.ndarray] = None,
+  ) -> Union[float, np.ndarray]:
+    """Computes an upper bound on the true positive rate (TPR).
+
+    In particular, each (epsilon, delta) pair implied by the PLD also implies an
+    upper bound on the TPR for a given false positive rate (FPR). This function
+    computes this upper bound for a range of deltas (either user-specified, or a
+    default range) and then returns the minimum TPR across all deltas. See
+    Section 3.1 of the supplementary material for details.
+
+    Note that this implementation reports a TPR-FPR curve which is symmetric
+    with respect to the line y=1-x, which is not true for the true TPR-FPR curve
+    for asymmetric mechanisms (e.g., subsampled Gaussian under add-remove). In
+    this case the curve is still a valid upper bound on the true TPR-FPR curve,
+    but perhaps overly pessimistic.
+
+    Args:
+      false_positive_rates: the FPR or list of FPRs at which to compute the TPR.
+      deltas: the list of deltas to use for the computation. If None, the
+        default deltas `np.logspace(np.log10(1e-13), np.log10(1), num=3000)` and
+        0 will be used. A denser and wider range of deltas will yield a more
+        accurate estimate, at the cost of increased run-time.
+
+    Returns:
+      A float or array of floats representing the upper bound on the TPR at the
+      given FPR or list of FPRs.
+    """
+    false_positive_rates_array = (
+        np.array([false_positive_rates])
+        if isinstance(false_positive_rates, numbers.Number)
+        else false_positive_rates
+    )
+    true_positive_rates = np.ones_like(false_positive_rates_array)
+    if deltas is None:
+      deltas = np.concatenate(
+          ([0.0], np.logspace(np.log10(1e-13), 0.0, num=3000))
+      )
+    for delta in deltas:
+      epsilon = self.get_epsilon_for_delta(delta)
+      bound1 = np.exp(epsilon) * false_positive_rates_array + delta
+      bound2 = 1.0 + (false_positive_rates_array + delta - 1.0) * np.exp(
+          -epsilon
+      )
+      true_positive_rates = np.minimum(true_positive_rates, bound1)
+      true_positive_rates = np.minimum(true_positive_rates, bound2)
+    if isinstance(false_positive_rates, numbers.Number):
+      return true_positive_rates[0]
+    else:
+      return true_positive_rates
+
+  def get_gdp_parameter_estimate(
+      self,
+      false_positive_rates: Optional[np.ndarray] = None,
+      deltas: Optional[np.ndarray] = None,
+  ) -> float:
+    """Computes an estimate of the mu-GDP parameter implied by the PLD.
+
+    Specifically, we upper bound the true positive rate (TPR) at a given range
+    of false positive rates (FPRs), and then find the minimum mu-GDP value that
+    upper bounds all of the TPR upper bounds. This is pessimistic in that we are
+    using upper bounds on the TPRs, but optimistic in that we are using a finite
+    grid of TPRs, which is not guaranteed to contain the point at which the true
+    mu-GDP parameter is tight. See Section 3.2 of the supplementary material for
+    details.
+
+    If the privacy loss is infinite with probability greater than
+    min(false_positive_rates), then this function will return infinity.
+    This is so that (i) when a PLD has large infinity mass, we correctly report
+    infinite mu-GDP, but simultaneously (ii) the small infinity masses
+    introduced by truncating a PLD to finite support do not result in infinite
+    mu-GDP. We recommend reporting the minimum FPR used when reporting mu-GDP
+    values computed using this function.
+
+    Args:
+      false_positive_rates: The list of FPRs to use for the computation. If
+        None, the default FPRs `np.logspace(np.log10(1e-12), np.log10(0.5),
+        num=500)` will be used. A denser and wider range of FPRs will reduce
+        optimism of the estimate, at the cost of increased run-time.
+      deltas: The list of deltas to use for the computation. If None, the
+        default deltas `np.logspace(np.log10(1e-13), np.log10(1), num=3000)` and
+        0 will be used. A denser and wider range of deltas will reduce pessimism
+        of the estimate, at the cost of increased run-time.
+
+    Returns:
+      The estimated mu-GDP parameter. Note that this is not guaranteed to be an
+      upper or lower bound on the true mu-GDP parameter (but can be made
+      arbitrarily close to the true mu-GDP parameter by increasing the precision
+      of the PLD, deltas, and FPRs).
+    """
+    if false_positive_rates is None:
+      false_positive_rates = np.logspace(
+          np.log10(1e-12), np.log10(0.5), num=500
+      )
+    else:
+      # Since the current implementation of `get_true_positive_rates` is
+      # symmetric with respect to the line y=1-x, we only need to consider FPR
+      # values up to 1/2.
+      false_positive_rates = false_positive_rates[false_positive_rates <= 0.5]
+
+    if self._pmf_remove._infinity_mass > false_positive_rates.min():  # pylint:disable=protected-access
+      return np.inf
+    if not self._symmetric:
+      if self._pmf_add._infinity_mass > false_positive_rates.min():  # pylint:disable=protected-access
+        return np.inf
+
+    true_positive_rates = self.get_true_positive_rates(
+        false_positive_rates, deltas
+    )
+    return np.max(
+        stats.norm.ppf(true_positive_rates)
+        - stats.norm.ppf(false_positive_rates)
+    )
 
 
 def identity(
@@ -1135,7 +1252,7 @@ def from_truncated_subsampled_gaussian_mechanism(
   This method builds on from_gaussian_mechanism and hence supports the same
   algorithms for constructing the privacy loss distribution as
   from_gaussian_mechanism. See Sections 2.1 and 2.2 of supplementary material
-  for more details. See Section 4.3 of the supplementary material for more
+  for more details. See Section 5.3 of the supplementary material for more
   details on the computation of the privacy loss distribution.
 
   Args:
@@ -1211,7 +1328,7 @@ def from_privacy_parameters(
   """Constructs pessimistic PLD from epsilon and delta parameters.
 
   When the mechanism is (epsilon, delta)-differentially private, the following
-  is a pessimistic estimate of its privacy loss distribution (see Section 3.5
+  is a pessimistic estimate of its privacy loss distribution (see Section 4.5
   of the supplementary material for more explanation):
     - infinity with probability delta.
     - epsilon with probability (1 - delta) / (1 + exp(-eps))

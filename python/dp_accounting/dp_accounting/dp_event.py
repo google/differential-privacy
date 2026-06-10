@@ -62,7 +62,7 @@ incorrect results, the following should be enforced:
 from collections.abc import Mapping, Sequence
 import importlib
 import typing
-from typing import List, NamedTuple, Protocol, Union
+from typing import List, NamedTuple, Optional, Protocol, Union
 
 import attr
 
@@ -310,6 +310,33 @@ class DiscreteLaplaceDpEvent(DpEvent):
   """
   noise_parameter: float
   sensitivity: int
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
+class DiscreteGaussianDpEvent(DpEvent):
+  """Represents an application of the discrete Gaussian mechanism.
+
+  For an integer-valued function f with sensitivity `sensitivity`, the discrete
+  Gaussian mechanism outputs f(x) + z where z is drawn from the discrete
+  Gaussian distribution with scale parameter `sigma`. The (centered) discrete
+  Gaussian distribution with scale parameter sigma has probability mass
+  function proportional to exp(-z@z / 2 / sigma**2) at z for any integer
+  vector z. This is roughly equivalent to GaussianDpEvent with
+  noise_multiplier = sigma / sensitivity
+
+  Unlike for the continuous Gaussian, the univariate and multivariate cases are
+  not equivalent for the discrete Gaussian. The `dimension` parameter specifies
+  the dimensionality of the output:
+    - dimension=1: Univariate.
+    - dimension>1: Multivariate.
+    - dimension=None: Unknown. (Default.) Accountants should be conservative.
+
+  See https://arxiv.org/abs/2004.00010 for details.
+  """
+
+  sigma: float
+  sensitivity: float = 1.0
+  dimension: Optional[int] = None
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)

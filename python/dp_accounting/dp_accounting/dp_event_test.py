@@ -55,6 +55,13 @@ class DpEventTest(parameterized.TestCase):
       ('gaussian', dp_event.GaussianDpEvent(1.0)),
       ('laplace', dp_event.LaplaceDpEvent(1.0)),
       ('dlaplace', dp_event.DiscreteLaplaceDpEvent(0.5, 1)),
+      ('dgaussian', dp_event.DiscreteGaussianDpEvent(sigma=10.0)),
+      (
+          'dgaussian_dim',
+          dp_event.DiscreteGaussianDpEvent(
+              sigma=10.0, sensitivity=2.0, dimension=1
+          ),
+      ),
       (
           'self_composed',
           dp_event.SelfComposedDpEvent(dp_event.GaussianDpEvent(1.0), 10),

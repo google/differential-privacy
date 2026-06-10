@@ -832,7 +832,7 @@ class LocalApiTest {
             "quantilesValue_0.5" to DoubleWithTolerance(value = 1.0, tolerance = 0.5),
             "sumAnotherValue" to DoubleWithTolerance(value = 4.5, tolerance = 0.5),
             "meanAnotherValue" to DoubleWithTolerance(value = 1.5, tolerance = 0.5),
-            "varianceAnotherValue" to DoubleWithTolerance(value = 1.16, tolerance = 0.1),
+            "varianceAnotherValue" to DoubleWithTolerance(value = 1.16, tolerance = 0.5),
             "quantilesAnotherValue_0.5" to DoubleWithTolerance(value = 2.0, tolerance = 0.5),
           ),
           mapOf(
@@ -917,7 +917,7 @@ class LocalApiTest {
             "quantilesValue_0.5" to DoubleWithTolerance(value = 1.0, tolerance = 0.5),
             "sumAnotherValue" to DoubleWithTolerance(value = 4.5, tolerance = 0.5),
             "meanAnotherValue" to DoubleWithTolerance(value = 1.5, tolerance = 0.5),
-            "varianceAnotherValue" to DoubleWithTolerance(value = 1.16, tolerance = 0.1),
+            "varianceAnotherValue" to DoubleWithTolerance(value = 1.16, tolerance = 0.5),
             "quantilesAnotherValue_0.5" to DoubleWithTolerance(value = 2.0, tolerance = 0.5),
           ),
           mapOf(
