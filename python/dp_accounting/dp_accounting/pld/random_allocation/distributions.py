@@ -14,7 +14,7 @@ from scipy import stats
 from scipy.stats._distn_infrastructure import rv_frozen
 from typing_extensions import Self
 
-from dp_accounting.pld.random_allocation import ra_types
+from dp_accounting.pld.random_allocation import definitions
 
 _PMF_MASS_TOL = (
     10 * np.finfo(float).eps
@@ -188,7 +188,7 @@ def _compute_truncation(
     p_min: float,
     p_max: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
 ) -> tuple[NDArray[np.float64], float, float, int, int]:
   """Compute truncated distribution parameters without creating objects.
 
@@ -215,7 +215,7 @@ def _compute_truncation(
   if tail_truncation == 0.0:
     return trimmed_prob_arr.copy(), p_min, p_max, inner_min, inner_max
 
-  if bound_type == ra_types.BoundType.DOMINATES:
+  if bound_type == definitions.BoundType.DOMINATES:
     extended_prob = np.concatenate([[p_min], trimmed_prob_arr])
     original_mass = math.fsum(map(float, extended_prob))
     # Truncate left tail and add its mass to the next finite bin
@@ -232,7 +232,7 @@ def _compute_truncation(
     shifted_mass = original_mass - math.fsum(map(float, extended_prob))
     p_max_out = p_max + shifted_mass
     prob_arr_out = extended_prob[1:]
-  elif bound_type == ra_types.BoundType.IS_DOMINATED:
+  elif bound_type == definitions.BoundType.IS_DOMINATED:
     extended_prob = np.concatenate((trimmed_prob_arr, [p_max]))
     original_mass = math.fsum(map(float, extended_prob))
     # Truncate right tail and add its mass to the next finite bin
@@ -301,7 +301,7 @@ class DiscreteDistBase(ABC):
     raise NotImplementedError
 
   def _validate_basic(self) -> None:
-    ra_types._validate_discrete_pmf_and_boundaries(
+    definitions._validate_discrete_pmf_and_boundaries(
         self.prob_arr,
         self.p_min,
         self.p_max,
@@ -328,7 +328,7 @@ class DiscreteDistBase(ABC):
       raise ValueError("REALS domain: p_min and p_max cannot both be non-zero")
 
   def truncate_edges(
-      self, tail_truncation: float, bound_type: ra_types.BoundType
+      self, tail_truncation: float, bound_type: definitions.BoundType
   ) -> Self:
     """Truncate distribution edges."""
     new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = _compute_truncation(
@@ -439,14 +439,14 @@ class DenseDiscreteDist(DiscreteDistBase):
       prob_arr: NDArray[np.float64],
       p_min: float = 0.0,
       p_max: float = 0.0,
-      spacing_type: ra_types.SpacingType = ra_types.SpacingType.LINEAR,
+      spacing_type: definitions.SpacingType = definitions.SpacingType.LINEAR,
       domain: Domain = Domain.REALS,
-      grid: ra_types.RegularGrid | None = None,
+      grid: definitions.RegularGrid | None = None,
   ) -> None:
     """Initialize regular-grid discrete distribution."""
     prob_arr = np.asarray(prob_arr, dtype=np.float64)
     if grid is None:
-      grid = ra_types.RegularGrid(
+      grid = definitions.RegularGrid(
           x_min=float(x_min),
           step=float(step),
           size=prob_arr.size,
@@ -465,7 +465,7 @@ class DenseDiscreteDist(DiscreteDistBase):
   def from_grid(
       cls,
       *,
-      grid: ra_types.RegularGrid,
+      grid: definitions.RegularGrid,
       prob_arr: NDArray[np.float64],
       p_min: float = 0.0,
       p_max: float = 0.0,
@@ -494,15 +494,15 @@ class DenseDiscreteDist(DiscreteDistBase):
     return self.grid.step
 
   @property
-  def spacing_type(self) -> ra_types.SpacingType:
+  def spacing_type(self) -> definitions.SpacingType:
     """Spacing type of the grid."""
     return self.grid.spacing_type
 
   def _validate_grid(self) -> None:
-    if self.spacing_type == ra_types.SpacingType.LINEAR:
+    if self.spacing_type == definitions.SpacingType.LINEAR:
       if self.step <= 0.0:
         raise ValueError("step must be positive for linear grid")
-    elif self.spacing_type == ra_types.SpacingType.GEOMETRIC:
+    elif self.spacing_type == definitions.SpacingType.GEOMETRIC:
       if self.x_min <= 0.0:
         raise ValueError("x_min must be positive for geometric grid")
       if self.step <= 0.0:
@@ -519,13 +519,13 @@ class DenseDiscreteDist(DiscreteDistBase):
       prob_arr: NDArray[np.float64],
       p_min: float = 0.0,
       p_max: float = 0.0,
-      spacing_type: ra_types.SpacingType = ra_types.SpacingType.LINEAR,
+      spacing_type: definitions.SpacingType = definitions.SpacingType.LINEAR,
       domain: Domain = Domain.REALS,
   ) -> "DenseDiscreteDist":
     """Create DenseDiscreteDist from x_array by extracting x_min and step."""
-    if spacing_type == ra_types.SpacingType.LINEAR:
+    if spacing_type == definitions.SpacingType.LINEAR:
       step = _compute_bin_width(x_array)
-    elif spacing_type == ra_types.SpacingType.GEOMETRIC:
+    elif spacing_type == definitions.SpacingType.GEOMETRIC:
       step = _compute_bin_log_ratio(x_array)
     else:
       raise ValueError(f"Unknown SpacingType: {spacing_type}")
@@ -552,15 +552,15 @@ class DenseDiscreteDist(DiscreteDistBase):
       min_ind: int,
       max_ind: int,
   ) -> "DenseDiscreteDist":
-    if self.spacing_type == ra_types.SpacingType.LINEAR:
-      new_grid = ra_types.RegularGrid(
+    if self.spacing_type == definitions.SpacingType.LINEAR:
+      new_grid = definitions.RegularGrid(
           x_min=self.x_min + min_ind * self.step,
           step=self.step,
           size=new_prob_arr.size,
           spacing_type=self.spacing_type,
       )
-    elif self.spacing_type == ra_types.SpacingType.GEOMETRIC:
-      new_grid = ra_types.RegularGrid(
+    elif self.spacing_type == definitions.SpacingType.GEOMETRIC:
+      new_grid = definitions.RegularGrid(
           x_min=self.x_min * float(np.exp(self.step * min_ind)),
           step=self.step,
           size=new_prob_arr.size,
@@ -611,7 +611,7 @@ class PLDRealization(DenseDiscreteDist):
         prob_arr=prob_arr,
         p_min=float(p_min),
         p_max=float(p_max),
-        spacing_type=ra_types.SpacingType.LINEAR,
+        spacing_type=definitions.SpacingType.LINEAR,
         domain=Domain.REALS,
     )
     self._validate_pld_realization()
@@ -621,7 +621,7 @@ class PLDRealization(DenseDiscreteDist):
     """Build a validated PLD realization from a linear DenseDiscreteDist."""
     if (
         not isinstance(dist, DenseDiscreteDist)
-        or dist.spacing_type != ra_types.SpacingType.LINEAR
+        or dist.spacing_type != definitions.SpacingType.LINEAR
     ):
       raise TypeError(
           "from_linear_dist requires DenseDiscreteDist with LINEAR spacing, "
@@ -663,9 +663,9 @@ class PLDRealization(DenseDiscreteDist):
       )
 
   def truncate_edges(  # type: ignore[override]
-      self, tail_truncation: float, bound_type: ra_types.BoundType
+      self, tail_truncation: float, bound_type: definitions.BoundType
   ) -> DenseDiscreteDist:
-    if bound_type == ra_types.BoundType.IS_DOMINATED:
+    if bound_type == definitions.BoundType.IS_DOMINATED:
       # IS_DOMINATED can set p_min > 0, violating PLDRealization.p_min = 0.
       # Delegate through a plain DenseDiscreteDist so the result is not a
       # PLDRealization.
@@ -707,7 +707,7 @@ def _enforce_mass_conservation(
     prob_arr: NDArray[np.float64],
     expected_p_min: float,
     expected_p_max: float,
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
 ) -> tuple[NDArray[np.float64], float, float]:
   """Enforce total mass with one bound-type-selected boundary held fixed.
 
@@ -722,7 +722,7 @@ def _enforce_mass_conservation(
   Any remaining slack is assigned to the enforced boundary.
   """
   prob_arr = np.asarray(prob_arr, dtype=np.float64).copy()
-  ra_types._validate_discrete_pmf_and_boundaries(
+  definitions._validate_discrete_pmf_and_boundaries(
       prob_arr,
       expected_p_min,
       expected_p_max,
@@ -732,7 +732,7 @@ def _enforce_mass_conservation(
   if total_mass <= 0.0:
     raise ValueError("Cannot enforce mass conservation with zero total mass")
 
-  if bound_type == ra_types.BoundType.DOMINATES:
+  if bound_type == definitions.BoundType.DOMINATES:
     if expected_p_max > 1.0:
       raise ValueError("Expected p_max cannot exceed 1")
     extended = np.concatenate(([expected_p_min], prob_arr))
@@ -754,7 +754,7 @@ def _enforce_mass_conservation(
         expected_p_max + max(0.0, target_mass - current_mass),
     )
 
-  if bound_type == ra_types.BoundType.IS_DOMINATED:
+  if bound_type == definitions.BoundType.IS_DOMINATED:
     if expected_p_min > 1.0:
       raise ValueError("Expected p_min cannot exceed 1")
     extended = np.concatenate((prob_arr, [expected_p_max]))
@@ -798,7 +798,7 @@ def _compute_bin_width_two_arrays(
 # =============================================================================
 
 
-@ra_types._optional_njit()
+@definitions._optional_njit()
 def _adaptive_bins_from_cdf(
     *,
     cdf: NDArray[np.float64],
@@ -830,7 +830,7 @@ def _adaptive_bins_from_cdf(
   return bin_probs
 
 
-@ra_types._optional_njit()
+@definitions._optional_njit()
 def _adaptive_bins_from_sf(
     *,
     sf: NDArray[np.float64],
@@ -893,7 +893,7 @@ def _compute_discrete_prob(
     *,
     dist: stats.rv_continuous | rv_frozen[Any, Any],
     x_array: NDArray[np.float64],
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
     pmf_min_increment: float,
 ) -> tuple[NDArray[np.float64], float, float]:
   """Compute bin probabilities via adaptive CDF/SF increments (logcdf/logsf).
@@ -909,13 +909,13 @@ def _compute_discrete_prob(
   p_right = sf[-1]
   pmf_min_increment = max(0.0, pmf_min_increment)
 
-  if bound_type == ra_types.BoundType.DOMINATES:
+  if bound_type == definitions.BoundType.DOMINATES:
     # Suppress intermediate debug logging.
     bin_probs = _adaptive_bins_from_cdf(
         cdf=cdf,
         tail_truncation=pmf_min_increment,
     )
-  elif bound_type == ra_types.BoundType.IS_DOMINATED:
+  elif bound_type == definitions.BoundType.IS_DOMINATED:
     # Suppress intermediate debug logging.
     bin_probs = _adaptive_bins_from_sf(
         sf=sf,
@@ -931,7 +931,7 @@ def _discretize_continuous_prob_arr(
     *,
     dist: stats.rv_continuous | rv_frozen[Any, Any],
     x_array: NDArray[np.float64],
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
     pmf_min_increment: float,
 ) -> tuple[NDArray[np.float64], float, float]:
   """Compute discrete PMF and boundary masses on a materialized grid."""
@@ -945,14 +945,14 @@ def _discretize_continuous_prob_arr(
   n = x_array.size
   prob_arr = np.zeros(n)
 
-  if bound_type == ra_types.BoundType.DOMINATES:
+  if bound_type == definitions.BoundType.DOMINATES:
     # Shift mass right: left tail (-inf, x_0) -> x_0,
     # each interval [x_i, x_{i+1}) -> x_{i+1}, right tail (x_n, inf) -> inf.
     prob_arr[0] = p_left
     prob_arr[1:] = bin_probs
     return prob_arr, 0.0, p_right
 
-  if bound_type == ra_types.BoundType.IS_DOMINATED:
+  if bound_type == definitions.BoundType.IS_DOMINATED:
     # Shift mass left: left tail (-inf, x_0) -> -inf,
     # each interval [x_i, x_{i+1}) -> x_i, right tail (x_n, inf) -> x_n.
     prob_arr[:-1] = bin_probs
@@ -966,10 +966,10 @@ def _discretize_aligned_grid(
     *,
     x_min: float,
     x_max: float,
-    spacing_type: ra_types.SpacingType,
+    spacing_type: definitions.SpacingType,
     align_to_multiples: bool,
     discretization: float,
-) -> ra_types.RegularGrid:
+) -> definitions.RegularGrid:
   """Return regular grid metadata covering [x_min, x_max].
 
   Args:
@@ -984,15 +984,15 @@ def _discretize_aligned_grid(
   """
   # Validate inputs
   if spacing_type not in (
-      ra_types.SpacingType.GEOMETRIC,
-      ra_types.SpacingType.LINEAR,
+      definitions.SpacingType.GEOMETRIC,
+      definitions.SpacingType.LINEAR,
   ):
     raise ValueError(f"Unsupported spacing_type: {spacing_type}")
   if x_max <= x_min:
     raise ValueError(
         f"x_max must be greater than x_min, got x_min={x_min}, x_max={x_max}"
     )
-  if spacing_type == ra_types.SpacingType.GEOMETRIC and x_min <= 0:
+  if spacing_type == definitions.SpacingType.GEOMETRIC and x_min <= 0:
     raise ValueError(
         f"Geometric spacing requires positive values, got "
         f"x_min={x_min}, x_max={x_max}"
@@ -1003,91 +1003,91 @@ def _discretize_aligned_grid(
 
   d = float(discretization)
 
-  if spacing_type == ra_types.SpacingType.LINEAR:
+  if spacing_type == definitions.SpacingType.LINEAR:
     if align_to_multiples:
       k_lo = int(np.floor(x_min / d))
       k_hi = int(np.ceil(x_max / d))
-      grid = ra_types.RegularGrid(
+      grid = definitions.RegularGrid(
           x_min=float(d * k_lo),
           step=d,
           size=k_hi - k_lo + 1,
-          spacing_type=ra_types.SpacingType.LINEAR,
+          spacing_type=definitions.SpacingType.LINEAR,
       )
       # It is possible that aligned bounds miss by a small float64 roundoff.
       if grid.x_array[0] > x_min:
         k_lo -= 1
-      grid = ra_types.RegularGrid(
+      grid = definitions.RegularGrid(
           x_min=float(d * k_lo),
           step=d,
           size=k_hi - k_lo + 1,
-          spacing_type=ra_types.SpacingType.LINEAR,
+          spacing_type=definitions.SpacingType.LINEAR,
       )
       if grid.x_array[-1] < x_max:
         k_hi += 1
-      return ra_types.RegularGrid(
+      return definitions.RegularGrid(
           x_min=float(d * k_lo),
           step=d,
           size=k_hi - k_lo + 1,
-          spacing_type=ra_types.SpacingType.LINEAR,
+          spacing_type=definitions.SpacingType.LINEAR,
       )
     span = x_max - x_min
     n = int(np.ceil(span / d)) + 1
-    grid = ra_types.RegularGrid(
+    grid = definitions.RegularGrid(
         x_min=float(x_min),
         step=d,
         size=n,
-        spacing_type=ra_types.SpacingType.LINEAR,
+        spacing_type=definitions.SpacingType.LINEAR,
     )
     if grid.x_array[-1] < x_max:
       n += 1
-    return ra_types.RegularGrid(
+    return definitions.RegularGrid(
         x_min=float(x_min),
         step=d,
         size=n,
-        spacing_type=ra_types.SpacingType.LINEAR,
+        spacing_type=definitions.SpacingType.LINEAR,
     )
 
   # GEOMETRIC: discretization is log-ratio per step; grid x = exp(d * k).
   if align_to_multiples:
     k_lo = int(np.floor(np.log(x_min) / d))
     k_hi = int(np.ceil(np.log(x_max) / d))
-    grid = ra_types.RegularGrid(
+    grid = definitions.RegularGrid(
         x_min=float(np.exp(d * k_lo)),
         step=d,
         size=k_hi - k_lo + 1,
-        spacing_type=ra_types.SpacingType.GEOMETRIC,
+        spacing_type=definitions.SpacingType.GEOMETRIC,
     )
     # It is possible that aligned bounds miss by a small float64 roundoff.
     if grid.x_array[0] > x_min:
       k_lo -= 1
-    grid = ra_types.RegularGrid(
+    grid = definitions.RegularGrid(
         x_min=float(np.exp(d * k_lo)),
         step=d,
         size=k_hi - k_lo + 1,
-        spacing_type=ra_types.SpacingType.GEOMETRIC,
+        spacing_type=definitions.SpacingType.GEOMETRIC,
     )
     if grid.x_array[-1] < x_max:
       k_hi += 1
-    return ra_types.RegularGrid(
+    return definitions.RegularGrid(
         x_min=float(np.exp(d * k_lo)),
         step=d,
         size=k_hi - k_lo + 1,
-        spacing_type=ra_types.SpacingType.GEOMETRIC,
+        spacing_type=definitions.SpacingType.GEOMETRIC,
     )
   n = int(np.ceil(np.log(x_max / x_min) / d)) + 1
-  grid = ra_types.RegularGrid(
+  grid = definitions.RegularGrid(
       x_min=float(x_min),
       step=d,
       size=n,
-      spacing_type=ra_types.SpacingType.GEOMETRIC,
+      spacing_type=definitions.SpacingType.GEOMETRIC,
   )
   if grid.x_array[-1] < x_max:
     n += 1
-  return ra_types.RegularGrid(
+  return definitions.RegularGrid(
       x_min=float(x_min),
       step=d,
       size=n,
-      spacing_type=ra_types.SpacingType.GEOMETRIC,
+      spacing_type=definitions.SpacingType.GEOMETRIC,
   )
 
 
@@ -1095,7 +1095,7 @@ def _discretize_aligned_range(
     *,
     x_min: float,
     x_max: float,
-    spacing_type: ra_types.SpacingType,
+    spacing_type: definitions.SpacingType,
     align_to_multiples: bool,
     discretization: float,
 ) -> NDArray[np.float64]:
@@ -1113,10 +1113,10 @@ def _continuous_to_grid(
     *,
     dist: stats.rv_continuous | rv_frozen[Any, Any],
     tail_truncation: float,
-    spacing_type: ra_types.SpacingType,
+    spacing_type: definitions.SpacingType,
     step: float,
     align_to_multiples: bool,
-) -> ra_types.RegularGrid:
+) -> definitions.RegularGrid:
   """Generate grid covering the quantile range defined by tail_truncation."""
   # Determine support bounds via quantiles
   x_min = float(dist.ppf(tail_truncation))
@@ -1124,11 +1124,11 @@ def _continuous_to_grid(
   if not np.isfinite(x_min) or not np.isfinite(x_max):
     raise ValueError(f"Quantiles not finite: x_min={x_min}, x_max={x_max}")
 
-  if spacing_type == ra_types.SpacingType.GEOMETRIC:
+  if spacing_type == definitions.SpacingType.GEOMETRIC:
     if step <= 0.0:
       raise ValueError(f"Geometric step must be positive, got {step}")
     discretization = float(step)
-  elif spacing_type == ra_types.SpacingType.LINEAR:
+  elif spacing_type == definitions.SpacingType.LINEAR:
     if step <= 0.0:
       raise ValueError(f"Linear step must be positive, got {step}")
     discretization = float(step)
@@ -1148,9 +1148,9 @@ def _discretize_on_x_array(
     *,
     dist: stats.rv_continuous | rv_frozen[Any, Any],
     x_array: NDArray[np.float64],
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
     pmf_min_increment: float,
-    spacing_type: ra_types.SpacingType,
+    spacing_type: definitions.SpacingType,
     domain: Domain = Domain.REALS,
 ) -> DenseDiscreteDist:
   """Convert continuous distribution to discrete PMF with bounding semantics."""
@@ -1161,7 +1161,7 @@ def _discretize_on_x_array(
       pmf_min_increment=pmf_min_increment,
   )
 
-  if spacing_type == ra_types.SpacingType.LINEAR:
+  if spacing_type == definitions.SpacingType.LINEAR:
     return DenseDiscreteDist.from_x_array(
         x_array=x_array,
         prob_arr=prob_arr,
@@ -1170,13 +1170,13 @@ def _discretize_on_x_array(
         domain=domain,
     )
 
-  if spacing_type == ra_types.SpacingType.GEOMETRIC:
+  if spacing_type == definitions.SpacingType.GEOMETRIC:
     return DenseDiscreteDist.from_x_array(
         x_array=x_array,
         prob_arr=prob_arr,
         p_min=p_min,
         p_max=p_max,
-        spacing_type=ra_types.SpacingType.GEOMETRIC,
+        spacing_type=definitions.SpacingType.GEOMETRIC,
         domain=Domain.POSITIVES,
     )
 
@@ -1186,8 +1186,8 @@ def _discretize_on_x_array(
 def _discretize_on_grid(
     *,
     dist: stats.rv_continuous | rv_frozen[Any, Any],
-    grid: ra_types.RegularGrid,
-    bound_type: ra_types.BoundType,
+    grid: definitions.RegularGrid,
+    bound_type: definitions.BoundType,
     pmf_min_increment: float,
     domain: Domain = Domain.REALS,
 ) -> DenseDiscreteDist:
@@ -1198,7 +1198,7 @@ def _discretize_on_grid(
       bound_type=bound_type,
       pmf_min_increment=pmf_min_increment,
   )
-  if grid.spacing_type == ra_types.SpacingType.LINEAR:
+  if grid.spacing_type == definitions.SpacingType.LINEAR:
     return DenseDiscreteDist.from_grid(
         grid=grid,
         prob_arr=prob_arr,
@@ -1206,7 +1206,7 @@ def _discretize_on_grid(
         p_max=p_max,
         domain=domain,
     )
-  if grid.spacing_type == ra_types.SpacingType.GEOMETRIC:
+  if grid.spacing_type == definitions.SpacingType.GEOMETRIC:
     return DenseDiscreteDist.from_grid(
         grid=grid,
         prob_arr=prob_arr,
@@ -1221,8 +1221,8 @@ def _discretize_continuous_distribution(
     *,
     dist: stats.rv_continuous | rv_frozen[Any, Any],
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-    spacing_type: ra_types.SpacingType,
+    bound_type: definitions.BoundType,
+    spacing_type: definitions.SpacingType,
     step: float,
     align_to_multiples: bool,
     domain: Domain = Domain.REALS,
@@ -1303,7 +1303,7 @@ def _numpy_rediscretize_prob(
   return prob_arr_out
 
 
-@ra_types._optional_njit()
+@definitions._optional_njit()
 def _numba_rediscretize_prob(
     x_array: NDArray[np.float64],
     prob_arr: NDArray[np.float64],
@@ -1383,7 +1383,7 @@ def _rediscretize_prob(
     dominates: bool,
 ) -> NDArray[np.float64]:
   """Remap PMF onto new grid with domination-aware rounding."""
-  if ra_types.has_numba():
+  if definitions.has_numba():
     return _numba_rediscretize_prob(x_array, prob_arr, x_array_out, dominates)
   return _numpy_rediscretize_prob(x_array, prob_arr, x_array_out, dominates)
 
@@ -1393,8 +1393,8 @@ def _rediscretize_dist(
     dist: DiscreteDistBase,
     tail_truncation: float,
     loss_discretization: float,
-    spacing_type: ra_types.SpacingType,
-    bound_type: ra_types.BoundType,
+    spacing_type: definitions.SpacingType,
+    bound_type: definitions.BoundType,
 ) -> DenseDiscreteDist:
   """Rediscretize a distribution onto a requested grid spacing.
 
@@ -1408,12 +1408,15 @@ def _rediscretize_dist(
   # Support for rediscretizing a dominating distribution into a dominated
   # one and vice versa.
   working_dist = copy.deepcopy(dist)
-  if bound_type == ra_types.BoundType.IS_DOMINATED and working_dist.p_max > 0.0:
+  if (
+      bound_type == definitions.BoundType.IS_DOMINATED
+      and working_dist.p_max > 0.0
+  ):
     working_dist.prob_arr[-1] += working_dist.p_max
     working_dist.p_max = 0.0
   elif (
-      bound_type == ra_types.BoundType.DOMINATES
-      and spacing_type == ra_types.SpacingType.LINEAR
+      bound_type == definitions.BoundType.DOMINATES
+      and spacing_type == definitions.SpacingType.LINEAR
       and working_dist.p_min > 0.0
   ):
     working_dist.prob_arr[0] += working_dist.p_min
@@ -1441,7 +1444,7 @@ def _rediscretize_dist(
       x_array=x_array,
       prob_arr=trunc_dist.prob_arr,
       x_array_out=x_array_out,
-      dominates=(bound_type == ra_types.BoundType.DOMINATES),
+      dominates=(bound_type == definitions.BoundType.DOMINATES),
   )
 
   prob_arr_out, p_min, p_max = _enforce_mass_conservation(
@@ -1451,7 +1454,7 @@ def _rediscretize_dist(
       bound_type=bound_type,
   )
 
-  if spacing_type == ra_types.SpacingType.LINEAR:
+  if spacing_type == definitions.SpacingType.LINEAR:
     return DenseDiscreteDist.from_grid(
         grid=grid_out,
         prob_arr=prob_arr_out,
@@ -1459,7 +1462,7 @@ def _rediscretize_dist(
         p_max=p_max,
     )
 
-  if spacing_type == ra_types.SpacingType.GEOMETRIC:
+  if spacing_type == definitions.SpacingType.GEOMETRIC:
     return DenseDiscreteDist.from_grid(
         grid=grid_out,
         prob_arr=prob_arr_out,

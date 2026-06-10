@@ -11,9 +11,9 @@ from numpy.typing import NDArray
 from scipy.fft import irfft, next_fast_len, rfft
 
 from dp_accounting.pld import common
-from dp_accounting.pld.random_allocation import ra_distributions
-from dp_accounting.pld.random_allocation import ra_types
-from dp_accounting.pld.random_allocation import ra_utils
+from dp_accounting.pld.random_allocation import distributions
+from dp_accounting.pld.random_allocation import definitions
+from dp_accounting.pld.random_allocation import utils
 
 # Maximum bytes for a single FFT allocation (default 8 GB, override via
 # MAX_FFT_BYTES env var).
@@ -43,18 +43,18 @@ def _check_fft_memory(fft_size: int, label: str = "FFT") -> None:
 
 def _fft_convolve(
     *,
-    dist_1: ra_distributions.DenseDiscreteDist,
-    dist_2: ra_distributions.DenseDiscreteDist,
+    dist_1: distributions.DenseDiscreteDist,
+    dist_2: distributions.DenseDiscreteDist,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.DenseDiscreteDist:
+    bound_type: definitions.BoundType,
+) -> distributions.DenseDiscreteDist:
   """Convolve two linear-grid distributions via FFT."""
   if not (
-      isinstance(dist_1, ra_distributions.DenseDiscreteDist)
-      and dist_1.spacing_type == ra_types.SpacingType.LINEAR
+      isinstance(dist_1, distributions.DenseDiscreteDist)
+      and dist_1.spacing_type == definitions.SpacingType.LINEAR
   ) or not (
-      isinstance(dist_2, ra_distributions.DenseDiscreteDist)
-      and dist_2.spacing_type == ra_types.SpacingType.LINEAR
+      isinstance(dist_2, distributions.DenseDiscreteDist)
+      and dist_2.spacing_type == definitions.SpacingType.LINEAR
   ):
     raise TypeError(
         "fft_convolve requires linear DenseDiscreteDist inputs; "
@@ -70,7 +70,7 @@ def _fft_convolve(
     raise ValueError(
         "FFT convolution requires nonzero finite mass in both inputs"
     )
-  if not ra_distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
+  if not distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
     raise ValueError(
         f"Grid spacing must match: w1={dist_1.step:.12g} vs "
         f"w2={dist_2.step:.12g}"
@@ -123,17 +123,17 @@ def _fft_convolve(
   # infinity masses. This corrects small drift from FFT arithmetic/clipping.
   conv_pmf *= finite_prob_1 * finite_prob_2 / current_finite_mass
 
-  expected_p_min, expected_p_max = ra_utils._convolve_boundary_masses(
+  expected_p_min, expected_p_max = utils._convolve_boundary_masses(
       dist_1.p_min, dist_1.p_max, dist_2.p_min, dist_2.p_max, dist_1.domain
   )
-  conv_pmf, p_min, p_max = ra_distributions._enforce_mass_conservation(
+  conv_pmf, p_min, p_max = distributions._enforce_mass_conservation(
       prob_arr=conv_pmf,
       expected_p_min=expected_p_min,
       expected_p_max=expected_p_max,
       bound_type=bound_type,
   )
 
-  return ra_distributions.DenseDiscreteDist(
+  return distributions.DenseDiscreteDist(
       x_min=conv_x_min,
       step=width,
       prob_arr=conv_pmf,
@@ -173,11 +173,11 @@ def _calc_fft_window_size(
 
 def _fft_self_convolve_direct(
     *,
-    dist: ra_distributions.DenseDiscreteDist,
+    dist: distributions.DenseDiscreteDist,
     T: int,  # pylint: disable=invalid-name  # T matches paper notation
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.DenseDiscreteDist:
+    bound_type: definitions.BoundType,
+) -> distributions.DenseDiscreteDist:
   # Budget split: the input tail_truncation is divided into three equal
   # thirds.
   #   _calc_fft_window_size: Chernoff-based window determines the one-sided
@@ -219,10 +219,10 @@ def _fft_self_convolve_direct(
   # in-place.
   rolled_conv = np.roll(raw_conv, -shift_left)
 
-  conv_p_min, conv_p_max = ra_utils._self_convolve_boundary_masses(
+  conv_p_min, conv_p_max = utils._self_convolve_boundary_masses(
       dist, num_convolutions=T
   )
-  if bound_type == ra_types.BoundType.DOMINATES:
+  if bound_type == definitions.BoundType.DOMINATES:
     # For an upper bound, any dropped left-tail mass is pushed to +inf.
     cumsum = np.cumsum(rolled_conv)
     left_tail_ind = int(np.searchsorted(cumsum, tail_truncation, side="right"))
@@ -231,7 +231,7 @@ def _fft_self_convolve_direct(
     rolled_conv[:left_tail_ind] = 0.0
     right_tail_mass = math.fsum(map(float, rolled_conv[window_size:]))
     conv_p_max += shifted_mass + right_tail_mass
-  elif bound_type == ra_types.BoundType.IS_DOMINATED:
+  elif bound_type == definitions.BoundType.IS_DOMINATED:
     # For a lower bound, dropped right-tail mass moves to -inf, while any
     # overflow beyond the retained FFT window is folded onto the last kept
     # finite bin to preserve domination direction.
@@ -254,16 +254,14 @@ def _fft_self_convolve_direct(
 
   x_min = dist.x_min * T + shift_left * dist.step
   pmf_conv = rolled_conv[:window_size]
-  pmf_conv, p_min_final, p_max_final = (
-      ra_distributions._enforce_mass_conservation(
-          prob_arr=pmf_conv,
-          expected_p_min=conv_p_min,
-          expected_p_max=conv_p_max,
-          bound_type=bound_type,
-      )
+  pmf_conv, p_min_final, p_max_final = distributions._enforce_mass_conservation(
+      prob_arr=pmf_conv,
+      expected_p_min=conv_p_min,
+      expected_p_max=conv_p_max,
+      bound_type=bound_type,
   )
 
-  return ra_distributions.DenseDiscreteDist(
+  return distributions.DenseDiscreteDist(
       x_min=x_min,
       step=dist.step,
       prob_arr=pmf_conv,
@@ -275,14 +273,14 @@ def _fft_self_convolve_direct(
 
 def _fft_self_convolve(
     *,
-    dist: ra_distributions.DenseDiscreteDist,
+    dist: distributions.DenseDiscreteDist,
     T: int,  # pylint: disable=invalid-name  # T matches paper notation
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
     use_direct: bool,
-) -> ra_distributions.DenseDiscreteDist:
+) -> distributions.DenseDiscreteDist:
   """T-fold FFT self-convolution with optional direct exponentiation path."""
-  ra_utils._validate_dense_linear_dist(dist)
+  utils._validate_dense_linear_dist(dist)
 
   if use_direct:
     try:
@@ -300,7 +298,7 @@ def _fft_self_convolve(
           f"Falling back to binary self-convolution."
       )
 
-  self_conv = ra_utils._binary_self_convolve(
+  self_conv = utils._binary_self_convolve(
       dist=dist,
       T=T,
       tail_truncation=tail_truncation,
@@ -377,7 +375,7 @@ def _numpy_geometric_kernel(
   return pmf_out
 
 
-@ra_types._optional_njit()
+@definitions._optional_njit()
 def _numba_geometric_kernel(
     *,
     PMF_base: NDArray[np.float64],
@@ -436,7 +434,7 @@ def _geometric_kernel(
     delta_hilo: NDArray[np.int64],
 ) -> NDArray[np.float64]:
   """Dispatch geometric-grid convolution to numba or NumPy fallback."""
-  if ra_types.has_numba():
+  if definitions.has_numba():
     return _numba_geometric_kernel(
         PMF_base=PMF_base,
         PMF_scaled=PMF_scaled,
@@ -458,7 +456,7 @@ def _compute_geometric_convolution(
     x2: NDArray[np.float64],
     p2: NDArray[np.float64],
     geom_step: float,
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
   """Align grids, compute bin mapping parameters, and invoke the Numba kernel.
 
@@ -529,11 +527,11 @@ def _compute_geometric_convolution(
   delta_hilo = np.zeros(n, dtype=np.int64)
   rounding_eps = _GRID_ROUNDING_TOL
 
-  if bound_type == ra_types.BoundType.DOMINATES:
+  if bound_type == definitions.BoundType.DOMINATES:
     # Pessimistic: Round UP
     delta_lohi[1:] = np.ceil(tau_lohi[1:] - rounding_eps).astype(np.int64)
     delta_hilo[1:] = np.ceil(tau_hilo[1:] - rounding_eps).astype(np.int64)
-  elif bound_type == ra_types.BoundType.IS_DOMINATED:
+  elif bound_type == definitions.BoundType.IS_DOMINATED:
     # Optimistic: Round DOWN
     delta_lohi[1:] = np.floor(tau_lohi[1:] + rounding_eps).astype(np.int64)
     delta_hilo[1:] = np.floor(tau_hilo[1:] + rounding_eps).astype(np.int64)
@@ -562,7 +560,7 @@ def _add_single_zero_atom_cross_term(
     zero_prob: float,
     x_out_0: float,
     geom_step: float,
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
 ) -> NDArray[np.float64]:
   """Add mass from one zero atom and the other input's finite support.
 
@@ -582,14 +580,14 @@ def _add_single_zero_atom_cross_term(
   # This value is rounded according to the domination requirement with
   # additional padding or numerical stability.
   frac_k = np.log(x_arr[valid] / x_out_0) / geom_step
-  if bound_type == ra_types.BoundType.DOMINATES:
+  if bound_type == definitions.BoundType.DOMINATES:
     k = np.ceil(frac_k - _GRID_ROUNDING_TOL).astype(np.int64)
   else:
     k = np.floor(frac_k + _GRID_ROUNDING_TOL).astype(np.int64)
 
   weights = weights[valid]
   n = pmf_conv.size
-  if bound_type == ra_types.BoundType.DOMINATES:
+  if bound_type == definitions.BoundType.DOMINATES:
     mapped = k.copy()
     mapped[mapped < 0] = 0
     valid_k = mapped < n
@@ -609,11 +607,11 @@ def _add_single_zero_atom_cross_term(
 
 def _geometric_convolve(
     *,
-    dist_1: ra_distributions.DenseDiscreteDist,
-    dist_2: ra_distributions.DenseDiscreteDist,
+    dist_1: distributions.DenseDiscreteDist,
+    dist_2: distributions.DenseDiscreteDist,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.DenseDiscreteDist:
+    bound_type: definitions.BoundType,
+) -> distributions.DenseDiscreteDist:
   """Convolve two geometric-grid distributions.
 
   Algorithm 4 (`conv`) in Appendix C of https://arxiv.org/abs/2602.17284.
@@ -622,13 +620,13 @@ def _geometric_convolve(
   """
   # Input validation
   if not (
-      isinstance(dist_1, ra_distributions.DenseDiscreteDist)
-      and dist_1.spacing_type == ra_types.SpacingType.GEOMETRIC
-      and dist_1.domain == ra_distributions.Domain.POSITIVES
+      isinstance(dist_1, distributions.DenseDiscreteDist)
+      and dist_1.spacing_type == definitions.SpacingType.GEOMETRIC
+      and dist_1.domain == distributions.Domain.POSITIVES
   ) or not (
-      isinstance(dist_2, ra_distributions.DenseDiscreteDist)
-      and dist_2.spacing_type == ra_types.SpacingType.GEOMETRIC
-      and dist_2.domain == ra_distributions.Domain.POSITIVES
+      isinstance(dist_2, distributions.DenseDiscreteDist)
+      and dist_2.spacing_type == definitions.SpacingType.GEOMETRIC
+      and dist_2.domain == distributions.Domain.POSITIVES
   ):
     raise TypeError(
         "_geometric_convolve requires geometric DenseDiscreteDist inputs on "
@@ -643,7 +641,7 @@ def _geometric_convolve(
     )
 
   # Ensure both inputs share the same geometric log step.
-  if not ra_distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
+  if not distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
     raise ValueError(
         "Geometric log steps must match: "
         f"step_1={dist_1.step:.12g}, step_2={dist_2.step:.12g}"
@@ -681,39 +679,39 @@ def _geometric_convolve(
       bound_type=bound_type,
   )
 
-  expected_p_min, expected_p_max = ra_utils._convolve_boundary_masses(
+  expected_p_min, expected_p_max = utils._convolve_boundary_masses(
       dist_1.p_min, dist_1.p_max, dist_2.p_min, dist_2.p_max, dist_1.domain
   )
 
-  pmf_conv, p_min, p_max = ra_distributions._enforce_mass_conservation(
+  pmf_conv, p_min, p_max = distributions._enforce_mass_conservation(
       prob_arr=pmf_conv,
       expected_p_min=expected_p_min,
       expected_p_max=expected_p_max,
       bound_type=bound_type,
   )
 
-  return ra_distributions.DenseDiscreteDist(
+  return distributions.DenseDiscreteDist(
       x_min=float(x_out[0]),
       step=geom_step,
       prob_arr=pmf_conv,
       p_min=p_min,
       p_max=p_max,
-      spacing_type=ra_types.SpacingType.GEOMETRIC,
-      domain=ra_distributions.Domain.POSITIVES,
+      spacing_type=definitions.SpacingType.GEOMETRIC,
+      domain=distributions.Domain.POSITIVES,
   ).truncate_edges(tail_truncation, bound_type)
 
 
 def _geometric_self_convolve(
     *,
-    dist: ra_distributions.DenseDiscreteDist,
+    dist: distributions.DenseDiscreteDist,
     T: int,  # pylint: disable=invalid-name  # T matches paper notation
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.DenseDiscreteDist:
+    bound_type: definitions.BoundType,
+) -> distributions.DenseDiscreteDist:
   """Self-convolve distribution T times using binary exponentiation."""
   # Input validation
-  ra_utils._validate_dense_geometric_dist(dist)
-  ra_utils._validate_bound_type(bound_type)
+  utils._validate_dense_geometric_dist(dist)
+  utils._validate_bound_type(bound_type)
   if T < 1:
     raise ValueError(f"T must be >= 1, got {T}")
   if tail_truncation < 0:
@@ -721,7 +719,7 @@ def _geometric_self_convolve(
         f"tail_truncation must be non-negative, got {tail_truncation}"
     )
 
-  self_conv = ra_utils._binary_self_convolve(
+  self_conv = utils._binary_self_convolve(
       dist=dist,
       T=T,
       tail_truncation=tail_truncation,

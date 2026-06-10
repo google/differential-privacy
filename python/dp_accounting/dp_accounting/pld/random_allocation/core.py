@@ -10,15 +10,15 @@ from scipy import stats
 
 from dp_accounting.pld import pld_pmf
 from dp_accounting.pld import privacy_loss_distribution
-from dp_accounting.pld.random_allocation import ra_convolution
-from dp_accounting.pld.random_allocation import ra_distributions
-from dp_accounting.pld.random_allocation import ra_types
-from dp_accounting.pld.random_allocation import ra_utils
+from dp_accounting.pld.random_allocation import convolution
+from dp_accounting.pld.random_allocation import distributions
+from dp_accounting.pld.random_allocation import definitions
+from dp_accounting.pld.random_allocation import utils
 
 
 def _linear_dist_to_dp_accounting_pmf(
     *,
-    dist: ra_distributions.DenseDiscreteDist,
+    dist: distributions.DenseDiscreteDist,
     pessimistic_estimate: bool = True,
 ) -> pld_pmf.DensePLDPmf:
   """Convert a linear-grid loss PMF to a dp_accounting PMF.
@@ -34,7 +34,7 @@ def _linear_dist_to_dp_accounting_pmf(
   Returns:
       dp_accounting DensePLDPmf with infinity mass taken from dist.p_max.
   """
-  ra_utils._validate_dense_linear_dist(dist)
+  utils._validate_dense_linear_dist(dist)
 
   base_index = int(np.rint(dist.x_min / dist.step))
   return pld_pmf.DensePLDPmf(
@@ -48,13 +48,11 @@ def _linear_dist_to_dp_accounting_pmf(
 
 def _realization_remove_base_distributions(
     *,
-    realization: ra_distributions.PLDRealization,
+    realization: distributions.PLDRealization,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> tuple[
-    ra_distributions.DenseDiscreteDist, ra_distributions.DenseDiscreteDist
-]:
+    bound_type: definitions.BoundType,
+) -> tuple[distributions.DenseDiscreteDist, distributions.DenseDiscreteDist]:
   """Prepare remove-direction factors from a loss-space realization.
 
   Algorithm 1 (`rand-alloc-rem`) in Appendix C of
@@ -73,67 +71,65 @@ def _realization_remove_base_distributions(
   # Since dual can be derived only from a PLD realization, discretization can
   # come first for DOMINATES, but dual derivation must come first for
   # IS_DOMINATED.
-  if bound_type == ra_types.BoundType.DOMINATES:
+  if bound_type == definitions.BoundType.DOMINATES:
     # Avoid inflating the grid when the target is finer than the original one.
     effective_disc = max(realization.step, loss_discretization)
-    coarsened_base = ra_distributions._rediscretize_dist(
+    coarsened_base = distributions._rediscretize_dist(
         dist=realization,
         tail_truncation=tail_truncation,
         loss_discretization=effective_disc,
-        spacing_type=ra_types.SpacingType.LINEAR,
+        spacing_type=definitions.SpacingType.LINEAR,
         bound_type=bound_type,
     )
-    ra_utils._validate_dense_linear_dist(coarsened_base)
-    base_realization = ra_distributions.PLDRealization.from_linear_dist(
+    utils._validate_dense_linear_dist(coarsened_base)
+    base_realization = distributions.PLDRealization.from_linear_dist(
         coarsened_base
     )
-    neg_dual_dist = ra_utils._negate_reverse_linear_distribution(
-        ra_utils._calc_pld_dual(base_realization)
+    neg_dual_dist = utils._negate_reverse_linear_distribution(
+        utils._calc_pld_dual(base_realization)
     )
     return base_realization, neg_dual_dist
 
   # Lower-bound truncation can move left-tail mass into p_min and must consume
   # any +inf mass before exp-space composition, so keep the lower path on the
   # plain DenseDiscreteDist rediscretization route unconditionally.
-  dual_realization = ra_utils._calc_pld_dual(realization)
-  neg_dual_linear = ra_utils._negate_reverse_linear_distribution(
-      dual_realization
-  )
+  dual_realization = utils._calc_pld_dual(realization)
+  neg_dual_linear = utils._negate_reverse_linear_distribution(dual_realization)
   # Avoid inflating the grid when the target is finer than the original one.
   effective_disc = max(realization.step, loss_discretization)
-  lower_realization_input = ra_distributions.DenseDiscreteDist(
+  lower_realization_input = distributions.DenseDiscreteDist(
       x_min=realization.x_min,
       step=realization.step,
       prob_arr=realization.prob_arr.copy(),
       p_min=realization.p_min,
       p_max=realization.p_max,
   )
-  lower_base_dist = ra_distributions._rediscretize_dist(
+  lower_base_dist = distributions._rediscretize_dist(
       dist=lower_realization_input,
       tail_truncation=tail_truncation,
       loss_discretization=effective_disc,
-      spacing_type=ra_types.SpacingType.LINEAR,
+      spacing_type=definitions.SpacingType.LINEAR,
       bound_type=bound_type,
   )
-  ra_utils._validate_dense_linear_dist(lower_base_dist)
-  neg_dual_dist = ra_distributions._rediscretize_dist(
+  utils._validate_dense_linear_dist(lower_base_dist)
+  neg_dual_dist = distributions._rediscretize_dist(
       dist=neg_dual_linear,
       tail_truncation=tail_truncation,
       loss_discretization=effective_disc,
-      spacing_type=ra_types.SpacingType.LINEAR,
+      spacing_type=definitions.SpacingType.LINEAR,
       bound_type=bound_type,
   )
-  ra_utils._validate_dense_linear_dist(neg_dual_dist)
+  utils._validate_dense_linear_dist(neg_dual_dist)
   return lower_base_dist, neg_dual_dist
 
 
 def _realization_add_base_distribution(
     *,
-    realization: ra_distributions.PLDRealization,
+    realization: distributions.PLDRealization,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.DenseDiscreteDist:
+    bound_type: definitions.BoundType,
+) -> distributions.DenseDiscreteDist:
   """Prepare add-direction factors from a loss-space realization.
 
   Algorithm 2 (`rand-alloc-add`) in Appendix C of
@@ -151,14 +147,14 @@ def _realization_add_base_distribution(
   """
   # Avoid inflating the grid when the target is finer than the original one.
   effective_disc = max(realization.step, loss_discretization)
-  coarsened = ra_distributions._rediscretize_dist(
+  coarsened = distributions._rediscretize_dist(
       dist=realization,
       tail_truncation=tail_truncation,
       loss_discretization=effective_disc,
-      spacing_type=ra_types.SpacingType.LINEAR,
+      spacing_type=definitions.SpacingType.LINEAR,
       bound_type=bound_type,
   )
-  ra_utils._validate_dense_linear_dist(coarsened)
+  utils._validate_dense_linear_dist(coarsened)
   return coarsened
 
 
@@ -169,14 +165,14 @@ def _realization_add_base_distribution(
 
 def _allocation_full_pld(
     *,
-    compute_base_pld_remove: Callable[..., ra_distributions.DenseDiscreteDist],
-    compute_base_pld_add: Callable[..., ra_distributions.DenseDiscreteDist],
+    compute_base_pld_remove: Callable[..., distributions.DenseDiscreteDist],
+    compute_base_pld_add: Callable[..., distributions.DenseDiscreteDist],
     num_steps: int,
     num_selected: int,
     num_epochs: int,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
 ) -> privacy_loss_distribution.PrivacyLossDistribution:
   """Orchestrate full allocation PLD construction for both directions.
 
@@ -185,9 +181,9 @@ def _allocation_full_pld(
   ``dp_accounting`` PLD object.
   """
   # Input validation
-  ra_utils._validate_allocation_params(num_steps, num_selected, num_epochs)
-  ra_utils._validate_discretization_params(loss_discretization, tail_truncation)
-  ra_utils._validate_bound_type(bound_type)
+  utils._validate_allocation_params(num_steps, num_selected, num_epochs)
+  utils._validate_discretization_params(loss_discretization, tail_truncation)
+  utils._validate_bound_type(bound_type)
 
   remove_dist = _allocation_directional_pld(
       compute_base_pld=compute_base_pld_remove,
@@ -216,14 +212,14 @@ def _allocation_full_pld(
 
 def _allocation_directional_pld(
     *,
-    compute_base_pld: Callable[..., ra_distributions.DenseDiscreteDist],
+    compute_base_pld: Callable[..., distributions.DenseDiscreteDist],
     num_steps: int,
     num_selected: int,
     num_epochs: int,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.DenseDiscreteDist:
+    bound_type: definitions.BoundType,
+) -> distributions.DenseDiscreteDist:
   """Build one-direction allocation PLD with adaptive floor/ceil decomposition.
 
   For divisible ``num_steps / num_selected``, this builds one component. For
@@ -232,9 +228,9 @@ def _allocation_directional_pld(
   ``_fft_convolve(...)``.
   """
   # Input validation
-  ra_utils._validate_allocation_params(num_steps, num_selected, num_epochs)
-  ra_utils._validate_discretization_params(loss_discretization, tail_truncation)
-  ra_utils._validate_bound_type(bound_type)
+  utils._validate_allocation_params(num_steps, num_selected, num_epochs)
+  utils._validate_discretization_params(loss_discretization, tail_truncation)
+  utils._validate_bound_type(bound_type)
   new_num_steps_floor = int(num_steps // num_selected)
   if new_num_steps_floor < 1:
     raise ValueError("num_steps must be >= num_selected")
@@ -286,7 +282,7 @@ def _allocation_directional_pld(
         "Cannot convolve floor and ceil allocation components with different "
         f"grid steps: {dist_floor.step:.12g} vs {dist_ceil.step:.12g}."
     )
-  return ra_convolution._fft_convolve(
+  return convolution._fft_convolve(
       dist_1=dist_floor,
       dist_2=dist_ceil,
       tail_truncation=tail_truncation,
@@ -299,15 +295,15 @@ def _geometric_allocation_pld_base_remove(
     base_distributions_creation: Callable[
         ...,
         tuple[
-            ra_distributions.DenseDiscreteDist,
-            ra_distributions.DenseDiscreteDist,
+            distributions.DenseDiscreteDist,
+            distributions.DenseDiscreteDist,
         ],
     ],
     num_steps: int,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.DenseDiscreteDist:
+    bound_type: definitions.BoundType,
+) -> distributions.DenseDiscreteDist:
   """Build the REMOVE component PLD via exp-space geometric composition.
 
   The callback ``base_distributions_creation`` provides one-step
@@ -316,8 +312,8 @@ def _geometric_allocation_pld_base_remove(
   # Input validation
   if num_steps < 1:
     raise ValueError(f"num_steps must be >= 1, got {num_steps}")
-  ra_utils._validate_discretization_params(loss_discretization, tail_truncation)
-  ra_utils._validate_bound_type(bound_type)
+  utils._validate_discretization_params(loss_discretization, tail_truncation)
+  utils._validate_bound_type(bound_type)
   # For num_steps > 1 there are active convolution stages beyond base
   # construction.  For num_steps == 1 neither convolution stages nor Phases
   # 2/3 execute, so no tail-budget division is needed.
@@ -353,14 +349,14 @@ def _geometric_allocation_pld_base_remove(
 
   # Subtract the average loss
   log_num_steps = float(np.log(num_steps))
-  centered_neg_dual = ra_distributions.DenseDiscreteDist(
+  centered_neg_dual = distributions.DenseDiscreteDist(
       x_min=neg_dual_base.x_min - log_num_steps,
       step=neg_dual_base.step,
       prob_arr=neg_dual_base.prob_arr.copy(),
       p_min=neg_dual_base.p_min,
       p_max=neg_dual_base.p_max,
   )
-  centered_base = ra_distributions.DenseDiscreteDist(
+  centered_base = distributions.DenseDiscreteDist(
       x_min=base.x_min - log_num_steps,
       step=base.step,
       prob_arr=base.prob_arr.copy(),
@@ -369,45 +365,43 @@ def _geometric_allocation_pld_base_remove(
   )
 
   # Factor preparation in exp-space.
-  exp_neg_dual = ra_utils._exp_linear_to_geometric(centered_neg_dual)
-  exp_base = ra_utils._exp_linear_to_geometric(centered_base)
+  exp_neg_dual = utils._exp_linear_to_geometric(centered_neg_dual)
+  exp_base = utils._exp_linear_to_geometric(centered_base)
 
   # V_{t-1} <- self-conv(V1, t-1, ...).
-  exp_convolved_dual = ra_convolution._geometric_self_convolve(
+  exp_convolved_dual = convolution._geometric_self_convolve(
       dist=exp_neg_dual,
       T=num_steps - 1,
       tail_truncation=tail_truncation,
       bound_type=bound_type,
   )
   # U_t <- conv(V_{t-1}, U1, ...).
-  exp_convolved = ra_convolution._geometric_convolve(
+  exp_convolved = convolution._geometric_convolve(
       dist_1=exp_convolved_dual,
       dist_2=exp_base,
       tail_truncation=tail_truncation,
       bound_type=bound_type,
   )
   # L_t <- log(U_t).
-  return ra_utils._log_geometric_to_linear(exp_convolved)
+  return utils._log_geometric_to_linear(exp_convolved)
 
 
 def _geometric_allocation_pld_base_add(
     *,
-    base_distributions_creation: Callable[
-        ..., ra_distributions.DenseDiscreteDist
-    ],
+    base_distributions_creation: Callable[..., distributions.DenseDiscreteDist],
     num_steps: int,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.DenseDiscreteDist:
+    bound_type: definitions.BoundType,
+) -> distributions.DenseDiscreteDist:
   """Build the ADD component PLD via exp-space geometric self-composition.
 
   The callback ``base_distributions_creation`` provides the one-step ADD
   factor, which is shifted and composed before mapping back to linear loss.
   """
   # Input validation
-  ra_utils._validate_discretization_params(loss_discretization, tail_truncation)
-  ra_utils._validate_bound_type(bound_type)
+  utils._validate_discretization_params(loss_discretization, tail_truncation)
+  utils._validate_bound_type(bound_type)
   if num_steps < 1:
     raise ValueError(f"num_steps must be >= 1, got {num_steps}")
 
@@ -441,8 +435,8 @@ def _geometric_allocation_pld_base_add(
 
   log_num_steps = float(np.log(num_steps))
 
-  neg_base = ra_utils._negate_reverse_linear_distribution(base)
-  centered_neg_base = ra_distributions.DenseDiscreteDist(
+  neg_base = utils._negate_reverse_linear_distribution(base)
+  centered_neg_base = distributions.DenseDiscreteDist(
       x_min=neg_base.x_min - log_num_steps,
       step=neg_base.step,
       prob_arr=neg_base.prob_arr.copy(),
@@ -451,22 +445,22 @@ def _geometric_allocation_pld_base_add(
   )
 
   # Factor preparation in exp-space.
-  exp_base = ra_utils._exp_linear_to_geometric(centered_neg_base)
+  exp_base = utils._exp_linear_to_geometric(centered_neg_base)
   exp_bound_type = (
-      ra_types.BoundType.IS_DOMINATED
-      if bound_type == ra_types.BoundType.DOMINATES
-      else ra_types.BoundType.DOMINATES
+      definitions.BoundType.IS_DOMINATED
+      if bound_type == definitions.BoundType.DOMINATES
+      else definitions.BoundType.DOMINATES
   )
   # U_t <- self-conv(U, t, lower).
-  exp_convolved = ra_convolution._geometric_self_convolve(
+  exp_convolved = convolution._geometric_self_convolve(
       dist=exp_base,
       T=num_steps,
       tail_truncation=tail_truncation,
       bound_type=exp_bound_type,
   )
   # L_t <- -log(U_t).
-  log_dist = ra_utils._log_geometric_to_linear(exp_convolved)
-  return ra_utils._negate_reverse_linear_distribution(log_dist)
+  log_dist = utils._log_geometric_to_linear(exp_convolved)
+  return utils._negate_reverse_linear_distribution(log_dist)
 
 
 def _gaussian_allocation_pld_core(
@@ -474,10 +468,10 @@ def _gaussian_allocation_pld_core(
     num_steps: int,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-    direction: ra_types.Direction,
+    bound_type: definitions.BoundType,
+    direction: definitions.Direction,
     sigma: float,
-) -> ra_distributions.DenseDiscreteDist:
+) -> distributions.DenseDiscreteDist:
   """Route one Gaussian component through the GEOM backend.
 
   This is the Gaussian-side orchestrator used by the shared allocation core.
@@ -487,9 +481,9 @@ def _gaussian_allocation_pld_core(
     raise ValueError(f"num_steps must be >= 1, got {num_steps}")
   if sigma <= 0:
     raise ValueError(f"sigma must be positive, got {sigma}")
-  ra_utils._validate_discretization_params(loss_discretization, tail_truncation)
-  ra_utils._validate_bound_type(bound_type)
-  if direction not in (ra_types.Direction.ADD, ra_types.Direction.REMOVE):
+  utils._validate_discretization_params(loss_discretization, tail_truncation)
+  utils._validate_bound_type(bound_type)
+  if direction not in (definitions.Direction.ADD, definitions.Direction.REMOVE):
     raise ValueError(f"Invalid direction: {direction}")
 
   return _gaussian_allocation_geom(
@@ -504,13 +498,13 @@ def _gaussian_allocation_pld_core(
 
 def _allocation_directional_pld_core(
     *,
-    compute_base_pld: Callable[..., ra_distributions.DenseDiscreteDist],
+    compute_base_pld: Callable[..., distributions.DenseDiscreteDist],
     num_steps: int,
     num_epochs: int,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.DenseDiscreteDist:
+    bound_type: definitions.BoundType,
+) -> distributions.DenseDiscreteDist:
   """Build and finalize one floor/ceil decomposition component.
 
   This function derives component-level budgets, calls
@@ -541,12 +535,12 @@ def _allocation_directional_pld_core(
       tail_truncation=base_tail_truncation,
       bound_type=bound_type,
   )
-  ra_utils._validate_dense_linear_dist(prepared_base_dist)
+  utils._validate_dense_linear_dist(prepared_base_dist)
 
   if num_epochs == 1:
     composed_dist = prepared_base_dist
   else:
-    composed_dist = ra_convolution._fft_self_convolve(
+    composed_dist = convolution._fft_self_convolve(
         dist=prepared_base_dist,
         T=num_epochs,
         tail_truncation=tail_truncation,
@@ -557,15 +551,15 @@ def _allocation_directional_pld_core(
       tail_truncation=tail_truncation,
       bound_type=bound_type,
   )
-  ra_utils._validate_dense_linear_dist(final_dist)
+  utils._validate_dense_linear_dist(final_dist)
   return final_dist
 
 
 def _compose_full_pld(
     *,
-    remove_dist: ra_distributions.DenseDiscreteDist | None,
-    add_dist: ra_distributions.DenseDiscreteDist | None,
-    bound_type: ra_types.BoundType,
+    remove_dist: distributions.DenseDiscreteDist | None,
+    add_dist: distributions.DenseDiscreteDist | None,
+    bound_type: definitions.BoundType,
 ) -> privacy_loss_distribution.PrivacyLossDistribution:
   """Convert remove/add directional PLDs into a ``dp_accounting`` PLD.
 
@@ -583,7 +577,7 @@ def _compose_full_pld(
         "PLD construction requires remove-direction distribution. "
         "Provide remove_realization or use both directions."
     )
-  pessimistic_estimate = bound_type == ra_types.BoundType.DOMINATES
+  pessimistic_estimate = bound_type == definitions.BoundType.DOMINATES
   pmf_remove = _linear_dist_to_dp_accounting_pmf(
       dist=remove_dist,
       pessimistic_estimate=pessimistic_estimate,
@@ -612,16 +606,16 @@ def _gaussian_allocation_geom(
     num_steps: int,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-    direction: ra_types.Direction,
+    bound_type: definitions.BoundType,
+    direction: definitions.Direction,
     sigma: float,
-) -> ra_distributions.DenseDiscreteDist:
+) -> distributions.DenseDiscreteDist:
   """GEOM path intentionally mirrors realization path after base creation.
 
   Both call geometric_allocation_PLD_base_* with identical wiring.
 
   """
-  if direction == ra_types.Direction.ADD:
+  if direction == definitions.Direction.ADD:
     return _geometric_allocation_pld_base_add(
         base_distributions_creation=partial(
             _gaussian_add_geom_loss_factor,
@@ -632,7 +626,7 @@ def _gaussian_allocation_geom(
         tail_truncation=tail_truncation,
         bound_type=bound_type,
     )
-  if direction == ra_types.Direction.REMOVE:
+  if direction == definitions.Direction.REMOVE:
     return _geometric_allocation_pld_base_remove(
         base_distributions_creation=partial(
             _gaussian_remove_geom_loss_factors,
@@ -650,11 +644,9 @@ def _gaussian_remove_geom_loss_factors(
     *,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
     sigma: float,
-) -> tuple[
-    ra_distributions.DenseDiscreteDist, ra_distributions.DenseDiscreteDist
-]:
+) -> tuple[distributions.DenseDiscreteDist, distributions.DenseDiscreteDist]:
   """Build REMOVE GEOM one-step PLD factors as ``(base, dual_base)``."""
   sigma_inv = 1.0 / sigma
   factor_tail_truncation = tail_truncation / 2
@@ -669,39 +661,39 @@ def _gaussian_remove_geom_loss_factors(
   dual_x_max = float(exp_dual.isf(factor_tail_truncation))
   base_x_min = float(exp_base.ppf(factor_tail_truncation))
   base_x_max = float(exp_base.isf(factor_tail_truncation))
-  dual_grid = ra_distributions._discretize_aligned_grid(
+  dual_grid = distributions._discretize_aligned_grid(
       x_min=dual_x_min,
       x_max=dual_x_max,
-      spacing_type=ra_types.SpacingType.GEOMETRIC,
+      spacing_type=definitions.SpacingType.GEOMETRIC,
       align_to_multiples=True,
       discretization=geom_step,
   )
-  base_grid = ra_distributions._discretize_aligned_grid(
+  base_grid = distributions._discretize_aligned_grid(
       x_min=base_x_min,
       x_max=base_x_max,
-      spacing_type=ra_types.SpacingType.GEOMETRIC,
+      spacing_type=definitions.SpacingType.GEOMETRIC,
       align_to_multiples=True,
       discretization=geom_step,
   )
 
-  dual_factor_dist = ra_distributions._discretize_on_grid(
+  dual_factor_dist = distributions._discretize_on_grid(
       dist=exp_dual,
       grid=dual_grid,
       bound_type=bound_type,
       pmf_min_increment=factor_tail_truncation,
   )
-  ra_utils._validate_dense_geometric_dist(dual_factor_dist)
+  utils._validate_dense_geometric_dist(dual_factor_dist)
 
-  base_factor_dist = ra_distributions._discretize_on_grid(
+  base_factor_dist = distributions._discretize_on_grid(
       dist=exp_base,
       grid=base_grid,
       bound_type=bound_type,
       pmf_min_increment=factor_tail_truncation,
   )
-  ra_utils._validate_dense_geometric_dist(base_factor_dist)
+  utils._validate_dense_geometric_dist(base_factor_dist)
 
-  dual_loss_factor = ra_utils._log_geometric_to_linear(dual_factor_dist)
-  base_loss_factor = ra_utils._log_geometric_to_linear(base_factor_dist)
+  dual_loss_factor = utils._log_geometric_to_linear(dual_factor_dist)
+  base_loss_factor = utils._log_geometric_to_linear(base_factor_dist)
   # geometric_allocation_pld_base_remove expects (base, dual_base).
   return base_loss_factor, dual_loss_factor
 
@@ -710,9 +702,9 @@ def _gaussian_add_geom_loss_factor(
     *,
     loss_discretization: float,
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
+    bound_type: definitions.BoundType,
     sigma: float,
-) -> ra_distributions.DenseDiscreteDist:
+) -> distributions.DenseDiscreteDist:
   """Build ADD GEOM one-step linear PLD factor."""
   sigma_inv = 1.0 / sigma
 
@@ -721,18 +713,18 @@ def _gaussian_add_geom_loss_factor(
 
   base_x_min = float(base_lognorm.ppf(tail_truncation))
   base_x_max = float(base_lognorm.isf(tail_truncation))
-  base_grid = ra_distributions._discretize_aligned_grid(
+  base_grid = distributions._discretize_aligned_grid(
       x_min=base_x_min,
       x_max=base_x_max,
-      spacing_type=ra_types.SpacingType.GEOMETRIC,
+      spacing_type=definitions.SpacingType.GEOMETRIC,
       align_to_multiples=True,
       discretization=geom_step,
   )
-  base_dist = ra_distributions._discretize_on_grid(
+  base_dist = distributions._discretize_on_grid(
       dist=base_lognorm,
       grid=base_grid,
       bound_type=bound_type,
       pmf_min_increment=tail_truncation,
   )
-  ra_utils._validate_dense_geometric_dist(base_dist)
-  return ra_utils._log_geometric_to_linear(base_dist)
+  utils._validate_dense_geometric_dist(base_dist)
+  return utils._log_geometric_to_linear(base_dist)

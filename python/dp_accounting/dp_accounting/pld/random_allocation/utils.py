@@ -8,8 +8,8 @@ from typing import Any, Callable
 import numpy as np
 from numpy.typing import NDArray
 
-from dp_accounting.pld.random_allocation import ra_distributions
-from dp_accounting.pld.random_allocation import ra_types
+from dp_accounting.pld.random_allocation import distributions
+from dp_accounting.pld.random_allocation import definitions
 
 
 # =============================================================================
@@ -22,7 +22,7 @@ def _convolve_boundary_masses(
     p_max_1: float,
     p_min_2: float,
     p_max_2: float,
-    domain: ra_distributions.Domain,
+    domain: distributions.Domain,
 ) -> tuple[float, float]:
   """Compute boundary masses (p_min, p_max) for the convolution Z = X + Y.
 
@@ -42,7 +42,7 @@ def _convolve_boundary_masses(
   )
 
   # p_min: depends on domain
-  if domain == ra_distributions.Domain.POSITIVES:
+  if domain == distributions.Domain.POSITIVES:
     # 0 is neutral: Z=0 only when both X=0 and Y=0
     p_min = p_min_1 * p_min_2
   else:
@@ -55,7 +55,7 @@ def _convolve_boundary_masses(
 
 
 def _self_convolve_boundary_masses(
-    dist: ra_distributions.DiscreteDistBase,
+    dist: distributions.DiscreteDistBase,
     num_convolutions: int,
 ) -> tuple[float, float]:
   """Compute boundary masses after ``num_convolutions`` self-convolutions."""
@@ -64,7 +64,7 @@ def _self_convolve_boundary_masses(
       np.clip(-np.expm1(num_convolutions * np.log1p(-dist.p_max)), 0.0, 1.0)
   )
 
-  if dist.domain == ra_distributions.Domain.POSITIVES:
+  if dist.domain == distributions.Domain.POSITIVES:
     # 0 is neutral: Z=0 only when all num_convolutions factors are 0
     p_min = dist.p_min**num_convolutions
   else:
@@ -81,7 +81,7 @@ def _self_convolve_boundary_masses(
 # =============================================================================
 
 
-@ra_types._optional_njit()
+@definitions._optional_njit()
 def _kahan_reverse_exclusive_cumsum(
     padded_probs: NDArray[np.float64],
 ) -> NDArray[np.float64]:
@@ -111,7 +111,7 @@ def _kahan_reverse_exclusive_cumsum(
 
 
 def _ccdf_from_pmf(
-    dist: ra_distributions.DiscreteDistBase,
+    dist: distributions.DiscreteDistBase,
 ) -> NDArray[np.float64]:
   """Convert distribution PMF to padded complementary CDF.
 
@@ -128,9 +128,9 @@ def _ccdf_from_pmf(
 
 def _expand_to_grid(
     *,
-    dist: ra_distributions.DiscreteDistBase,
+    dist: distributions.DiscreteDistBase,
     grid: NDArray[np.float64],
-) -> ra_distributions.SparseDiscreteDist:
+) -> distributions.SparseDiscreteDist:
   """Insert zero-mass points for missing support values."""
   x = dist._x_array
   pmf = dist.prob_arr
@@ -139,7 +139,7 @@ def _expand_to_grid(
   if not np.all(grid[indices] == x):
     raise ValueError("Target grid must contain all original support points")
   expanded_pmf[indices] = pmf
-  return ra_distributions.SparseDiscreteDist(
+  return distributions.SparseDiscreteDist(
       x_array=grid,
       prob_arr=expanded_pmf,
       p_min=dist.p_min,
@@ -149,11 +149,9 @@ def _expand_to_grid(
 
 def _align_distributions_to_union_grid(
     *,
-    dist_1: ra_distributions.DiscreteDistBase,
-    dist_2: ra_distributions.DiscreteDistBase,
-) -> tuple[
-    ra_distributions.SparseDiscreteDist, ra_distributions.SparseDiscreteDist
-]:
+    dist_1: distributions.DiscreteDistBase,
+    dist_2: distributions.DiscreteDistBase,
+) -> tuple[distributions.SparseDiscreteDist, distributions.SparseDiscreteDist]:
   """Return distributions on a shared grid by inserting zero-mass points."""
   x_union = np.unique(np.concatenate((dist_1._x_array, dist_2._x_array)))
   return (
@@ -175,12 +173,12 @@ def _align_distributions_to_union_grid(
 
 def _binary_self_convolve(
     *,
-    dist: ra_distributions.DenseDiscreteDist,
+    dist: distributions.DenseDiscreteDist,
     T: int,  # pylint: disable=invalid-name  # T matches paper notation
     tail_truncation: float,
-    bound_type: ra_types.BoundType,
-    convolve: Callable[..., ra_distributions.DenseDiscreteDist],
-) -> ra_distributions.DenseDiscreteDist:
+    bound_type: definitions.BoundType,
+    convolve: Callable[..., distributions.DenseDiscreteDist],
+) -> distributions.DenseDiscreteDist:
   """Self-convolve via exponentiation by squaring, using a convolve callback.
 
   Algorithm 3 (`self-conv`) in Appendix C of https://arxiv.org/abs/2602.17284.
@@ -219,24 +217,24 @@ def _binary_self_convolve(
 
 def _combine_distributions(
     *,
-    dist_1: ra_distributions.DiscreteDistBase,
-    dist_2: ra_distributions.DiscreteDistBase,
-    bound_type: ra_types.BoundType,
-) -> ra_distributions.SparseDiscreteDist:
+    dist_1: distributions.DiscreteDistBase,
+    dist_2: distributions.DiscreteDistBase,
+    bound_type: definitions.BoundType,
+) -> distributions.SparseDiscreteDist:
   """Combine two distributions by tightening bounds via CCDF min/max.
 
   For DOMINATES: tighter dominating distribution via pointwise min CCDF.
   For IS_DOMINATED: tighter dominated distribution via pointwise max CCDF.
   """
   ccdf_op: Any
-  if bound_type == ra_types.BoundType.DOMINATES:
+  if bound_type == definitions.BoundType.DOMINATES:
     ccdf_op = np.minimum
-  elif bound_type == ra_types.BoundType.IS_DOMINATED:
+  elif bound_type == definitions.BoundType.IS_DOMINATED:
     ccdf_op = np.maximum
   else:
     raise ValueError(f"Unknown BoundType: {bound_type}")
 
-  if ra_distributions._stable_array_equal(a=dist_1._x_array, b=dist_2._x_array):
+  if distributions._stable_array_equal(a=dist_1._x_array, b=dist_2._x_array):
     dist_1_aligned, dist_2_aligned = dist_1, dist_2
   else:
     dist_1_aligned, dist_2_aligned = _align_distributions_to_union_grid(
@@ -250,14 +248,14 @@ def _combine_distributions(
   combined_ccdf = ccdf_op(ccdf_1, ccdf_2)
   prob_arr = combined_ccdf[:-2] - combined_ccdf[1:-1]
 
-  prob_arr, p_min, p_max = ra_distributions._enforce_mass_conservation(
+  prob_arr, p_min, p_max = distributions._enforce_mass_conservation(
       prob_arr=prob_arr,
       expected_p_min=max(dist_1_aligned.p_min, dist_2_aligned.p_min),
       expected_p_max=max(dist_1_aligned.p_max, dist_2_aligned.p_max),
       bound_type=bound_type,
   )
 
-  return ra_distributions.SparseDiscreteDist(
+  return distributions.SparseDiscreteDist(
       x_array=x_array,
       prob_arr=prob_arr,
       p_min=p_min,
@@ -271,63 +269,63 @@ def _combine_distributions(
 
 
 def _exp_linear_to_geometric(
-    dist: ra_distributions.DenseDiscreteDist,
-) -> ra_distributions.DenseDiscreteDist:
+    dist: distributions.DenseDiscreteDist,
+) -> distributions.DenseDiscreteDist:
   """Map a linear-grid distribution to a geometric-grid one via exp(.).
 
   Maps REALS domain → POSITIVES domain.
   The −∞ atom (p_min in REALS) maps to the 0 atom (p_min in POSITIVES).
   """
-  if dist.spacing_type != ra_types.SpacingType.LINEAR:
+  if dist.spacing_type != definitions.SpacingType.LINEAR:
     raise ValueError(
         "exp_linear_to_geometric requires LINEAR spacing input, got "
         f"{dist.spacing_type}"
     )
   x_min_exp = float(np.exp(dist.x_min))
 
-  return ra_distributions.DenseDiscreteDist(
+  return distributions.DenseDiscreteDist(
       x_min=x_min_exp,
       step=dist.step,
       prob_arr=dist.prob_arr.copy(),
       p_min=dist.p_min,  # −∞ atom → 0 atom (p_min identity preserved)
       p_max=dist.p_max,  # +∞ atom unchanged
-      spacing_type=ra_types.SpacingType.GEOMETRIC,
-      domain=ra_distributions.Domain.POSITIVES,
+      spacing_type=definitions.SpacingType.GEOMETRIC,
+      domain=distributions.Domain.POSITIVES,
   )
 
 
 def _log_geometric_to_linear(
-    dist: ra_distributions.DenseDiscreteDist,
-) -> ra_distributions.DenseDiscreteDist:
+    dist: distributions.DenseDiscreteDist,
+) -> distributions.DenseDiscreteDist:
   """Map a geometric-grid distribution to a linear-grid one via log(.).
 
   Maps POSITIVES domain → REALS domain.
   The 0 atom (p_min in POSITIVES) maps to the −∞ atom (p_min in REALS).
   """
-  if dist.spacing_type != ra_types.SpacingType.GEOMETRIC:
+  if dist.spacing_type != definitions.SpacingType.GEOMETRIC:
     raise ValueError(
         "log_geometric_to_linear requires GEOMETRIC spacing input, got "
         f"{dist.spacing_type}"
     )
   x_min_log = float(np.log(dist.x_min))
 
-  return ra_distributions.DenseDiscreteDist(
+  return distributions.DenseDiscreteDist(
       x_min=x_min_log,
       step=dist.step,
       prob_arr=dist.prob_arr.copy(),
       p_min=dist.p_min,  # 0 atom → −∞ atom (p_min identity preserved)
       p_max=dist.p_max,
-      spacing_type=ra_types.SpacingType.LINEAR,
-      domain=ra_distributions.Domain.REALS,
+      spacing_type=definitions.SpacingType.LINEAR,
+      domain=distributions.Domain.REALS,
   )
 
 
 def _negate_reverse_linear_distribution(
-    dist: ra_distributions.DenseDiscreteDist,
-) -> ra_distributions.DenseDiscreteDist:
+    dist: distributions.DenseDiscreteDist,
+) -> distributions.DenseDiscreteDist:
   """Map X -> -X, reverse PMF order, and swap boundary atoms."""
   n = dist.prob_arr.size
-  return ra_distributions.DenseDiscreteDist(
+  return distributions.DenseDiscreteDist(
       x_min=-(dist.x_min + dist.step * (n - 1)),
       step=dist.step,
       prob_arr=np.flip(dist.prob_arr),
@@ -337,8 +335,8 @@ def _negate_reverse_linear_distribution(
 
 
 def _calc_pld_dual(
-    realization: ra_distributions.PLDRealization,
-) -> ra_distributions.PLDRealization:
+    realization: distributions.PLDRealization,
+) -> distributions.PLDRealization:
   """Compute the paper PLD dual ``D(L)`` (Definition 3.1).
 
   Algorithm 7 (`PLD-dual`) in Appendix C of https://arxiv.org/abs/2602.17284.
@@ -349,7 +347,7 @@ def _calc_pld_dual(
   - support reflected to ``-l``,
   - residual mass at ``+inf``.
   """
-  if not isinstance(realization, ra_distributions.PLDRealization):
+  if not isinstance(realization, distributions.PLDRealization):
     raise TypeError(
         f"calc_pld_dual requires PLDRealization, got {type(realization)}"
     )
@@ -366,7 +364,7 @@ def _calc_pld_dual(
     dual_probs *= 1.0 / sum_prob
     sum_prob = 1.0
 
-  return ra_distributions.PLDRealization(
+  return distributions.PLDRealization(
       x_min=-(
           realization.x_min + realization.step * (realization.prob_arr.size - 1)
       ),
@@ -385,8 +383,8 @@ def _calc_pld_dual(
 def _validate_dense_linear_dist(dist: object) -> None:
   """Raise TypeError if dist is not a LINEAR DenseDiscreteDist."""
   if not (
-      isinstance(dist, ra_distributions.DenseDiscreteDist)
-      and dist.spacing_type == ra_types.SpacingType.LINEAR
+      isinstance(dist, distributions.DenseDiscreteDist)
+      and dist.spacing_type == definitions.SpacingType.LINEAR
   ):
     _st = getattr(dist, "spacing_type", "?")
     raise TypeError(
@@ -398,8 +396,8 @@ def _validate_dense_linear_dist(dist: object) -> None:
 def _validate_dense_geometric_dist(dist: object) -> None:
   """Raise TypeError if dist is not a GEOMETRIC DenseDiscreteDist."""
   if not (
-      isinstance(dist, ra_distributions.DenseDiscreteDist)
-      and dist.spacing_type == ra_types.SpacingType.GEOMETRIC
+      isinstance(dist, distributions.DenseDiscreteDist)
+      and dist.spacing_type == definitions.SpacingType.GEOMETRIC
   ):
     _st = getattr(dist, "spacing_type", "?")
     raise TypeError(
@@ -414,7 +412,7 @@ def _validate_dense_geometric_dist(dist: object) -> None:
 
 
 def _validate_privacy_params(
-    params: ra_types.PrivacyParams,
+    params: definitions.PrivacyParams,
     *,
     require_delta: bool = False,
     require_epsilon: bool = False,
@@ -432,7 +430,7 @@ def _validate_privacy_params(
       ValueError: If any parameter value is invalid.
 
   """
-  if not isinstance(params, ra_types.PrivacyParams):
+  if not isinstance(params, definitions.PrivacyParams):
     raise TypeError(f"params must be PrivacyParams, got {type(params)}")
   _validate_gaussian_params(
       params.sigma, params.num_steps, params.num_selected, params.num_epochs
@@ -526,7 +524,7 @@ def _validate_epsilon(epsilon: float | None) -> None:
 # =============================================================================
 
 
-def _validate_bound_type(bound_type: ra_types.BoundType) -> None:
+def _validate_bound_type(bound_type: definitions.BoundType) -> None:
   """Validate BoundType enum value.
 
   Args:
@@ -537,8 +535,8 @@ def _validate_bound_type(bound_type: ra_types.BoundType) -> None:
 
   """
   if bound_type not in (
-      ra_types.BoundType.DOMINATES,
-      ra_types.BoundType.IS_DOMINATED,
+      definitions.BoundType.DOMINATES,
+      definitions.BoundType.IS_DOMINATED,
   ):
     raise ValueError(f"Invalid bound_type: {bound_type}")
 
@@ -571,7 +569,7 @@ def _validate_discretization_params(
 
 
 def _validate_allocation_scheme_config(
-    config: ra_types.AllocationSchemeConfig,
+    config: definitions.AllocationSchemeConfig,
 ) -> None:
   """Validate AllocationSchemeConfig fields.
 
@@ -583,7 +581,7 @@ def _validate_allocation_scheme_config(
       ValueError: If any field value is out of range.
 
   """
-  if not isinstance(config, ra_types.AllocationSchemeConfig):
+  if not isinstance(config, definitions.AllocationSchemeConfig):
     raise TypeError(
         f"config must be AllocationSchemeConfig, got {type(config)}"
     )
