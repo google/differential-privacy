@@ -8,8 +8,8 @@ from typing import Callable
 import numpy as np
 from scipy import stats
 
+from dp_accounting.pld import pld_pmf
 from dp_accounting.pld import privacy_loss_distribution
-from dp_accounting.pld.pld_pmf import DensePLDPmf
 from dp_accounting.pld.random_allocation import ra_convolution
 from dp_accounting.pld.random_allocation import ra_distributions
 from dp_accounting.pld.random_allocation import ra_types
@@ -20,12 +20,12 @@ def _linear_dist_to_dp_accounting_pmf(
     *,
     dist: ra_distributions.DenseDiscreteDist,
     pessimistic_estimate: bool = True,
-) -> DensePLDPmf:
+) -> pld_pmf.DensePLDPmf:
     """Convert a linear-grid loss PMF to a dp_accounting PMF.
 
     Args:
         dist: Linear-grid loss distribution compatible with dp_accounting.
-            Must be a linear ra_distributions.DenseDiscreteDist. ``x_min`` is rounded to the
+            Must be a linear DenseDiscreteDist. ``x_min`` is rounded to the
             nearest step multiple when forming dp_accounting's integer
             ``lower_loss`` index.
         pessimistic_estimate: Whether to use pessimistic estimate in dp_accounting.
@@ -36,7 +36,7 @@ def _linear_dist_to_dp_accounting_pmf(
     ra_utils._validate_dense_linear_dist(dist)
 
     base_index = int(np.rint(dist.x_min / dist.step))
-    return DensePLDPmf(
+    return pld_pmf.DensePLDPmf(
         discretization=dist.step,
         lower_loss=base_index,
         probs=dist.prob_arr.astype(np.float64),
@@ -78,15 +78,7 @@ def _realization_remove_base_distributions(
             spacing_type=ra_types.SpacingType.LINEAR,
             bound_type=bound_type,
         )
-        if not (
-            isinstance(coarsened_base, ra_distributions.DenseDiscreteDist)
-            and coarsened_base.spacing_type == ra_types.SpacingType.LINEAR
-        ):
-            _st = getattr(coarsened_base, "spacing_type", "?")
-            raise TypeError(
-                "Expected ra_distributions.DenseDiscreteDist with LINEAR spacing, "
-                f"got {type(coarsened_base).__name__} with spacing {_st}"
-            )
+        ra_utils._validate_dense_linear_dist(coarsened_base)
         base_realization = ra_distributions.PLDRealization.from_linear_dist(
             coarsened_base
         )
@@ -97,7 +89,7 @@ def _realization_remove_base_distributions(
 
     # Lower-bound truncation can move left-tail mass into p_min and must consume
     # any +inf mass before exp-space composition, so keep the lower path on the
-    # plain ra_distributions.DenseDiscreteDist rediscretization route unconditionally.
+    # plain DenseDiscreteDist rediscretization route unconditionally.
     dual_realization = ra_utils._calc_pld_dual(realization)
     neg_dual_linear = ra_utils._negate_reverse_linear_distribution(dual_realization)
     # Avoid inflating the grid when the target is finer than the original one.
@@ -116,15 +108,7 @@ def _realization_remove_base_distributions(
         spacing_type=ra_types.SpacingType.LINEAR,
         bound_type=bound_type,
     )
-    if not (
-        isinstance(lower_base_dist, ra_distributions.DenseDiscreteDist)
-        and lower_base_dist.spacing_type == ra_types.SpacingType.LINEAR
-    ):
-        _st = getattr(lower_base_dist, "spacing_type", "?")
-        raise TypeError(
-            "Expected ra_distributions.DenseDiscreteDist with LINEAR spacing, "
-            f"got {type(lower_base_dist).__name__} with spacing {_st}"
-        )
+    ra_utils._validate_dense_linear_dist(lower_base_dist)
     neg_dual_dist = ra_distributions._rediscretize_dist(
         dist=neg_dual_linear,
         tail_truncation=tail_truncation,
@@ -132,15 +116,7 @@ def _realization_remove_base_distributions(
         spacing_type=ra_types.SpacingType.LINEAR,
         bound_type=bound_type,
     )
-    if not (
-        isinstance(neg_dual_dist, ra_distributions.DenseDiscreteDist)
-        and neg_dual_dist.spacing_type == ra_types.SpacingType.LINEAR
-    ):
-        _st = getattr(neg_dual_dist, "spacing_type", "?")
-        raise TypeError(
-            "Expected ra_distributions.DenseDiscreteDist with LINEAR spacing, "
-            f"got {type(neg_dual_dist).__name__} with spacing {_st}"
-        )
+    ra_utils._validate_dense_linear_dist(neg_dual_dist)
     return lower_base_dist, neg_dual_dist
 
 
@@ -174,15 +150,7 @@ def _realization_add_base_distribution(
         spacing_type=ra_types.SpacingType.LINEAR,
         bound_type=bound_type,
     )
-    if not (
-        isinstance(coarsened, ra_distributions.DenseDiscreteDist)
-        and coarsened.spacing_type == ra_types.SpacingType.LINEAR
-    ):
-        _st = getattr(coarsened, "spacing_type", "?")
-        raise TypeError(
-            "Expected ra_distributions.DenseDiscreteDist with LINEAR spacing, "
-            f"got {type(coarsened).__name__} with spacing {_st}"
-        )
+    ra_utils._validate_dense_linear_dist(coarsened)
     return coarsened
 
 
@@ -253,7 +221,7 @@ def _allocation_directional_pld(
     For divisible ``num_steps / num_selected``, this builds one component. For
     non-divisible cases, it builds floor and ceil components via
     ``_allocation_directional_pld_core(...)`` and combines them with one final
-    ``ra_convolution._fft_convolve(...)``.
+    ``_fft_convolve(...)``.
     """
     # Input validation
     ra_utils._validate_allocation_params(num_steps, num_selected, num_epochs)
@@ -549,15 +517,7 @@ def _allocation_directional_pld_core(
         tail_truncation=base_tail_truncation,
         bound_type=bound_type,
     )
-    if not (
-        isinstance(prepared_base_dist, ra_distributions.DenseDiscreteDist)
-        and prepared_base_dist.spacing_type == ra_types.SpacingType.LINEAR
-    ):
-        _st = getattr(prepared_base_dist, "spacing_type", "?")
-        raise TypeError(
-            "Expected ra_distributions.DenseDiscreteDist with LINEAR spacing, "
-            f"got {type(prepared_base_dist).__name__} with spacing {_st}"
-        )
+    ra_utils._validate_dense_linear_dist(prepared_base_dist)
 
     if num_epochs == 1:
         composed_dist = prepared_base_dist
@@ -573,15 +533,7 @@ def _allocation_directional_pld_core(
         tail_truncation=tail_truncation,
         bound_type=bound_type,
     )
-    if not (
-        isinstance(final_dist, ra_distributions.DenseDiscreteDist)
-        and final_dist.spacing_type == ra_types.SpacingType.LINEAR
-    ):
-        _st = getattr(final_dist, "spacing_type", "?")
-        raise TypeError(
-            "Expected ra_distributions.DenseDiscreteDist with LINEAR spacing, "
-            f"got {type(final_dist).__name__} with spacing {_st}"
-        )
+    ra_utils._validate_dense_linear_dist(final_dist)
     return final_dist
 
 
@@ -712,15 +664,7 @@ def _gaussian_remove_geom_loss_factors(
         bound_type=bound_type,
         pmf_min_increment=factor_tail_truncation,
     )
-    if not (
-        isinstance(dual_factor_dist, ra_distributions.DenseDiscreteDist)
-        and dual_factor_dist.spacing_type == ra_types.SpacingType.GEOMETRIC
-    ):
-        _st = getattr(dual_factor_dist, "spacing_type", "?")
-        raise TypeError(
-            "Expected ra_distributions.DenseDiscreteDist with GEOMETRIC spacing, "
-            f"got {type(dual_factor_dist).__name__} with spacing {_st}"
-        )
+    ra_utils._validate_dense_geometric_dist(dual_factor_dist)
 
     base_factor_dist = ra_distributions._discretize_on_grid(
         dist=exp_base,
@@ -728,15 +672,7 @@ def _gaussian_remove_geom_loss_factors(
         bound_type=bound_type,
         pmf_min_increment=factor_tail_truncation,
     )
-    if not (
-        isinstance(base_factor_dist, ra_distributions.DenseDiscreteDist)
-        and base_factor_dist.spacing_type == ra_types.SpacingType.GEOMETRIC
-    ):
-        _st = getattr(base_factor_dist, "spacing_type", "?")
-        raise TypeError(
-            "Expected ra_distributions.DenseDiscreteDist with GEOMETRIC spacing, "
-            f"got {type(base_factor_dist).__name__} with spacing {_st}"
-        )
+    ra_utils._validate_dense_geometric_dist(base_factor_dist)
 
     dual_loss_factor = ra_utils._log_geometric_to_linear(dual_factor_dist)
     base_loss_factor = ra_utils._log_geometric_to_linear(base_factor_dist)
@@ -772,12 +708,5 @@ def _gaussian_add_geom_loss_factor(
         bound_type=bound_type,
         pmf_min_increment=tail_truncation,
     )
-    if not (
-        isinstance(base_dist, ra_distributions.DenseDiscreteDist)
-        and base_dist.spacing_type == ra_types.SpacingType.GEOMETRIC
-    ):
-        raise TypeError(
-            f"Expected ra_distributions.DenseDiscreteDist with GEOMETRIC spacing, "
-            f"got {type(base_dist).__name__} with spacing {getattr(base_dist, 'spacing_type', '?')}"
-        )
+    ra_utils._validate_dense_geometric_dist(base_dist)
     return ra_utils._log_geometric_to_linear(base_dist)

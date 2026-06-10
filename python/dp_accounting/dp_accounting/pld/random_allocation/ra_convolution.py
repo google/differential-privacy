@@ -10,7 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.fft import irfft, next_fast_len, rfft
 
-from dp_accounting.pld.common import compute_self_convolve_bounds
+from dp_accounting.pld import common
 from dp_accounting.pld.random_allocation import ra_distributions
 from dp_accounting.pld.random_allocation import ra_types
 from dp_accounting.pld.random_allocation import ra_utils
@@ -55,7 +55,7 @@ def _fft_convolve(
         and dist_2.spacing_type == ra_types.SpacingType.LINEAR
     ):
         raise TypeError(
-            "fft_convolve requires linear ra_distributions.DenseDiscreteDist inputs; "
+            "fft_convolve requires linear DenseDiscreteDist inputs; "
             f"got dist_1={type(dist_1).__name__} (spacing={dist_1.spacing_type}), "
             f"dist_2={type(dist_2).__name__} (spacing={dist_2.spacing_type})"
         )
@@ -142,7 +142,7 @@ def _calc_fft_window_size(
     """Calculate FFT window bounds for ``num_convolutions`` self-convolutions with fallback."""
     # ``compute_self_convolve_bounds`` gives a Chernoff-style window [lower, upper] that
     # should contain all but ``tail_truncation`` mass after ``num_convolutions`` convolutions.
-    lower_idx, upper_idx = compute_self_convolve_bounds(
+    lower_idx, upper_idx = common.compute_self_convolve_bounds(
         pmf.tolist(), num_convolutions, tail_truncation
     )
     window_size = upper_idx - lower_idx + 1
@@ -236,7 +236,7 @@ def _fft_self_convolve_direct(
         right_tail_mass = math.fsum(map(float, rolled_conv[window_size:]))
         rolled_conv[min(window_size, right_tail_ind) - 1] += right_tail_mass
     else:
-        raise ValueError(f"Unknown ra_types.BoundType: {bound_type}")
+        raise ValueError(f"Unknown BoundType: {bound_type}")
 
     x_min = dist.x_min * T + shift_left * dist.step
     pmf_conv = rolled_conv[:window_size]
@@ -520,7 +520,7 @@ def _compute_geometric_convolution(
         delta_lohi[1:] = np.floor(tau_lohi[1:] + rounding_eps).astype(np.int64)
         delta_hilo[1:] = np.floor(tau_hilo[1:] + rounding_eps).astype(np.int64)
     else:
-        raise ValueError(f"Unknown ra_types.BoundType: {bound_type}")
+        raise ValueError(f"Unknown BoundType: {bound_type}")
 
     # --- C. Kernel Execution ---
     pmf_out = _geometric_kernel(
@@ -613,8 +613,8 @@ def _geometric_convolve(
         and dist_2.domain == ra_distributions.Domain.POSITIVES
     ):
         raise TypeError(
-            "_geometric_convolve requires geometric ra_distributions.DenseDiscreteDist inputs on "
-            f"ra_distributions.Domain.POSITIVES; got dist_1={type(dist_1).__name__} "
+            "_geometric_convolve requires geometric DenseDiscreteDist inputs on "
+            f"Domain.POSITIVES; got dist_1={type(dist_1).__name__} "
             f"(spacing={dist_1.spacing_type}, domain={dist_1.domain}), "
             f"dist_2={type(dist_2).__name__} "
             f"(spacing={dist_2.spacing_type}, domain={dist_2.domain})"

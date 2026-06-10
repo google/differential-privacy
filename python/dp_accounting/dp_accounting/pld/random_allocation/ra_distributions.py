@@ -241,7 +241,7 @@ def _compute_truncation(
         p_min_out = p_min + shifted_mass
         prob_arr_out = extended_prob[:-1]
     else:
-        raise ValueError(f"Unknown ra_types.BoundType: {bound_type}")
+        raise ValueError(f"Unknown BoundType: {bound_type}")
 
     # Remove zero probability tails to reduce unnecessary computations
     inner_min_new, inner_max_new = _strip_zero_edges(prob_arr_out)
@@ -499,7 +499,7 @@ class DenseDiscreteDist(DiscreteDistBase):
             if self.domain != Domain.POSITIVES:
                 raise ValueError("Geometric spacing requires domain=Domain.POSITIVES")
         else:
-            raise ValueError(f"Unknown ra_types.SpacingType: {self.spacing_type}")
+            raise ValueError(f"Unknown SpacingType: {self.spacing_type}")
 
     @classmethod
     def from_x_array(
@@ -517,7 +517,7 @@ class DenseDiscreteDist(DiscreteDistBase):
         elif spacing_type == ra_types.SpacingType.GEOMETRIC:
             step = _compute_bin_log_ratio(x_array)
         else:
-            raise ValueError(f"Unknown ra_types.SpacingType: {spacing_type}")
+            raise ValueError(f"Unknown SpacingType: {spacing_type}")
         return cls(
             x_min=float(x_array[0]),
             step=step,
@@ -556,7 +556,7 @@ class DenseDiscreteDist(DiscreteDistBase):
                 spacing_type=self.spacing_type,
             )
         else:
-            raise ValueError(f"Unknown ra_types.SpacingType: {self.spacing_type}")
+            raise ValueError(f"Unknown SpacingType: {self.spacing_type}")
         return self.__class__(
             x_min=new_grid.x_min,
             step=new_grid.step,
@@ -762,7 +762,7 @@ def _enforce_mass_conservation(
 
     raise ValueError(
         f"Invalid bound_type: {bound_type}. Must be"
-        " ra_types.BoundType.DOMINATES or ra_types.BoundType.IS_DOMINATED."
+        " BoundType.DOMINATES or BoundType.IS_DOMINATED."
     )
 
 
@@ -905,7 +905,7 @@ def _compute_discrete_prob(
             tail_truncation=pmf_min_increment,
         )
     else:
-        raise ValueError(f"Unknown ra_types.BoundType: {bound_type}")
+        raise ValueError(f"Unknown BoundType: {bound_type}")
 
     return bin_probs, p_left, p_right
 
@@ -942,7 +942,7 @@ def _discretize_continuous_prob_arr(
         prob_arr[-1] = p_right
         return prob_arr, p_left, 0.0
 
-    raise ValueError(f"Unknown ra_types.BoundType: {bound_type}")
+    raise ValueError(f"Unknown BoundType: {bound_type}")
 
 
 def _discretize_aligned_grid(

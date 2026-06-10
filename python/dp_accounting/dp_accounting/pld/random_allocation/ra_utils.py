@@ -26,7 +26,7 @@ def _convolve_boundary_masses(
 ) -> tuple[float, float]:
     """Compute boundary masses (p_min, p_max) for the convolution Z = X + Y.
 
-    ra_distributions.Domain semantics differ for the lower boundary:
+    Domain semantics differ for the lower boundary:
     - REALS    (−∞ absorbing): P(Z=−∞) = 1 − (1−p_min_1)(1−p_min_2)
     - POSITIVES (0 neutral):   P(Z=0)  = p_min_1 · p_min_2
 
@@ -227,7 +227,7 @@ def _combine_distributions(
     elif bound_type == ra_types.BoundType.IS_DOMINATED:
         ccdf_op = np.maximum
     else:
-        raise ValueError(f"Unknown ra_types.BoundType: {bound_type}")
+        raise ValueError(f"Unknown BoundType: {bound_type}")
 
     if ra_distributions._stable_array_equal(a=dist_1._x_array, b=dist_2._x_array):
         dist_1_aligned, dist_2_aligned = dist_1, dist_2
@@ -341,7 +341,7 @@ def _calc_pld_dual(
     """
     if not isinstance(realization, ra_distributions.PLDRealization):
         raise TypeError(
-            f"calc_pld_dual requires ra_distributions.PLDRealization, got {type(realization)}"
+            f"calc_pld_dual requires PLDRealization, got {type(realization)}"
         )
 
     dual_probs_aligned = np.zeros_like(realization.prob_arr)
@@ -371,27 +371,27 @@ def _calc_pld_dual(
 
 
 def _validate_dense_linear_dist(dist: object) -> None:
-    """Raise TypeError if dist is not a LINEAR ra_distributions.DenseDiscreteDist."""
+    """Raise TypeError if dist is not a LINEAR DenseDiscreteDist."""
     if not (
         isinstance(dist, ra_distributions.DenseDiscreteDist)
         and dist.spacing_type == ra_types.SpacingType.LINEAR
     ):
         _st = getattr(dist, "spacing_type", "?")
         raise TypeError(
-            f"Expected ra_distributions.DenseDiscreteDist with LINEAR spacing, "
+            f"Expected DenseDiscreteDist with LINEAR spacing, "
             f"got {type(dist).__name__} with spacing {_st}"
         )
 
 
 def _validate_dense_geometric_dist(dist: object) -> None:
-    """Raise TypeError if dist is not a GEOMETRIC ra_distributions.DenseDiscreteDist."""
+    """Raise TypeError if dist is not a GEOMETRIC DenseDiscreteDist."""
     if not (
         isinstance(dist, ra_distributions.DenseDiscreteDist)
         and dist.spacing_type == ra_types.SpacingType.GEOMETRIC
     ):
         _st = getattr(dist, "spacing_type", "?")
         raise TypeError(
-            f"Expected ra_distributions.DenseDiscreteDist with GEOMETRIC spacing, "
+            f"Expected DenseDiscreteDist with GEOMETRIC spacing, "
             f"got {type(dist).__name__} with spacing {_st}"
         )
 
@@ -407,7 +407,7 @@ def _validate_privacy_params(
     require_delta: bool = False,
     require_epsilon: bool = False,
 ) -> None:
-    """Validate ra_types.PrivacyParams object.
+    """Validate PrivacyParams object.
 
     Args:
         params: Privacy parameters to validate.
@@ -415,12 +415,12 @@ def _validate_privacy_params(
         require_epsilon: If True, validate that epsilon is set and positive.
 
     Raises:
-        TypeError: If params is not a ra_types.PrivacyParams instance.
+        TypeError: If params is not a PrivacyParams instance.
         ValueError: If any parameter value is invalid.
 
     """
     if not isinstance(params, ra_types.PrivacyParams):
-        raise TypeError(f"params must be ra_types.PrivacyParams, got {type(params)}")
+        raise TypeError(f"params must be PrivacyParams, got {type(params)}")
     _validate_gaussian_params(
         params.sigma, params.num_steps, params.num_selected, params.num_epochs
     )
@@ -514,7 +514,7 @@ def _validate_epsilon(epsilon: float | None) -> None:
 
 
 def _validate_bound_type(bound_type: ra_types.BoundType) -> None:
-    """Validate ra_types.BoundType enum value.
+    """Validate BoundType enum value.
 
     Args:
         bound_type: The bound type to validate.
@@ -558,19 +558,19 @@ def _validate_discretization_params(
 
 
 def _validate_allocation_scheme_config(config: ra_types.AllocationSchemeConfig) -> None:
-    """Validate ra_types.AllocationSchemeConfig fields.
+    """Validate AllocationSchemeConfig fields.
 
     Args:
         config: Configuration to validate.
 
     Raises:
-        TypeError: If config is not an ra_types.AllocationSchemeConfig instance.
+        TypeError: If config is not an AllocationSchemeConfig instance.
         ValueError: If any field value is out of range.
 
     """
     if not isinstance(config, ra_types.AllocationSchemeConfig):
         raise TypeError(
-            f"config must be ra_types.AllocationSchemeConfig, got {type(config)}"
+            f"config must be AllocationSchemeConfig, got {type(config)}"
         )
     _validate_discretization_params(
         config.value_discretization_interval, config.tail_truncation
