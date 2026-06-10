@@ -521,3 +521,26 @@ class TruncatedSubsampledGaussianDpEvent(DpEvent):
   sampling_probability: float
   truncated_batch_size: int
   noise_multiplier: float
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
+class RandomAllocationDpEvent(DpEvent):
+  """Represents the random-allocation mechanism.
+
+  In this event, each element in the dataset is independently allocated to
+  num_selected uniformly sampled calls to the mechanism out of num_steps total
+  calls. These are the k and t parameters, respectively, from the paper.
+
+  Currently only GaussianDpEvent is supported as the inner event.
+
+  See https://arxiv.org/abs/2602.17284 for details.
+
+  Attributes:
+    event: The DpEvent for each call to the mechanism (e.g., GaussianDpEvent).
+    num_selected: Number of calls each element participates in (k in the paper).
+    num_steps: Total number of calls to the mechanism (t in the paper).
+  """
+
+  event: DpEvent
+  num_selected: int
+  num_steps: int

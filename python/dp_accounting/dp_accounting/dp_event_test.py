@@ -130,6 +130,14 @@ class DpEventTest(parameterized.TestCase):
               1.0,
           ),
       ),
+      (
+          'random_allocation',
+          dp_event.RandomAllocationDpEvent(
+              event=dp_event.GaussianDpEvent(2.0),
+              num_selected=10,
+              num_steps=100,
+          ),
+      ),
   )
   def test_to_from_named_tuple(self, event):
     named_tuple = event.to_named_tuple()

@@ -23,6 +23,7 @@ from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
 from dp_accounting.pld import common
 from dp_accounting.pld import privacy_loss_distribution
+from dp_accounting.pld import random_allocation as _random_allocation
 
 
 NeighborRel = privacy_accountant.NeighboringRelation
@@ -266,6 +267,30 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
               count
           )
           self._pld = self._pld.compose(truncated_subsampled_gaussian_pld)
+      return None
+    elif isinstance(event, dp_event.RandomAllocationDpEvent):
+      if not isinstance(event.event, dp_event.GaussianDpEvent):
+        return CompositionErrorDetails(
+            invalid_event=event,
+            error_message=(
+                'Subevent of `RandomAllocationDpEvent` must be '
+                f'`GaussianDpEvent`. Found {event.event}.'
+            ),
+        )
+      if do_compose:
+        if event.event.noise_multiplier == 0:
+          self._contains_non_dp_event = True
+        else:
+          params = _random_allocation.PrivacyParams(
+              sigma=event.event.noise_multiplier,
+              num_steps=event.num_steps,
+              num_selected=event.num_selected,
+          )
+          config = _random_allocation.AllocationSchemeConfig(
+              value_discretization_interval=self._value_discretization_interval,
+          )
+          alloc_pld = _random_allocation.gaussian_allocation_pld(params, config)
+          self._pld = self._pld.compose(alloc_pld.self_compose(count))
       return None
     else:
       # Unsupported event (including `UnsupportedDpEvent`).
