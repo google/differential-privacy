@@ -632,9 +632,9 @@ def _geometric_convolve(
 
     # Core Numeric Convolution
     x_out, pmf_conv = _compute_geometric_convolution(
-        x1=dist_1.x_array,
+        x1=dist_1._x_array,
         p1=dist_1.prob_arr,
-        x2=dist_2.x_array,
+        x2=dist_2._x_array,
         p2=dist_2.prob_arr,
         geom_step=geom_step,
         bound_type=bound_type,
@@ -644,7 +644,7 @@ def _geometric_convolve(
     x_out_0 = float(x_out[0])
     pmf_conv = _add_single_zero_atom_cross_term(
         pmf_conv=pmf_conv,
-        x_arr=dist_2.x_array,
+        x_arr=dist_2._x_array,
         prob_arr=dist_2.prob_arr,
         zero_prob=dist_1.p_min,
         x_out_0=x_out_0,
@@ -653,7 +653,7 @@ def _geometric_convolve(
     )
     pmf_conv = _add_single_zero_atom_cross_term(
         pmf_conv=pmf_conv,
-        x_arr=dist_1.x_array,
+        x_arr=dist_1._x_array,
         prob_arr=dist_1.prob_arr,
         zero_prob=dist_2.p_min,
         x_out_0=x_out_0,

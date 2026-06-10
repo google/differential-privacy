@@ -128,7 +128,7 @@ def _expand_to_grid(
     grid: NDArray[np.float64],
 ) -> ra_distributions.SparseDiscreteDist:
     """Insert zero-mass points for missing support values."""
-    x = dist.x_array
+    x = dist._x_array
     pmf = dist.prob_arr
     expanded_pmf = np.zeros_like(grid, dtype=np.float64)
     indices = np.searchsorted(grid, x)
@@ -149,7 +149,7 @@ def _align_distributions_to_union_grid(
     dist_2: ra_distributions.DiscreteDistBase,
 ) -> tuple[ra_distributions.SparseDiscreteDist, ra_distributions.SparseDiscreteDist]:
     """Return distributions on a shared grid by inserting zero-mass points."""
-    x_union = np.unique(np.concatenate((dist_1.x_array, dist_2.x_array)))
+    x_union = np.unique(np.concatenate((dist_1._x_array, dist_2._x_array)))
     return (
         _expand_to_grid(
             dist=dist_1,
@@ -229,7 +229,7 @@ def _combine_distributions(
     else:
         raise ValueError(f"Unknown ra_types.BoundType: {bound_type}")
 
-    if ra_distributions._stable_array_equal(a=dist_1.x_array, b=dist_2.x_array):
+    if ra_distributions._stable_array_equal(a=dist_1._x_array, b=dist_2._x_array):
         dist_1_aligned, dist_2_aligned = dist_1, dist_2
     else:
         dist_1_aligned, dist_2_aligned = _align_distributions_to_union_grid(
@@ -237,7 +237,7 @@ def _combine_distributions(
             dist_2=dist_2,
         )
 
-    x_array = dist_1_aligned.x_array
+    x_array = dist_1_aligned._x_array
     ccdf_1 = _ccdf_from_pmf(dist_1_aligned)
     ccdf_2 = _ccdf_from_pmf(dist_2_aligned)
     combined_ccdf = ccdf_op(ccdf_1, ccdf_2)
@@ -347,7 +347,7 @@ def _calc_pld_dual(
     dual_probs_aligned = np.zeros_like(realization.prob_arr)
     mask = realization.prob_arr > 0
     dual_probs_aligned[mask] = np.exp(
-        np.log(realization.prob_arr[mask]) - realization.x_array[mask]
+        np.log(realization.prob_arr[mask]) - realization._x_array[mask]
     )
     dual_probs = np.flip(dual_probs_aligned)
 

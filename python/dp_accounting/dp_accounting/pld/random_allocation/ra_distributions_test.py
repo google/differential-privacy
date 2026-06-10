@@ -186,7 +186,7 @@ class DiscretizeRangeTest(absltest.TestCase):
         )
 
         np.testing.assert_allclose(
-            ra_distributions._compute_bin_width(result.x_array), 0.1
+            ra_distributions._compute_bin_width(result._x_array), 0.1
         )
 
     def test_continuous_discretization_uses_requested_geometric_step(self):
@@ -222,7 +222,7 @@ class DiscretizeRangeTest(absltest.TestCase):
         )
 
         self.assertEqual(dist.step, 1e-4)
-        np.testing.assert_allclose(dist.x_array, x)
+        np.testing.assert_allclose(dist._x_array, x)
 
 
 class ComputeBinWidthTest(absltest.TestCase):
@@ -484,7 +484,7 @@ class ComputeTruncationTest(absltest.TestCase):
 
         result = dist.truncate_edges(0.1, ra_types.BoundType.DOMINATES)
 
-        np.testing.assert_allclose(result.x_array, np.array([1.0], dtype=np.float64))
+        np.testing.assert_allclose(result._x_array, np.array([1.0], dtype=np.float64))
         np.testing.assert_allclose(result.prob_arr, np.array([0.8], dtype=np.float64))
         np.testing.assert_allclose(result.p_min, 0.0)
         np.testing.assert_allclose(result.p_max, 0.2)
@@ -499,7 +499,7 @@ class ComputeTruncationTest(absltest.TestCase):
         result = dist.truncate_edges(0.15, ra_types.BoundType.DOMINATES)
 
         np.testing.assert_allclose(
-            result.x_array, np.array([1.0, 2.0], dtype=np.float64)
+            result._x_array, np.array([1.0, 2.0], dtype=np.float64)
         )
         np.testing.assert_allclose(
             result.prob_arr, np.array([0.8, 0.1], dtype=np.float64)
@@ -540,8 +540,8 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
         )
 
         np.testing.assert_allclose(result.step, 1e-2)
-        np.testing.assert_allclose(result.x_array[0], 0.5)
-        np.testing.assert_allclose(result.x_array[-1], 1.0)
+        np.testing.assert_allclose(result._x_array[0], 0.5)
+        np.testing.assert_allclose(result._x_array[-1], 1.0)
         total = math.fsum([*map(float, result.prob_arr), result.p_min, result.p_max])
         np.testing.assert_allclose(total, 1.0)
 

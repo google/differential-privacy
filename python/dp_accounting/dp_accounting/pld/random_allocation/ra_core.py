@@ -33,14 +33,7 @@ def _linear_dist_to_dp_accounting_pmf(
     Returns:
         dp_accounting DensePLDPmf with infinity mass taken from dist.p_max.
     """
-    if not (
-        isinstance(dist, ra_distributions.DenseDiscreteDist)
-        and dist.spacing_type == ra_types.SpacingType.LINEAR
-    ):
-        raise TypeError(
-            "linear_dist_to_dp_accounting_pmf requires"
-            f" ra_distributions.DenseDiscreteDist, got {type(dist)}."
-        )
+    ra_utils._validate_dense_linear_dist(dist)
 
     base_index = int(np.rint(dist.x_min / dist.step))
     return DensePLDPmf(

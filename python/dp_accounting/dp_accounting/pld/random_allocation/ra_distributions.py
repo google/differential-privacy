@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import math
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -284,14 +285,11 @@ class DiscreteDistBase(ABC):
         self.domain = domain
         self._validate_basic()
 
-    @abstractmethod
-    def get_x_array(self) -> NDArray[np.float64]:
-        """Return materialized support points."""
-
     @property
-    def x_array(self) -> NDArray[np.float64]:
+    @abstractmethod
+    def _x_array(self) -> NDArray[np.float64]:
         """Materialized support."""
-        return self.get_x_array()
+        raise NotImplementedError
 
     def _validate_basic(self) -> None:
         ra_types._validate_discrete_pmf_and_boundaries(
@@ -342,10 +340,6 @@ class DiscreteDistBase(ABC):
     ) -> Self:
         """Create truncated instance preserving representation semantics."""
 
-    @abstractmethod
-    def copy(self) -> Self:
-        """Deep-copy this distribution while preserving representation type."""
-
 
 # =============================================================================
 # GENERAL (EXPLICIT) DISTRIBUTION
@@ -356,7 +350,7 @@ class SparseDiscreteDist(DiscreteDistBase):
     """General discrete distribution with explicit support values.
 
     Attributes:
-      x_array: Explicit increasing support values.
+      _x_arr: Explicit increasing support values.
       prob_arr: Probability mass on finite support.
       p_min: Lower boundary mass.
       p_max: Upper boundary mass.
@@ -372,19 +366,20 @@ class SparseDiscreteDist(DiscreteDistBase):
         domain: Domain = Domain.REALS,
     ) -> None:
         """Initialize general discrete distribution with explicit support points."""
-        self._x_array = np.asarray(x_array, dtype=np.float64)
+        self._x_arr = np.asarray(x_array, dtype=np.float64)
         super().__init__(prob_arr, p_min, p_max, domain)
         self._validate_x_array()
 
     def _validate_x_array(self) -> None:
-        if self._x_array.ndim != 1 or self._x_array.shape != self.prob_arr.shape:
+        if self._x_arr.ndim != 1 or self._x_arr.shape != self.prob_arr.shape:
             raise ValueError("x and PMF must be 1-D arrays of equal length")
-        if not np.all(np.diff(self._x_array) > 0):
+        if not np.all(np.diff(self._x_arr) > 0):
             raise ValueError("x must be strictly increasing")
 
-    def get_x_array(self) -> NDArray[np.float64]:
+    @property
+    def _x_array(self) -> NDArray[np.float64]:
         """Return materialized support points."""
-        return self._x_array
+        return self._x_arr
 
     def _create_truncated(
         self,
@@ -395,20 +390,10 @@ class SparseDiscreteDist(DiscreteDistBase):
         max_ind: int,
     ) -> SparseDiscreteDist:
         return SparseDiscreteDist(
-            x_array=self._x_array[slice(min_ind, max_ind + 1)].copy(),
+            x_array=self._x_arr[slice(min_ind, max_ind + 1)].copy(),
             prob_arr=new_prob_arr,
             p_min=new_p_min,
             p_max=new_p_max,
-            domain=self.domain,
-        )
-
-    def copy(self) -> SparseDiscreteDist:
-        """Create a deep copy of this distribution."""
-        return SparseDiscreteDist(
-            x_array=self._x_array.copy(),
-            prob_arr=self.prob_arr.copy(),
-            p_min=self.p_min,
-            p_max=self.p_max,
             domain=self.domain,
         )
 
@@ -543,7 +528,8 @@ class DenseDiscreteDist(DiscreteDistBase):
             domain=domain,
         )
 
-    def get_x_array(self) -> NDArray[np.float64]:
+    @property
+    def _x_array(self) -> NDArray[np.float64]:
         """Return materialized support points."""
         return self.grid.x_array
 
@@ -580,19 +566,6 @@ class DenseDiscreteDist(DiscreteDistBase):
             spacing_type=self.spacing_type,
             domain=self.domain,
             grid=new_grid,
-        )
-
-    def copy(self) -> "DenseDiscreteDist":
-        """Create a deep copy of this distribution."""
-        return self.__class__(
-            x_min=self.grid.x_min,
-            step=self.grid.step,
-            prob_arr=self.prob_arr.copy(),
-            p_min=self.p_min,
-            p_max=self.p_max,
-            spacing_type=self.spacing_type,
-            domain=self.domain,
-            grid=self.grid,
         )
 
 
@@ -662,7 +635,7 @@ class PLDRealization(DenseDiscreteDist):
                 f"PLD realization requires p_min = 0, got {self.p_min:.2e}"
             )
 
-        exp_moment_val = _exp_moment_terms(prob_arr=self.prob_arr, x_vals=self.x_array)
+        exp_moment_val = _exp_moment_terms(prob_arr=self.prob_arr, x_vals=self._x_array)
         if np.any(np.isinf(exp_moment_val)):
             raise ValueError(
                 "Exponential moment E[exp(-L)] is infinite, not a valid PLD realization"
@@ -673,16 +646,6 @@ class PLDRealization(DenseDiscreteDist):
                 f"Exponential moment E[exp(-L)] = {exp_moment_total:.15f} > 1.0, "
                 "not a valid PLD realization"
             )
-
-    def copy(self) -> "PLDRealization":
-        """Create a deep copy of this PLD realization."""
-        return PLDRealization(
-            x_min=self.x_min,
-            step=self.step,
-            prob_arr=self.prob_arr.copy(),
-            p_max=self.p_max,
-            p_min=self.p_min,
-        )
 
     def truncate_edges(  # type: ignore[override]
         self, tail_truncation: float, bound_type: ra_types.BoundType
@@ -1417,7 +1380,7 @@ def _rediscretize_dist(
     """
 
     # Support for rediscretizing a dominating distribution into a dominated one and vice versa
-    working_dist = dist.copy()
+    working_dist = copy.deepcopy(dist)
     if bound_type == ra_types.BoundType.IS_DOMINATED and working_dist.p_max > 0.0:
         working_dist.prob_arr[-1] += working_dist.p_max
         working_dist.p_max = 0.0
@@ -1434,7 +1397,7 @@ def _rediscretize_dist(
         tail_truncation=tail_truncation / 2, bound_type=bound_type
     )
 
-    x_array = trunc_dist.x_array
+    x_array = trunc_dist._x_array
     x_min = x_array[0]
     x_max = x_array[-1]
 

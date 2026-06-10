@@ -49,7 +49,7 @@ class BinarySelfConvolveTest(absltest.TestCase):
             bound_type=ra_types.BoundType.DOMINATES,
             convolve=ra_convolution._fft_convolve,
         )
-        np.testing.assert_allclose(result.x_array, dist.x_array)
+        np.testing.assert_allclose(result._x_array, dist._x_array)
         np.testing.assert_allclose(result.prob_arr, dist.prob_arr)
 
     def test_matches_direct_fft_t2(self):
@@ -67,7 +67,7 @@ class BinarySelfConvolveTest(absltest.TestCase):
             tail_truncation=0.0,
             bound_type=ra_types.BoundType.DOMINATES,
         )
-        np.testing.assert_allclose(result.x_array, direct.x_array)
+        np.testing.assert_allclose(result._x_array, direct._x_array)
         np.testing.assert_allclose(result.prob_arr, direct.prob_arr, atol=1e-12)
 
     def test_matches_repeated_geometric(self):
@@ -91,7 +91,7 @@ class BinarySelfConvolveTest(absltest.TestCase):
             tail_truncation=0.0,
             bound_type=ra_types.BoundType.DOMINATES,
         )
-        np.testing.assert_allclose(result.x_array, repeated.x_array)
+        np.testing.assert_allclose(result._x_array, repeated._x_array)
         np.testing.assert_allclose(result.prob_arr, repeated.prob_arr, atol=1e-12)
 
     def test_preserves_mass_fft(self):
@@ -158,8 +158,8 @@ class FftSelfConvolveTest(absltest.TestCase):
         np.testing.assert_allclose(direct_mass, 1.0, atol=1e-10, rtol=0)
         np.testing.assert_allclose(binary_mass, 1.0, atol=1e-10, rtol=0)
 
-        self.assertGreaterEqual(direct.x_array.size, 2)
-        self.assertGreaterEqual(binary.x_array.size, 2)
+        self.assertGreaterEqual(direct._x_array.size, 2)
+        self.assertGreaterEqual(binary._x_array.size, 2)
 
 
 class GeometricKernelTest(absltest.TestCase):
