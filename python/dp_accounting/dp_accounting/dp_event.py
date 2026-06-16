@@ -256,6 +256,7 @@ class RandomizedResponseDpEvent(DpEvent):
   corresponding to the case where the mechanism outputs a bucket drawn
   uniformly at random from the k buckets regardless of the input bucket.
   """
+
   noise_parameter: float
   num_buckets: int
 
@@ -268,6 +269,7 @@ class EpsilonDeltaDpEvent(DpEvent):
   characterize the privacy loss. If a more specific DpEvent that characterizes
   a mechanism is available, it should be preferred over this one.
   """
+
   epsilon: float
   delta: float
 
@@ -280,6 +282,7 @@ class GaussianDpEvent(DpEvent):
   If the norms of the values are bounded ||v_i|| <= C, the noise_multiplier is
   defined as s / C.
   """
+
   noise_multiplier: float
 
 
@@ -294,6 +297,7 @@ class LaplaceDpEvent(DpEvent):
   If the L_1 norm of the values are bounded ||v_i||_1 <= C, the noise_multiplier
   is defined as s / C.
   """
+
   noise_multiplier: float
 
 
@@ -308,6 +312,7 @@ class DiscreteLaplaceDpEvent(DpEvent):
   integer value x. If the L_1 norm of the values are bounded ||v_i||_1 <= C,
   the sensitivity is `C`.
   """
+
   noise_parameter: float
   sensitivity: int
 
@@ -349,6 +354,7 @@ class SelfComposedDpEvent(DpEvent):
   This is equivalent to `ComposedDpEvent` that contains a list of length `count`
   of identical copies of `event`.
   """
+
   event: DpEvent
   count: int
 
@@ -360,6 +366,7 @@ class ComposedDpEvent(DpEvent):
   The composition may be adaptive, where the query producing each event depends
   on the results of prior queries.
   """
+
   events: List[DpEvent]
 
 
@@ -371,6 +378,7 @@ class PoissonSampledDpEvent(DpEvent):
   probability `sampling_probability`. Then the `DpEvent` `event` is applied
   to the sample of records.
   """
+
   sampling_probability: float
   event: DpEvent
 
@@ -384,6 +392,7 @@ class SampledWithReplacementDpEvent(DpEvent):
   `source_dataset_size`. Then the `DpEvent` `event` is applied to the sample of
   records.
   """
+
   source_dataset_size: int
   sample_size: int
   event: DpEvent
@@ -397,6 +406,7 @@ class SampledWithoutReplacementDpEvent(DpEvent):
   set of possible samples of a source dataset of size `source_dataset_size`.
   Then the `DpEvent` `event` is applied to the sample of records.
   """
+
   source_dataset_size: int
   sample_size: int
   event: DpEvent
@@ -420,6 +430,7 @@ class SingleEpochTreeAggregationDpEvent(DpEvent):
     step_counts: The number of steps in each tree. May be a scalar for a single
       tree.
   """
+
   noise_multiplier: float
   step_counts: Union[int, List[int]]
 
@@ -439,6 +450,7 @@ class RepeatAndSelectDpEvent(DpEvent):
     mean: The mean number of repetitions.
     shape: The shape of the distribution of the number of repetitions.
   """
+
   event: DpEvent
   mean: float
   shape: float
@@ -494,6 +506,28 @@ class ExponentialMechanismDpEvent(DpEvent):
 
   Attributes:
     epsilon: The epsilon parameter of the exponential mechanism.
+  """
+
+  epsilon: float
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
+class PermuteAndFlipDpEvent(DpEvent):
+  """Represents an application of the permute-and-flip mechanism.
+
+  See https://arxiv.org/abs/2010.12603 (McKenna & Sheldon, 2020) for details.
+
+  Unlike the exponential mechanism which is epsilon-bounded range, the
+  permute-and-flip mechanism satisfies standard epsilon-DP. Its privacy loss
+  distribution is identical to that of the Laplace mechanism with parameter
+  1/epsilon. A dedicated event type is provided for API clarity and to allow
+  future tighter analyses.
+
+  For RDP accounting, we use the tight Laplace RDP formula (Mironov, 2017).
+  For PLD accounting, we use the Laplace privacy loss distribution.
+
+  Attributes:
+    epsilon: The epsilon parameter of the permute-and-flip mechanism.
   """
 
   epsilon: float
