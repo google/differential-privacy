@@ -1059,6 +1059,17 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         xi = eps / np.expm1(eps) - 1 - np.log(eps / np.expm1(eps)) - eps**2 / 8
         self._rdp += np.minimum(xi + (eps**2 / 8) * self._orders, eps)
       return None
+    elif isinstance(event, dp_event.PermuteAndFlipDpEvent):
+      if do_compose:
+        if event.epsilon < 0:
+          raise ValueError(f'epsilon must be >= 0. Got {event.epsilon}')
+        # Permute-and-flip satisfies standard epsilon-DP. Its privacy loss
+        # distribution is identical to the Laplace mechanism with parameter
+        # 1/epsilon, so we use the tight Laplace RDP formula.
+        self._rdp += count * np.array(
+            [_laplace_rdp(event.epsilon, order) for order in self._orders]
+        )
+      return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if self._neighboring_relation not in [
           NeighborRel.ADD_OR_REMOVE_ONE,

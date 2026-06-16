@@ -487,6 +487,23 @@ class RdpPrivacyAccountantTest(
     self.assertAlmostEqual(accountant._rdp[0], 0.123301561)
     self.assertAlmostEqual(accountant._rdp[1], 1.0)
 
+  def test_compute_rdp_permute_and_flip(self):
+    alphas = [1.0, 1000.0]
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=alphas)
+    accountant.compose(dp_event.PermuteAndFlipDpEvent(1.0))
+    # Should match Laplace RDP with eps=1.
+    # At order 1 (KL divergence): eps + exp(-eps) - 1
+
+    expected_kl = 1.0 + math.expm1(-1.0)  # ~0.6321
+    self.assertAlmostEqual(accountant._rdp[0], expected_kl)
+    # At very high order, RDP -> epsilon
+    self.assertAlmostEqual(accountant._rdp[1], 1.0, places=2)
+
+  def test_supports_permute_and_flip(self):
+    aor_accountant = rdp_privacy_accountant.RdpAccountant()
+    event = dp_event.PermuteAndFlipDpEvent(1.0)
+    self.assertTrue(aor_accountant.supports(event))
+
   @parameterized.named_parameters(
       ('simple', _LAPLACE_EVENT),
       ('composed', dp_event.ComposedDpEvent([_LAPLACE_EVENT])),
