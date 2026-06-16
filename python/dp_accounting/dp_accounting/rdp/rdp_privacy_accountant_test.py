@@ -1222,6 +1222,96 @@ class RdpPrivacyAccountantTest(
     self.assertNotEmpty([l for l in log.output if 'failed to converge' in l])
     self.assertIn(np.inf, accountant._rdp)
 
+  def test_approximate_dp_event_basic(self):
+    """ApproximateDpEvent should shift the delta by the extra delta."""
+    gaussian_event = dp_event.GaussianDpEvent(noise_multiplier=1.0)
+    approximate_event = dp_event.ApproximateDpEvent(gaussian_event, delta=0.01)
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    accountant.compose(approximate_event)
+
+    # Compare against a bare Gaussian with a shifted delta.
+    reference_accountant = rdp_privacy_accountant.RdpAccountant()
+    reference_accountant.compose(gaussian_event)
+    target_delta = 1e-5
+    expected_epsilon = reference_accountant.get_epsilon(target_delta - 0.01)
+    self.assertAlmostEqual(
+        accountant.get_epsilon(target_delta), expected_epsilon, places=6
+    )
+
+  def test_approximate_dp_event_get_delta(self):
+    """get_delta should add the extra delta to the inner delta."""
+    gaussian_event = dp_event.GaussianDpEvent(noise_multiplier=1.0)
+    approximate_event = dp_event.ApproximateDpEvent(gaussian_event, delta=0.01)
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    accountant.compose(approximate_event)
+
+    reference_accountant = rdp_privacy_accountant.RdpAccountant()
+    reference_accountant.compose(gaussian_event)
+    target_epsilon = 1.0
+    expected_delta = reference_accountant.get_delta(target_epsilon) + 0.01
+    self.assertAlmostEqual(
+        accountant.get_delta(target_epsilon), expected_delta, places=6
+    )
+
+  def test_approximate_dp_event_self_composed(self):
+    """Self-composition should multiply the extra delta by count."""
+    gaussian_event = dp_event.GaussianDpEvent(noise_multiplier=1.0)
+    event = dp_event.SelfComposedDpEvent(
+        dp_event.ApproximateDpEvent(gaussian_event, delta=0.001), 10
+    )
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    accountant.compose(event)
+    self.assertAlmostEqual(accountant._extra_delta, 0.01, places=10)
+
+  def test_approximate_dp_event_exhausted_budget(self):
+    """If extra delta > target_delta, epsilon should be inf."""
+    event = dp_event.ApproximateDpEvent(
+        dp_event.GaussianDpEvent(noise_multiplier=1.0), delta=0.1
+    )
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    accountant.compose(event)
+    self.assertEqual(accountant.get_epsilon(0.05), float('inf'))
+
+  def test_approximate_dp_event_poisson_subsampled(self):
+    """ApproximateDpEvent inside PoissonSampled preserves delta unamplified."""
+    gaussian_event = dp_event.GaussianDpEvent(noise_multiplier=1.0)
+    event = dp_event.PoissonSampledDpEvent(
+        0.1, dp_event.ApproximateDpEvent(gaussian_event, delta=0.01)
+    )
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    accountant.compose(event)
+
+    # Inner event should be amplified normally.
+    reference_accountant = rdp_privacy_accountant.RdpAccountant()
+    reference_accountant.compose(
+        dp_event.PoissonSampledDpEvent(0.1, gaussian_event)
+    )
+    target_delta = 1e-5
+    expected_epsilon = reference_accountant.get_epsilon(target_delta - 0.01)
+    self.assertAlmostEqual(
+        accountant.get_epsilon(target_delta), expected_epsilon, places=6
+    )
+
+  def test_approximate_dp_event_supports(self):
+    """ApproximateDpEvent wrapping a supported event should be supported."""
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    event = dp_event.ApproximateDpEvent(
+        dp_event.GaussianDpEvent(1.0), delta=0.01
+    )
+    self.assertTrue(accountant.supports(event))
+
+    # Also inside Poisson.
+    poisson_event = dp_event.PoissonSampledDpEvent(0.1, event)
+    self.assertTrue(accountant.supports(poisson_event))
+
+  def test_approximate_dp_event_unsupported_inner(self):
+    """ApproximateDpEvent wrapping an unsupported event should be unsupported."""
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    event = dp_event.ApproximateDpEvent(
+        dp_event.UnsupportedDpEvent(), delta=0.01
+    )
+    self.assertFalse(accountant.supports(event))
+
 
 if __name__ == '__main__':
   absltest.main()
