@@ -1009,6 +1009,41 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     self._orders = np.array(orders)
     self._rdp = np.zeros_like(orders, dtype=np.float64)
 
+  @classmethod
+  def for_calibration(
+      cls,
+      target_epsilon: float,
+      target_delta: float,
+  ) -> 'RdpAccountant':
+    """Creates an RdpAccountant with orders tuned for the target.
+
+    Generates a set of RDP orders with higher density near the expected
+    optimal order for the given ``(target_epsilon, target_delta)`` pair,
+    supplemented by the default orders for robustness.
+
+    The heuristic optimal order is approximately
+    ``1 + log(1/delta) / epsilon``, which is exact for the Gaussian
+    mechanism and a reasonable starting point for other mechanisms.
+
+    Args:
+      target_epsilon: The target epsilon for calibration.
+      target_delta: The target delta for calibration.
+
+    Returns:
+      An RdpAccountant with an optimized set of orders.
+    """
+    if target_epsilon > 0 and target_delta > 0:
+      # Heuristic: optimal RDP order for Gaussian ≈ 1 + log(1/δ)/ε.
+      alpha_star = 1 + math.log(1.0 / target_delta) / target_epsilon
+      # Add dense orders around alpha_star.
+      lo = max(1.01, alpha_star / 4)
+      hi = min(alpha_star * 4, 1e6)
+      dense = np.geomspace(lo, hi, num=50).tolist()
+      # Merge with default orders, deduplicate, and sort.
+      merged = sorted(set(list(DEFAULT_RDP_ORDERS) + dense))
+      return cls(orders=merged)
+    return cls()
+
   def _maybe_compose(
       self, event: dp_event.DpEvent, count: int, do_compose: bool
   ) -> Optional[CompositionErrorDetails]:

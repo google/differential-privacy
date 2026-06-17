@@ -46,6 +46,29 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         value_discretization_interval=value_discretization_interval)
     self._value_discretization_interval = value_discretization_interval
 
+  @classmethod
+  def for_calibration(
+      cls,
+      target_epsilon: float,
+      target_delta: float,
+  ) -> 'PLDAccountant':
+    """Creates a PLDAccountant with discretization tuned for the target.
+
+    Selects ``value_discretization_interval`` proportional to
+    ``target_epsilon`` so that the discretization error is small relative
+    to the target, while avoiding excessive memory usage for large epsilon.
+
+    Args:
+      target_epsilon: The target epsilon for calibration.
+      target_delta: The target delta for calibration.
+
+    Returns:
+      A PLDAccountant with an appropriate discretization interval.
+    """
+    del target_delta  # Not used for discretization tuning.
+    interval = min(max(target_epsilon * 0.01, 1e-8), 1e-1)
+    return cls(value_discretization_interval=interval)
+
   def _maybe_compose(self, event: dp_event.DpEvent, count: int,
                      do_compose: bool) -> Optional[CompositionErrorDetails]:
     if isinstance(event, dp_event.NoOpDpEvent):
