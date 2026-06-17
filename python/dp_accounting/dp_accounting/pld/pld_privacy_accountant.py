@@ -62,6 +62,14 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         if result is not None:
           return result
       return None
+    elif isinstance(event, dp_event.ApproximateDpEvent):
+      # REVIEWER NOTE: The extra delta scales linearly with `count` via basic
+      # composition. If this event is inside SelfComposedDpEvent(event, T),
+      # then count = T, so we accumulate T * delta. This is the standard
+      # advanced composition bound for additive delta terms.
+      if do_compose:
+        self._extra_delta += count * event.delta
+      return self._maybe_compose(event.event, count, do_compose)
     elif isinstance(event, dp_event.EpsilonDeltaDpEvent):
       if do_compose:
         self._pld = self._pld.compose(
@@ -195,15 +203,28 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         self._pld = self._pld.compose(eps_dp_pld)
       return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
-      if isinstance(event.event, dp_event.GaussianDpEvent):
+      # REVIEWER NOTE: When ApproximateDpEvent wraps the sub-event of a
+      # PoissonSampledDpEvent, we strip it and track the extra delta
+      # *without* subsampling amplification. This is a conservative upper
+      # bound: the extra delta may represent a mechanism failure probability
+      # that is not reduced by subsampling. The inner event IS amplified by
+      # subsampling as usual. We only add the delta when the mechanism is
+      # actually invoked (sampling_probability > 0 and noise > 0).
+      inner_event = event.event
+      approximate_delta = 0.0
+      if isinstance(inner_event, dp_event.ApproximateDpEvent):
+        approximate_delta = inner_event.delta
+        inner_event = inner_event.event
+      if isinstance(inner_event, dp_event.GaussianDpEvent):
         if do_compose:
           if event.sampling_probability == 0:
             pass
-          elif event.event.noise_multiplier == 0:
+          elif inner_event.noise_multiplier == 0:
             self._contains_non_dp_event = True
           else:
+            self._extra_delta += count * approximate_delta
             subsampled_gaussian_pld = PLD.from_gaussian_mechanism(
-                standard_deviation=event.event.noise_multiplier,
+                standard_deviation=inner_event.noise_multiplier,
                 value_discretization_interval=self
                 ._value_discretization_interval,
                 sampling_prob=event.sampling_probability,
@@ -211,7 +232,7 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             ).self_compose(count)
             self._pld = self._pld.compose(subsampled_gaussian_pld)
         return None
-      elif isinstance(event.event, dp_event.LaplaceDpEvent):
+      elif isinstance(inner_event, dp_event.LaplaceDpEvent):
         if self.neighboring_relation not in [
             NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
         ]:
@@ -226,11 +247,12 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         if do_compose:
           if event.sampling_probability == 0:
             pass
-          elif event.event.noise_multiplier == 0:
+          elif inner_event.noise_multiplier == 0:
             self._contains_non_dp_event = True
           else:
+            self._extra_delta += count * approximate_delta
             subsampled_laplace_pld = PLD.from_laplace_mechanism(
-                parameter=event.event.noise_multiplier,
+                parameter=inner_event.noise_multiplier,
                 value_discretization_interval=self
                 ._value_discretization_interval,
                 sampling_prob=event.sampling_probability).self_compose(count)
@@ -241,7 +263,8 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             invalid_event=event,
             error_message=(
                 'Subevent of `PoissonSampledEvent` must be either '
-                f'`GaussianDpEvent` or `LaplaceDpEvent`. Found {event.event}.'
+                '`GaussianDpEvent` or `LaplaceDpEvent` (optionally wrapped '
+                f'in `ApproximateDpEvent`). Found {inner_event}.'
             ),
         )
     elif isinstance(event, dp_event.TruncatedSubsampledGaussianDpEvent):
@@ -275,12 +298,18 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
   def get_epsilon(self, target_delta: float) -> float:
     if self._contains_non_dp_event:
       return math.inf
-    return self._pld.get_epsilon_for_delta(target_delta)
+    # REVIEWER NOTE: Subtract the accumulated extra delta from
+    # ApproximateDpEvents. If the remaining delta budget is negative,
+    # the approximate terms alone exhaust the budget.
+    effective_delta = target_delta - self._extra_delta
+    if effective_delta < 0:
+      return math.inf
+    return self._pld.get_epsilon_for_delta(effective_delta)
 
   def get_delta(self, target_epsilon: float) -> float:
     if self._contains_non_dp_event:
       return 1
-    return self._pld.get_delta_for_epsilon(target_epsilon)  # pytype: disable=bad-return-type
+    return self._pld.get_delta_for_epsilon(target_epsilon) + self._extra_delta  # pytype: disable=bad-return-type
 
   def get_true_positive_rates(
       self,

@@ -42,6 +42,7 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
   def __init__(self, neighboring_relation: NeighboringRelation):
     self._neighboring_relation = neighboring_relation
     self._ledger = dp_event_builder.DpEventBuilder()
+    self._extra_delta = 0.0
 
   @property
   def neighboring_relation(self) -> NeighboringRelation:

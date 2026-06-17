@@ -130,6 +130,17 @@ class DpEventTest(parameterized.TestCase):
               1.0,
           ),
       ),
+      (
+          'approximate',
+          dp_event.ApproximateDpEvent(dp_event.GaussianDpEvent(1.0), 0.01),
+      ),
+      (
+          'approximate_composed',
+          dp_event.ComposedDpEvent([
+              dp_event.ApproximateDpEvent(dp_event.GaussianDpEvent(1.0), 0.01),
+              dp_event.LaplaceDpEvent(1.0),
+          ]),
+      ),
   )
   def test_to_from_named_tuple(self, event):
     named_tuple = event.to_named_tuple()
