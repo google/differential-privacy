@@ -54,6 +54,9 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       (dp_event.MixtureOfGaussiansDpEvent(1.0, [0.0, 1.0], [0.5, 0.5]),
        pld_privacy_accountant.NeighborRel.REPLACE_ONE,
        'neighboring_relation must be `ADD_OR_REMOVE_ONE` or `REPLACE_SPECIAL`'),
+      (dp_event.PermuteAndFlipDpEvent(1.0),
+       pld_privacy_accountant.NeighborRel.REPLACE_ONE,
+       'neighboring_relation must be `ADD_OR_REMOVE_ONE` or `REPLACE_SPECIAL`'),
   )
   def test_composition_errors_for_neighboring_relation(
       self, event, neighboring_relation, error_msg):
@@ -236,6 +239,16 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     accountant.compose(event2)
     self.assertEqual(accountant.get_delta(3.0), 0.0)
     self.assertEqual(accountant.get_epsilon(0.0), 3.0)
+
+  def test_permute_and_flip_matches_laplace(self):
+    eps = 1.0
+    delta = 1e-5
+    pf = pld_privacy_accountant.PLDAccountant()
+    pf.compose(dp_event.PermuteAndFlipDpEvent(eps))
+    lap = pld_privacy_accountant.PLDAccountant()
+    lap.compose(dp_event.LaplaceDpEvent(1.0 / eps))
+    self.assertAlmostEqual(
+        pf.get_epsilon(delta), lap.get_epsilon(delta))
 
   def test_gaussian_basic(self):
     gaussian_event = dp_event.GaussianDpEvent(noise_multiplier=math.sqrt(3))

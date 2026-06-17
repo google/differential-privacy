@@ -194,6 +194,34 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         ).self_compose(count)
         self._pld = self._pld.compose(eps_dp_pld)
       return None
+    elif isinstance(event, dp_event.PermuteAndFlipDpEvent):
+      # Neighboring relation restriction follows LaplaceDpEvent, since
+      # permute-and-flip delegates to PLD.from_laplace_mechanism.
+      if self.neighboring_relation not in [
+          NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+      ]:
+        return CompositionErrorDetails(
+            invalid_event=event,
+            error_message=(
+                'neighboring_relation must be `ADD_OR_REMOVE_ONE` or '
+                '`REPLACE_SPECIAL` for `PermuteAndFlipDpEvent`. Found '
+                f'{self._neighboring_relation}.'
+            ),
+        )
+      if do_compose:
+        if event.epsilon < 0:
+          raise ValueError(f'epsilon must be >= 0. Got {event.epsilon}')
+        if event.epsilon == 0:
+          pass  # NoOp: zero epsilon means infinite noise.
+        else:
+          # Permute-and-flip has the same privacy loss distribution as the
+          # Laplace mechanism with parameter 1/epsilon.
+          pf_pld = PLD.from_laplace_mechanism(
+              parameter=1.0 / event.epsilon,
+              value_discretization_interval=self._value_discretization_interval
+          ).self_compose(count)
+          self._pld = self._pld.compose(pf_pld)
+      return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if isinstance(event.event, dp_event.GaussianDpEvent):
         if do_compose:

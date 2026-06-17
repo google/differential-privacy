@@ -500,6 +500,28 @@ class ExponentialMechanismDpEvent(DpEvent):
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
+class PermuteAndFlipDpEvent(DpEvent):
+  """Represents an application of the permute-and-flip mechanism.
+
+  See https://arxiv.org/abs/2010.12603 (McKenna & Sheldon, 2020) for details.
+
+  Unlike the exponential mechanism which is epsilon-bounded range, the
+  permute-and-flip mechanism satisfies standard epsilon-DP. Its privacy loss
+  distribution is identical to that of the Laplace mechanism with parameter
+  1/epsilon. A dedicated event type is provided for API clarity and to allow
+  future tighter analyses.
+
+  For RDP accounting, we use the tight Laplace RDP formula (Mironov, 2017).
+  For PLD accounting, we use the Laplace privacy loss distribution.
+
+  Attributes:
+    epsilon: The epsilon parameter of the permute-and-flip mechanism.
+  """
+
+  epsilon: float
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class TruncatedSubsampledGaussianDpEvent(DpEvent):
   """Represents the Gaussian mechanism with truncated Poisson sampling.
 

@@ -487,6 +487,15 @@ class RdpPrivacyAccountantTest(
     self.assertAlmostEqual(accountant._rdp[0], 0.123301561)
     self.assertAlmostEqual(accountant._rdp[1], 1.0)
 
+  def test_permute_and_flip_matches_laplace(self):
+    eps = 1.0
+    alphas = [1.0, 2.0, 10.0, 100.0]
+    pf = rdp_privacy_accountant.RdpAccountant(orders=alphas)
+    pf.compose(dp_event.PermuteAndFlipDpEvent(eps))
+    lap = rdp_privacy_accountant.RdpAccountant(orders=alphas)
+    lap.compose(dp_event.LaplaceDpEvent(1.0 / eps))
+    np.testing.assert_array_almost_equal(pf._rdp, lap._rdp)
+
   @parameterized.named_parameters(
       ('simple', _LAPLACE_EVENT),
       ('composed', dp_event.ComposedDpEvent([_LAPLACE_EVENT])),

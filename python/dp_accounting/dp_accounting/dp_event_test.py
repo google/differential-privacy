@@ -118,6 +118,10 @@ class DpEventTest(parameterized.TestCase):
           dp_event.ExponentialMechanismDpEvent(1.0),
       ),
       (
+          'permute_and_flip',
+          dp_event.PermuteAndFlipDpEvent(1.0),
+      ),
+      (
           'zcdp',
           dp_event.ZCDpEvent(1.0, 2.0),
       ),
