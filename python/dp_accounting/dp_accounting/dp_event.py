@@ -521,3 +521,28 @@ class TruncatedSubsampledGaussianDpEvent(DpEvent):
   sampling_probability: float
   truncated_batch_size: int
   noise_multiplier: float
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
+class ApproximateDpEvent(DpEvent):
+  """Represents a mechanism with an additional additive delta term.
+
+  If the inner `event` satisfies (epsilon, delta_inner)-DP for some
+  (epsilon, delta_inner) pair, then this event satisfies
+  (epsilon, delta_inner + delta)-DP. The `delta` field captures an additional
+  probability of failure that is separate from the privacy loss distribution
+  of the inner mechanism. A canonical example is the Gaussian Thresholding
+  algorithm for partition selection, where the inner event is a Gaussian
+  mechanism and the extra delta accounts for the thresholding step.
+
+  Accountants process this by composing the inner event normally and tracking
+  the extra delta additively. At query time, `get_epsilon(target_delta)` uses
+  `target_delta - sum(extra_deltas)` as the effective delta for the inner
+  events.
+
+  Attributes:
+    event: The inner DpEvent whose privacy loss is tracked by the accountant.
+    delta: The additional delta term. Must be in [0, 1].
+  """
+  event: DpEvent
+  delta: float
