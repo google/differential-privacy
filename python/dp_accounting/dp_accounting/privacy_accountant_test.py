@@ -35,7 +35,8 @@ class UnknownDpEvent(dp_event.DpEvent):
 class PrivacyAccountantTest(parameterized.TestCase):
 
   def _make_test_accountants(
-      self) -> Collection[privacy_accountant.PrivacyAccountant]:
+      self,
+  ) -> Collection[privacy_accountant.PrivacyAccountant]:
     """Makes a list of accountants to test.
 
     Subclasses should define this to return a list of accountants to be tested.
@@ -121,3 +122,12 @@ class PrivacyAccountantTest(parameterized.TestCase):
       except NotImplementedError:
         # Implementing `get_delta` is optional.
         pass
+
+  def test_approximate_noop(self):
+    for accountant in self._make_test_accountants():
+      event = dp_event.ApproximateDpEvent(dp_event.NoOpDpEvent(), delta=0.0)
+      self.assertTrue(accountant.supports(event))
+      accountant.compose(event)
+      self.assertEqual(accountant.get_epsilon(1e-12), 0)
+      self.assertEqual(accountant.get_epsilon(0), 0)
+      self.assertEqual(accountant.get_epsilon(1), 0)

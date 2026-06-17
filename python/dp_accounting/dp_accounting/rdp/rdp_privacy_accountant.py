@@ -1028,6 +1028,14 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         if result is not None:
           return result
       return None
+    elif isinstance(event, dp_event.ApproximateDpEvent):
+      # REVIEWER NOTE: The extra delta scales linearly with `count` via basic
+      # composition. If this event is inside SelfComposedDpEvent(event, T),
+      # then count = T, so we accumulate T * delta. This is the standard
+      # advanced composition bound for additive delta terms.
+      if do_compose:
+        self._extra_delta += count * event.delta
+      return self._maybe_compose(event.event, count, do_compose)
     elif isinstance(event, dp_event.GaussianDpEvent):
       if do_compose:
         self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
@@ -1072,8 +1080,19 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         return CompositionErrorDetails(
             invalid_event=event, error_message=error_msg
         )
+      # REVIEWER NOTE: When ApproximateDpEvent wraps the sub-event of a
+      # PoissonSampledDpEvent, we strip it and track the extra delta
+      # *without* subsampling amplification. This is a conservative upper
+      # bound: the extra delta may represent a mechanism failure probability
+      # that is not reduced by subsampling. The inner event IS amplified by
+      # subsampling as usual.
+      inner_event = event.event
+      approximate_delta = 0.0
+      if isinstance(inner_event, dp_event.ApproximateDpEvent):
+        approximate_delta = inner_event.delta
+        inner_event = inner_event.event
       sigma_or_bad_event = _effective_gaussian_noise_multiplier(
-          event.event, accept_zcdp=True
+          inner_event, accept_zcdp=True
       )
       if isinstance(sigma_or_bad_event, dp_event.DpEvent):
         return CompositionErrorDetails(
@@ -1082,10 +1101,12 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
                 'Subevent of `PoissonSampledDpEvent` must be a'
                 ' `GaussianDpEvent` or a nested structure of `ComposedDpEvent`'
                 ' and/or `SelfComposedDpEvent` bottoming out in'
-                f' `GaussianDpEvent`s. Found subevent {sigma_or_bad_event}.'
+                ' `GaussianDpEvent`s (optionally wrapped in'
+                f' `ApproximateDpEvent`). Found subevent {sigma_or_bad_event}.'
             ),
         )
       if do_compose:
+        self._extra_delta += count * approximate_delta
         self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
             q=event.sampling_probability,
             noise_multiplier=sigma_or_bad_event,
@@ -1201,7 +1222,13 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       A tuple containing the current epsilon, accounting for all composed
       `DpEvent`s, and the optimal order.
     """
-    return compute_epsilon(self._orders, self._rdp, target_delta)
+    # REVIEWER NOTE: Subtract accumulated extra delta from ApproximateDpEvents.
+    # If the remaining delta budget is negative, the approximate terms
+    # alone exhaust the budget.
+    effective_delta = target_delta - self._extra_delta
+    if effective_delta < 0:
+      return float('inf'), 0
+    return compute_epsilon(self._orders, self._rdp, effective_delta)
 
   def get_epsilon(self, target_delta: float) -> float:
     """Returns the current epsilon.
@@ -1212,7 +1239,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     Returns:
       The current epsilon, accounting for all composed `DpEvent`s.
     """
-    return compute_epsilon(self._orders, self._rdp, target_delta)[0]
+    return self.get_epsilon_and_optimal_order(target_delta)[0]
 
   def get_delta_and_optimal_order(
       self, target_epsilon: float
@@ -1226,7 +1253,8 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       A tuple containing the current delta, accounting for all composed
       `DpEvent`s, and the optimal order.
     """
-    return compute_delta(self._orders, self._rdp, target_epsilon)
+    delta, order = compute_delta(self._orders, self._rdp, target_epsilon)
+    return delta + self._extra_delta, order
 
   def get_delta(self, target_epsilon: float) -> float:
     """Returns the current delta.
@@ -1237,7 +1265,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     Returns:
       The current delta, accounting for all composed `DpEvent`s.
     """
-    return compute_delta(self._orders, self._rdp, target_epsilon)[0]
+    return self.get_delta_and_optimal_order(target_epsilon)[0]
 
   @property
   def rdp(self) -> np.ndarray:
