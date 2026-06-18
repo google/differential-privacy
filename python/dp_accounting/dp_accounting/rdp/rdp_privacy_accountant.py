@@ -1008,6 +1008,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       orders = DEFAULT_RDP_ORDERS
     self._orders = np.array(orders)
     self._rdp = np.zeros_like(orders, dtype=np.float64)
+    self._extra_delta = 0.0
 
   def _maybe_compose(
       self, event: dp_event.DpEvent, count: int, do_compose: bool
@@ -1027,6 +1028,17 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         result = self._maybe_compose(e, count, do_compose)
         if result is not None:
           return result
+      return None
+    elif isinstance(event, dp_event.EpsilonDeltaDpEvent):
+      if do_compose:
+        # numerically stable version of 1 - (1-delta_old)(1-delta_new)^count.
+        log_term = np.log1p(-self._extra_delta) + count * np.log1p(-event.delta)
+        self._extra_delta = -np.expm1(log_term)
+        # RDP of Randomized Response, see https://arxiv.org/pdf/1702.07476.
+        term1 = event.epsilon * self._orders
+        term2 = np.logaddexp(0, event.epsilon * (1 - 2 * self._orders))
+        term3 = np.logaddexp(0, event.epsilon)
+        self._rdp += count * (term1 + term2 - term3) / (self._orders - 1)
       return None
     elif isinstance(event, dp_event.GaussianDpEvent):
       if do_compose:
@@ -1212,7 +1224,12 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       A tuple containing the current epsilon, accounting for all composed
       `DpEvent`s, and the optimal order.
     """
-    return compute_epsilon(self._orders, self._rdp, target_delta)
+    # target_delta = 1 - (1 - effective_delta) * (1 - self.extra_delta).
+    log_term = np.log1p(-target_delta) - np.log1p(-self._extra_delta)
+    effective_delta = -np.expm1(log_term)
+    if effective_delta < 0:
+      return float('inf'), 0
+    return compute_epsilon(self._orders, self._rdp, effective_delta)
 
   def get_epsilon(self, target_delta: float) -> float:
     """Returns the current epsilon.
@@ -1223,7 +1240,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     Returns:
       The current epsilon, accounting for all composed `DpEvent`s.
     """
-    return compute_epsilon(self._orders, self._rdp, target_delta)[0]
+    return self.get_epsilon_and_optimal_order(target_delta)[0]
 
   def get_delta_and_optimal_order(
       self, target_epsilon: float
@@ -1237,7 +1254,9 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       A tuple containing the current delta, accounting for all composed
       `DpEvent`s, and the optimal order.
     """
-    return compute_delta(self._orders, self._rdp, target_epsilon)
+    delta, order = compute_delta(self._orders, self._rdp, target_epsilon)
+    final_delta = delta + self._extra_delta - delta * self._extra_delta
+    return final_delta, order
 
   def get_delta(self, target_epsilon: float) -> float:
     """Returns the current delta.
@@ -1248,7 +1267,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     Returns:
       The current delta, accounting for all composed `DpEvent`s.
     """
-    return compute_delta(self._orders, self._rdp, target_epsilon)[0]
+    return self.get_delta_and_optimal_order(target_epsilon)[0]
 
   @property
   def rdp(self) -> np.ndarray:

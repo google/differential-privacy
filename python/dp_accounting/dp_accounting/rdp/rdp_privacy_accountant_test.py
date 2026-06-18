@@ -1231,6 +1231,53 @@ class RdpPrivacyAccountantTest(
     self.assertNotEmpty([l for l in log.output if 'failed to converge' in l])
     self.assertIn(np.inf, accountant._rdp)
 
+  def test_epsilon_delta_dp_event(self):
+    """EpsilonDeltaDpEvent tracks delta via _extra_delta and epsilon via zCDP."""
+    target_delta = 0.02
+    extra_delta = 0.01
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    # Pure delta: compose Gaussian + EpsilonDeltaDpEvent(0, 0.01).
+    gaussian_event = dp_event.GaussianDpEvent(noise_multiplier=1.0)
+    accountant.compose(gaussian_event)
+    accountant.compose(dp_event.EpsilonDeltaDpEvent(0, extra_delta))
+
+    reference_accountant = rdp_privacy_accountant.RdpAccountant()
+    reference_accountant.compose(gaussian_event)
+
+    # get_epsilon should shift delta  0.01.
+    effective_delta = 1 - (1 - target_delta) / (1 - extra_delta)
+    self.assertAlmostEqual(
+        accountant.get_epsilon(target_delta),
+        reference_accountant.get_epsilon(effective_delta),
+        places=6,
+    )
+
+    # get_delta should add 0.01.
+    ref_delta = reference_accountant.get_delta(1.0)
+    expected_delta = ref_delta + extra_delta - ref_delta * extra_delta
+    self.assertAlmostEqual(accountant.get_delta(1.0), expected_delta, places=6)
+
+    # If extra delta exceeds target_delta, epsilon should be inf.
+    self.assertEqual(accountant.get_epsilon(0.005), float('inf'))
+
+  def test_epsilon_delta_dp_event_with_epsilon(self):
+    """EpsilonDeltaDpEvent with nonzero epsilon adds RDP via zCDP."""
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    accountant.compose(dp_event.EpsilonDeltaDpEvent(epsilon=1.0, delta=0.0))
+
+    self.assertBetween(accountant.get_epsilon(1e-5), 1.0, 1.01)
+    self.assertBetween(accountant.get_epsilon(1e-3), 0.99, 1.0)
+
+  def test_epsilon_delta_dp_event_self_composed(self):
+    """Self-composition should compose delta correctly."""
+    event = dp_event.SelfComposedDpEvent(
+        dp_event.EpsilonDeltaDpEvent(epsilon=0, delta=0.001), 10
+    )
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    accountant.compose(event)
+    expected_delta = 1 - (1 - 0.001) ** 10
+    self.assertAlmostEqual(accountant._extra_delta, expected_delta, places=10)
+
 
 if __name__ == '__main__':
   absltest.main()
