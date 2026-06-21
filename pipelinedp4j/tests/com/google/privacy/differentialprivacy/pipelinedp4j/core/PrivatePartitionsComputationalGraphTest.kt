@@ -110,10 +110,10 @@ class PrivatePartitionsComputationalGraphTest {
     verify(partitionSelectorMock).shouldKeep(2) // "partition2"
 
     assertThat(dpAggregates.keys).containsExactly("partition1", "partition2")
-    assertThat(dpAggregates.get("partition1")!!.count).isEqualTo(2.0)
-    assertThat(dpAggregates.get("partition1")!!.sum).isEqualTo(5.0)
-    assertThat(dpAggregates.get("partition2")!!.sum).isEqualTo(2.0)
-    assertThat(dpAggregates.get("partition2")!!.privacyIdCount).isEqualTo(1.0)
+    assertThat(dpAggregates["partition1"]!!.count).isEqualTo(2.0)
+    assertThat(dpAggregates["partition1"]!!.perFeatureList.first().sum).isEqualTo(5.0)
+    assertThat(dpAggregates["partition2"]!!.perFeatureList.first().sum).isEqualTo(2.0)
+    assertThat(dpAggregates["partition2"]!!.privacyIdCount).isEqualTo(1.0)
   }
 
   @Test
@@ -237,7 +237,8 @@ class PrivatePartitionsComputationalGraphTest {
     // The user contributed to 3 partitions but maxPartitionsContributed is set to 2. Hence,
     // contributions to 2 partitions should appear in the result.
     assertThat(dpAggregates.values.map { it.count }).containsExactly(1.0, 1.0)
-    assertThat(dpAggregates.values.map { it.sum }).containsExactly(10.0, 10.0)
+    assertThat(dpAggregates.values.map { it.perFeatureList.first().sum })
+      .containsExactly(10.0, 10.0)
   }
 
   @Test
@@ -294,24 +295,27 @@ class PrivatePartitionsComputationalGraphTest {
   private companion object {
     val PRIVACY_ID_COUNT_PARAMS =
       AggregationParams(
-        metrics = ImmutableList.of(MetricDefinition(PRIVACY_ID_COUNT)),
+        nonFeatureMetrics = ImmutableList.of(MetricDefinition(PRIVACY_ID_COUNT)),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 10,
         maxContributionsPerPartition = 5,
       )
     val COUNT_SUM_AND_ID_COUNT_PARAMS =
       AggregationParams(
-        metrics =
+        nonFeatureMetrics =
+          ImmutableList.of(MetricDefinition(COUNT), MetricDefinition(PRIVACY_ID_COUNT)),
+        features =
           ImmutableList.of(
-            MetricDefinition(COUNT),
-            MetricDefinition(SUM),
-            MetricDefinition(PRIVACY_ID_COUNT),
+            ScalarFeatureSpec(
+              featureId = "value",
+              metrics = ImmutableList.of(MetricDefinition(SUM)),
+              minTotalValue = -100.0,
+              maxTotalValue = 100.0,
+            )
           ),
         noiseKind = GAUSSIAN,
         maxPartitionsContributed = 100,
         maxContributionsPerPartition = 100,
-        minTotalValue = -100.0,
-        maxTotalValue = 100.0,
       )
     val METRICS_ALLOCATED_BUDGET = AllocatedBudget().apply { initialize(1.1, 1e-3) }
     // High epsilon/delta for partition selection. Partitions with ~10 privacy unit have ~1
@@ -334,6 +338,7 @@ class PrivatePartitionsComputationalGraphTest {
             METRICS_ALLOCATED_BUDGET,
             ZeroNoiseFactory(),
             ExecutionMode.PRODUCTION,
+            COUNT_SUM_AND_ID_COUNT_PARAMS.features[0] as ScalarFeatureSpec,
           ),
           PrivacyIdCountCombiner(
             COUNT_SUM_AND_ID_COUNT_PARAMS,
