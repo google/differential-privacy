@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.extensions.proto.ProtoTruth.assertThat
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdCountAccumulator
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
@@ -34,7 +35,9 @@ class ExactPrivacyIdCountCombinerTest {
 
     val accumulator =
       combiner.createAccumulator(
-        privacyIdContributions { singleValueContributions += listOf(1.0, 1.0, 1.0) }
+        privacyIdContributions {
+          features += featureContribution { singleValueContributions += listOf(1.0, 1.0, 1.0) }
+        }
       )
 
     assertThat(accumulator).isEqualTo(privacyIdCountAccumulator { count = 1 })

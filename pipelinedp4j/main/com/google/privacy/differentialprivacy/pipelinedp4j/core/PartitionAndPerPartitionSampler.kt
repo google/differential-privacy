@@ -17,6 +17,7 @@
 package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributions
+import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.featureContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PrivacyIdContributionsKt.multiValueContribution
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.privacyIdContributions
 
@@ -96,16 +97,24 @@ class PartitionAndPerPartitionSampler<PrivacyIdT : Any, PartitionKeyT : Any>(
  */
 private fun <PrivacyIdT : Any, PartitionKeyT : Any> mergeContributions(
   partitionContributions: Iterable<MultiFeatureContribution<PrivacyIdT, PartitionKeyT>>
-): PrivacyIdContributions = privacyIdContributions {
-  for (partitionContribution in partitionContributions) {
-    // TODO: Update to add support for multiple features.
-    // We expect that contribution contains only one feature with featureId="",
-    // produced by DataExtractors.
-    val perFeatureValues = partitionContribution.perFeatureValues().single()
-    if (perFeatureValues.values.size == 1) {
-      singleValueContributions += perFeatureValues.values
-    } else {
-      multiValueContributions += multiValueContribution { values += perFeatureValues.values }
+): PrivacyIdContributions {
+  val allPerFeatureValues = partitionContributions.flatMap { it.perFeatureValues() }
+  val perFeatureValuesById = allPerFeatureValues.groupBy { it.featureId }
+
+  return privacyIdContributions {
+    for ((featureId, values) in perFeatureValuesById) {
+      features += featureContribution {
+        this.featureId = featureId
+        for (perFeatureValue in values) {
+          if (perFeatureValue.values.size == 1) {
+            singleValueContributions += perFeatureValue.values
+          } else {
+            multiValueContributions += multiValueContribution {
+              this.values += perFeatureValue.values
+            }
+          }
+        }
+      }
     }
   }
 }
