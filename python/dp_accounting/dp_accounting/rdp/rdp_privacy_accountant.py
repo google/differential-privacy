@@ -1215,14 +1215,14 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
   def get_epsilon_and_optimal_order(
       self, target_delta: float
   ) -> Tuple[float, float]:
-    """Returns the current epsilon and the optimal RDP order.
+    r"""Returns the current epsilon and the optimal RDP order.
 
     Args:
       target_delta: The target delta.
 
     Returns:
       A tuple containing the current epsilon, accounting for all composed
-      `DpEvent`s, and the optimal order.
+      `DpEvent`\ s, and the optimal order.
     """
     # target_delta = 1 - (1 - effective_delta) * (1 - self.extra_delta).
     log_term = np.log1p(-target_delta) - np.log1p(-self._extra_delta)
@@ -1232,40 +1232,40 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     return compute_epsilon(self._orders, self._rdp, effective_delta)
 
   def get_epsilon(self, target_delta: float) -> float:
-    """Returns the current epsilon.
+    r"""Returns the current epsilon.
 
     Args:
       target_delta: The target delta.
 
     Returns:
-      The current epsilon, accounting for all composed `DpEvent`s.
+      The current epsilon, accounting for all composed `DpEvent`\ s.
     """
     return self.get_epsilon_and_optimal_order(target_delta)[0]
 
   def get_delta_and_optimal_order(
       self, target_epsilon: float
   ) -> Tuple[float, float]:
-    """Returns the current delta and the optimal RDP order.
+    r"""Returns the current delta and the optimal RDP order.
 
     Args:
       target_epsilon: The target epsilon.
 
     Returns:
       A tuple containing the current delta, accounting for all composed
-      `DpEvent`s, and the optimal order.
+      `DpEvent`\ s, and the optimal order.
     """
     delta, order = compute_delta(self._orders, self._rdp, target_epsilon)
     final_delta = delta + self._extra_delta - delta * self._extra_delta
     return final_delta, order
 
   def get_delta(self, target_epsilon: float) -> float:
-    """Returns the current delta.
+    r"""Returns the current delta.
 
     Args:
       target_epsilon: The target epsilon.
 
     Returns:
-      The current delta, accounting for all composed `DpEvent`s.
+      The current delta, accounting for all composed `DpEvent`\ s.
     """
     return self.get_delta_and_optimal_order(target_epsilon)[0]
 

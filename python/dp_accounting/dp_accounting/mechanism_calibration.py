@@ -184,7 +184,7 @@ def calibrate_dp_mechanism(
     bracket_interval: Optional[BracketInterval] = None,
     discrete: bool = False,
     tol: Optional[float] = None) -> Union[float, int]:
-  """Searches for optimal mechanism parameter value within privacy budget.
+  r"""Searches for optimal mechanism parameter value within privacy budget.
 
   The procedure searches over the space of parameters by creating, for each
   sample value, a DpEvent representing the mechanism generated from that value,
@@ -214,9 +214,9 @@ def calibrate_dp_mechanism(
       is 0.5. 3) An integer is returned.
     tol: The tolerance, in parameter space. If the maximum (or minimum) value of
       the parameter that meets the privacy requirements is x*,
-      calibrate_dp_mechanism is guaranteed to return a value x such that |x -
-      x*| <= tol. If `None`, tol is set to 1e-6 for continuous parameters or 0.5
-      for discrete parameters.
+      calibrate_dp_mechanism is guaranteed to return a value x such that \|x -
+      x*\| <= tol. If `None`, tol is set to 1e-6 for continuous parameters or
+      0.5 for discrete parameters.
 
   Returns:
     A value of the parameter within tol of the optimum subject to the privacy

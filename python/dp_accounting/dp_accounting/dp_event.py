@@ -77,11 +77,11 @@ class DpEventNamedTuple(Protocol):
 
 @attr.s(frozen=True)
 class DpEvent(object):
-  """Represents application of a private mechanism.
+  r"""Represents application of a private mechanism.
 
   A `DpEvent` describes a differentially private mechanism sufficiently for
   computing the associated privacy losses, both in isolation and in combination
-  with other `DpEvent`s.
+  with other `DpEvent`\ s.
   """
 
   def to_named_tuple(self) -> DpEventNamedTuple:
@@ -285,12 +285,12 @@ class GaussianDpEvent(DpEvent):
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class LaplaceDpEvent(DpEvent):
-  """Represents an application of the Laplace mechanism.
+  r"""Represents an application of the Laplace mechanism.
 
   For values v_i and noise z sampled coordinate-wise from the Laplace
   distribution L(0, s), this mechanism returns sum_i v_i + z.
   The probability density function of the Laplace distribution L(0, s) with
-  parameter s is given as exp(-|x|/s) * (0.5/s) at x for any real value x.
+  parameter s is given as exp(-\|x\|/s) * (0.5/s) at x for any real value x.
   If the L_1 norm of the values are bounded ||v_i||_1 <= C, the noise_multiplier
   is defined as s / C.
   """
@@ -327,9 +327,10 @@ class DiscreteGaussianDpEvent(DpEvent):
   Unlike for the continuous Gaussian, the univariate and multivariate cases are
   not equivalent for the discrete Gaussian. The `dimension` parameter specifies
   the dimensionality of the output:
-    - dimension=1: Univariate.
-    - dimension>1: Multivariate.
-    - dimension=None: Unknown. (Default.) Accountants should be conservative.
+
+  - `dimension=1`: Univariate.
+  - `dimension>1`: Multivariate.
+  - `dimension=None`: Unknown. (Default.) Accountants should be conservative.
 
   See https://arxiv.org/abs/2004.00010 for details.
   """
