@@ -24,10 +24,10 @@ build:
     python: "3.11"
 
 sphinx:
-  configuration: docs/conf.py
+  configuration: python/dp_accounting/docs/conf.py
 
 python:
   install:
-    - requirements: docs/requirements.txt
+    - requirements: python/dp_accounting/docs/requirements.txt
     - method: pip
       path: .
