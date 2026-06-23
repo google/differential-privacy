@@ -30,4 +30,4 @@ python:
   install:
     - requirements: python/dp_accounting/docs/requirements.txt
     - method: pip
-      path: .
+      path: python/dp_accounting/
