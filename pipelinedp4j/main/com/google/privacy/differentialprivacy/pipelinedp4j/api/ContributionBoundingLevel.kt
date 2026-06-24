@@ -51,13 +51,27 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoun
  *    the privacy unit is present in any specific group is limited by the given Differential Privacy
  *    budget, but there are no guarantees for being able to understand whether the privacy unit is
  *    present in the whole dataset. This privacy guarantee for a given privacy unit is weaker than
- *    the one provided by the dataset contribution bounding level.
+ *    the one provided by the dataset contribution bounding level, but stronger than the one
+ *    provided by the record contribution bounding level.
  *
  *    When you use the group contribution bounding level the effective privacy unit becomes
  *    (privacy_unit, group_key). It means that contributions to different groups from the same
  *    privacy unit are treated as if they were contributions from different privacy units (users).
  *    At the same time, contributions of the privacy unit to the same group are treated as
  *    contributions from the same privacy unit (user) and therefore are bounded.
+ * 3. @property RECORD_LEVEL
+ *
+ *    No contribution bounding is performed.
+ *
+ *    From privacy point of view this contribution bounding level protects the privacy unit only
+ *    within the record. It means that the possibility of understanding whether the privacy unit is
+ *    present in the record is limited by the given Differential Privacy budget, but there are no
+ *    guarantees for being able to understand whether the privacy unit is present in any group or
+ *    the whole dataset.
+ *
+ *    When you use the record contribution bounding level the effective privacy unit becomes the
+ *    whole record. It means that contributions to different records from the same privacy unit are
+ *    treated as if they were contributions from different privacy units (users).
  */
 sealed interface ContributionBoundingLevel {
   data class DATASET_LEVEL(
@@ -75,18 +89,22 @@ sealed interface ContributionBoundingLevel {
       require(maxContributionsPerGroup > 0) { "maxContributionsPerGroup must be positive" }
     }
   }
+
+  class RECORD_LEVEL : ContributionBoundingLevel
 }
 
 internal fun ContributionBoundingLevel.getMaxPartitionsContributed() =
   when (this) {
     is ContributionBoundingLevel.DATASET_LEVEL -> this.maxGroupsContributed
     is ContributionBoundingLevel.GROUP_LEVEL -> 1
+    is ContributionBoundingLevel.RECORD_LEVEL -> 1
   }
 
 internal fun ContributionBoundingLevel.getMaxContributionsPerPartition() =
   when (this) {
     is ContributionBoundingLevel.DATASET_LEVEL -> this.maxContributionsPerGroup
     is ContributionBoundingLevel.GROUP_LEVEL -> this.maxContributionsPerGroup
+    is ContributionBoundingLevel.RECORD_LEVEL -> 1
   }
 
 /**
@@ -99,4 +117,5 @@ internal fun ContributionBoundingLevel.toInternalContributionBoundingLevel() =
   when (this) {
     is ContributionBoundingLevel.DATASET_LEVEL -> InternalContributionBoundingLevel.DATASET_LEVEL
     is ContributionBoundingLevel.GROUP_LEVEL -> InternalContributionBoundingLevel.PARTITION_LEVEL
+    is ContributionBoundingLevel.RECORD_LEVEL -> InternalContributionBoundingLevel.RECORD_LEVEL
   }
