@@ -51,6 +51,71 @@ class NonEmptyAccountantError(Exception):
   """Error raised when result of make_fresh_accountant has nonempty ledger."""
 
 
+def _find_auto_bracket(
+    epsilon_gap: Callable[[float], float],
+) -> ExplicitBracketInterval:
+  """Finds a bracket interval by probing geometrically spaced points.
+
+  Uses a two-phase approach:
+  1. Coarse scan: evaluates epsilon_gap at points 10^k for k in [-12, 12]
+     (stepping by 2) to find a sign change across ~13 probe points.
+  2. Refinement: once a coarse bracket [10^a, 10^b] is found (b = a + 2),
+     probes the midpoint 10^((a+b)/2) to narrow the bracket.
+
+  Unlike _search_for_explicit_bracket_interval, a failure at one point does
+  not disable further search — each point is evaluated independently.
+
+  Args:
+    epsilon_gap: Function computing epsilon(param) - target_epsilon.
+
+  Returns:
+    An ExplicitBracketInterval bracketing a root.
+
+  Raises:
+    NoBracketIntervalFoundError: if no sign change is found.
+  """
+  # Phase 1: Coarse scan with 13 points.
+  exponents = np.arange(-12, 13, 2)
+  probe_points = 10.0**exponents
+
+  last_valid_point = None
+  last_valid_sign = None
+
+  for point in probe_points:
+    try:
+      value = epsilon_gap(point)
+      if np.isnan(value) or np.isinf(value):
+        continue
+      sign = np.sign(value)
+      if sign == 0:
+        return ExplicitBracketInterval(point, point)
+      if last_valid_sign is not None and sign != last_valid_sign:
+        # Phase 2: Refine by probing the geometric midpoint.
+        lo, hi = last_valid_point, point
+        mid = np.sqrt(lo * hi)
+        try:
+          mid_value = epsilon_gap(mid)
+          if not (np.isnan(mid_value) or np.isinf(mid_value)):
+            mid_sign = np.sign(mid_value)
+            if mid_sign == last_valid_sign:
+              lo = mid
+            elif mid_sign != 0:
+              hi = mid
+        except Exception:  # pylint: disable=broad-except
+          pass
+        return ExplicitBracketInterval(lo, hi)
+      last_valid_point = point
+      last_valid_sign = sign
+    except Exception:  # pylint: disable=broad-except
+      continue
+
+  raise NoBracketIntervalFoundError(
+      'Unable to find bracket interval. The function epsilon_gap did not '
+      'change sign over probe points in [1e-12, 1e12]. Consider providing '
+      'an ExplicitBracketInterval or LowerEndpointAndGuess.'
+  )
+
+
 def _search_for_explicit_bracket_interval(
     bracket_interval: LowerEndpointAndGuess,
     epsilon_gap: Callable[[float], float]) -> ExplicitBracketInterval:
@@ -193,12 +258,23 @@ def calibrate_dp_mechanism(
   to determine the value of the parameter at which the target epsilon is
   achieved.
 
+  If ``make_fresh_accountant`` is a ``PrivacyAccountant`` *class* (rather than
+  an already-bound factory function), the calibrator calls
+  ``make_fresh_accountant.for_calibration(target_epsilon, target_delta)`` to
+  create each fresh accountant instance.  This allows accountant subclasses to
+  automatically tune internal parameters — e.g., PLD discretization interval or
+  RDP orders — for the target privacy budget.  To opt out, pass a lambda::
+
+      make_fresh_accountant=lambda: pld.PLDAccountant(my_custom_interval)
+
   Args:
     make_fresh_accountant: A callable with no parameters that returns an
-      initialized PrivacyAccountant. The accountants that are returned across
-      multiple calls are assumed to be initialized identically. It is an error
-      for the initialized accountant's `ledger` property to return anything
-      besides `NoOpDpEvent`.
+      initialized PrivacyAccountant, or a PrivacyAccountant class.  If a class
+      is provided, its ``for_calibration`` classmethod is used to create
+      instances tuned for the target privacy parameters.  The accountants that
+      are returned across multiple calls are assumed to be initialized
+      identically. It is an error for the initialized accountant's ``ledger``
+      property to return anything besides ``NoOpDpEvent``.
     make_event_from_param: A callable that takes a parameter value as an
       argument and creates a `DpEvent` representing the mechanism defined using
       that value.
@@ -206,7 +282,8 @@ def calibrate_dp_mechanism(
     target_delta: The target delta value.
     bracket_interval: A BracketInterval used to determine the upper and lower
       endpoints of the interval within which Brent's method will search. If
-      None, searches for a non-negative bracket starting from [0, 1].
+      None, automatically determines a bracket by probing epsilon_gap at
+      geometrically spaced points in [1e-12, 1e12].
     discrete: A bool determining whether the parameter is continuous or discrete
       valued. If True, the parameter is assumed to take only integer values.
       Concretely, `discrete=True` has three effects. 1) ints, not floats are
@@ -247,15 +324,23 @@ def calibrate_dp_mechanism(
     raise ValueError(f'target_delta must be in range [0, 1]. Found '
                      f'{target_delta}.')
 
-  if bracket_interval is None:
-    bracket_interval = LowerEndpointAndGuess(0, 1)
-
   if tol is None:
     tol = 1.0 if discrete else 1e-6
   elif discrete:
     tol = max(tol, 1.0)
   elif tol <= 0:
     raise ValueError(f'tol must be positive. Found {tol}.')
+
+  # If a PrivacyAccountant class is provided (rather than a factory function),
+  # use its for_calibration classmethod to create instances tuned for the
+  # target privacy parameters.
+  if isinstance(make_fresh_accountant, type) and issubclass(
+      make_fresh_accountant, privacy_accountant.PrivacyAccountant
+  ):
+    accountant_class = make_fresh_accountant
+    make_fresh_accountant = lambda: accountant_class.for_calibration(
+        target_epsilon, target_delta
+    )
 
   def epsilon_gap(x: float) -> float:
     if discrete:
@@ -266,7 +351,9 @@ def calibrate_dp_mechanism(
       raise NonEmptyAccountantError()
     return accountant.compose(event).get_epsilon(target_delta) - target_epsilon
 
-  if isinstance(bracket_interval, LowerEndpointAndGuess):
+  if bracket_interval is None:
+    bracket_interval = _find_auto_bracket(epsilon_gap)
+  elif isinstance(bracket_interval, LowerEndpointAndGuess):
     bracket_interval = _search_for_explicit_bracket_interval(
         bracket_interval, epsilon_gap)
   elif not isinstance(bracket_interval, ExplicitBracketInterval):

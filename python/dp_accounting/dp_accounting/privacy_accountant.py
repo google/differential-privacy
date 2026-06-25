@@ -158,3 +158,32 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
       The current delta, accounting for all composed `DpEvent`\ s.
     """
     raise NotImplementedError()
+
+  @classmethod
+  def for_calibration(
+      cls,
+      target_epsilon: float,
+      target_delta: float,
+      **kwargs,
+  ) -> 'PrivacyAccountant':
+    """Creates an accountant tuned for calibration at the given privacy target.
+
+    When `calibrate_dp_mechanism` receives an accountant *class* (rather than
+    a factory function), it calls this classmethod to create each fresh
+    accountant.  Subclasses may override this to select internal accuracy
+    parameters (e.g., PLD discretization interval, RDP orders) appropriate
+    for the target privacy budget.
+
+    The default implementation ignores the target and returns ``cls(**kwargs)``,
+    passing through any extra keyword arguments to the constructor.
+
+    Args:
+      target_epsilon: The target epsilon for calibration.
+      target_delta: The target delta for calibration.
+      **kwargs: Additional keyword arguments forwarded to the constructor.
+
+    Returns:
+      A freshly initialized PrivacyAccountant instance.
+    """
+    del target_epsilon, target_delta  # Unused in default implementation.
+    return cls(**kwargs)  # pytype: disable=missing-parameter
