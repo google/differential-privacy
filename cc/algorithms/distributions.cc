@@ -90,7 +90,7 @@ double GaussianDistribution::Sample(double scale) {
   // binomial distribution approximates a Gaussian distribution close enough.
   // The sqrt(n) is taken instead of n, to ensure that all results of arithmetic
   // operations fit in 64 bit integer range.
-  double sqrt_n = 2.0 * sigma / granularity;
+  double sqrt_n = (sigma / granularity) * 2.0;
   return SampleBinomial(sqrt_n) * granularity;
 }
 
@@ -100,7 +100,7 @@ double GaussianDistribution::Stddev() const { return stddev_; }
 
 double GaussianDistribution::GetGranularity(double scale) const {
   double sigma = scale * stddev_;
-  return GetNextPowerOfTwo(2 * sigma / kBinomialBound);
+  return GetNextPowerOfTwo((sigma / kBinomialBound) * 2.0);
 }
 
 double GaussianDistribution::cdf(double stddev, double x) {
