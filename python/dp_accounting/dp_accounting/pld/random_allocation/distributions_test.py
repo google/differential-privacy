@@ -62,8 +62,8 @@ class DenseDiscreteDistTest(absltest.TestCase):
         prob_arr=np.array([0.4, 0.6], dtype=np.float64),
     )
 
-    round_tripped = utils._log_geometric_to_linear(
-        utils._exp_linear_to_geometric(original)
+    round_tripped = utils.log_geometric_to_linear(
+        utils.exp_linear_to_geometric(original)
     )
 
     self.assertEqual(round_tripped.step, original.step)
@@ -187,7 +187,7 @@ class DiscretizeRangeTest(absltest.TestCase):
     )
 
     np.testing.assert_allclose(
-        distributions._compute_bin_width(result._x_array), 0.1
+        distributions._compute_bin_width(result.x_array), 0.1
     )
 
   def test_continuous_discretization_uses_requested_geometric_step(self):
@@ -205,7 +205,7 @@ class DiscretizeRangeTest(absltest.TestCase):
     np.testing.assert_allclose(np.exp(result.step), 1.05)
 
   def test_generated_geometric_grid_preserves_pld_default_step(self):
-    grid = distributions._discretize_aligned_grid(
+    grid = distributions.discretize_aligned_grid(
         x_min=0.1,
         x_max=10.0,
         spacing_type=definitions.SpacingType.GEOMETRIC,
@@ -223,7 +223,7 @@ class DiscretizeRangeTest(absltest.TestCase):
     )
 
     self.assertEqual(dist.step, 1e-4)
-    np.testing.assert_allclose(dist._x_array, x)
+    np.testing.assert_allclose(dist.x_array, x)
 
 
 class ComputeBinWidthTest(absltest.TestCase):
@@ -347,7 +347,7 @@ class PmfRemapToGridTest(absltest.TestCase):
     pmf_out = distributions._rediscretize_prob(
         x_in, pmf_in, x_out, dominates=True
     )
-    _, _, ppos = distributions._enforce_mass_conservation(
+    _, _, ppos = distributions.enforce_mass_conservation(
         prob_arr=pmf_out,
         expected_p_min=0.0,
         expected_p_max=0.0,
@@ -364,7 +364,7 @@ class PmfRemapToGridTest(absltest.TestCase):
         x_in, pmf_in, x_out, dominates=True
     )
     total_in = math.fsum(map(float, pmf_in))
-    pmf_out, pneg, ppos = distributions._enforce_mass_conservation(
+    pmf_out, pneg, ppos = distributions.enforce_mass_conservation(
         prob_arr=pmf_out,
         expected_p_min=0.0,
         expected_p_max=0.0,
@@ -378,7 +378,7 @@ class EnforceMassConservationTest(absltest.TestCase):
 
   def test_dominates_can_consume_soft_p_min(self):
     prob_arr = np.array([0.4, 0.1], dtype=np.float64)
-    prob_out, p_min, p_max = distributions._enforce_mass_conservation(
+    prob_out, p_min, p_max = distributions.enforce_mass_conservation(
         prob_arr=prob_arr,
         expected_p_min=0.3,
         expected_p_max=0.4,
@@ -393,7 +393,7 @@ class EnforceMassConservationTest(absltest.TestCase):
 
   def test_is_dominated_can_consume_soft_p_max(self):
     prob_arr = np.array([0.1, 0.4], dtype=np.float64)
-    prob_out, p_min, p_max = distributions._enforce_mass_conservation(
+    prob_out, p_min, p_max = distributions.enforce_mass_conservation(
         prob_arr=prob_arr,
         expected_p_min=0.4,
         expected_p_max=0.3,
@@ -488,7 +488,7 @@ class ComputeTruncationTest(absltest.TestCase):
     result = dist.truncate_edges(0.1, definitions.BoundType.DOMINATES)
 
     np.testing.assert_allclose(
-        result._x_array, np.array([1.0], dtype=np.float64)
+        result.x_array, np.array([1.0], dtype=np.float64)
     )
     np.testing.assert_allclose(
         result.prob_arr, np.array([0.8], dtype=np.float64)
@@ -508,7 +508,7 @@ class ComputeTruncationTest(absltest.TestCase):
     result = dist.truncate_edges(0.15, definitions.BoundType.DOMINATES)
 
     np.testing.assert_allclose(
-        result._x_array, np.array([1.0, 2.0], dtype=np.float64)
+        result.x_array, np.array([1.0, 2.0], dtype=np.float64)
     )
     np.testing.assert_allclose(
         result.prob_arr, np.array([0.8, 0.1], dtype=np.float64)
@@ -540,7 +540,7 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
         prob_arr=np.array([1.0 - 1e-6, 1e-6], dtype=np.float64),
     )
 
-    result = distributions._rediscretize_dist(
+    result = distributions.rediscretize_dist(
         dist=dist,
         tail_truncation=1e-8,
         loss_discretization=1e-2,
@@ -549,8 +549,8 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
     )
 
     np.testing.assert_allclose(result.step, 1e-2)
-    np.testing.assert_allclose(result._x_array[0], 0.5)
-    np.testing.assert_allclose(result._x_array[-1], 1.0)
+    np.testing.assert_allclose(result.x_array[0], 0.5)
+    np.testing.assert_allclose(result.x_array[-1], 1.0)
     total = math.fsum(
         [*map(float, result.prob_arr), result.p_min, result.p_max]
     )
@@ -563,7 +563,7 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
         p_max=0.1,
     )
 
-    result = distributions._rediscretize_dist(
+    result = distributions.rediscretize_dist(
         dist=dist,
         tail_truncation=0.0,
         loss_discretization=1.0,
@@ -585,7 +585,7 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
         p_min=0.1,
     )
 
-    result = distributions._rediscretize_dist(
+    result = distributions.rediscretize_dist(
         dist=dist,
         tail_truncation=0.0,
         loss_discretization=1.0,
@@ -609,7 +609,7 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
         domain=distributions.Domain.POSITIVES,
     )
 
-    result = distributions._rediscretize_dist(
+    result = distributions.rediscretize_dist(
         dist=dist,
         tail_truncation=0.0,
         loss_discretization=np.log(2.0),

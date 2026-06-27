@@ -1,0 +1,156 @@
+#
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Random allocation privacy loss distribution (PLD) accounting.
+
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+package(default_visibility = [
+    "//visibility:public",
+])
+
+licenses(["notice"])
+
+py_library(
+    name = "random_allocation",
+    srcs = ["__init__.py"],
+    deps = [
+        ":api",
+        ":definitions",
+        ":distributions",
+    ],
+)
+
+py_library(
+    name = "definitions",
+    srcs = ["definitions.py"],
+    srcs_version = "PY3",
+    deps = [
+        "@accounting_py_pip_deps//numpy",
+    ],
+)
+
+py_library(
+    name = "distributions",
+    srcs = ["distributions.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":definitions",
+        "@accounting_py_pip_deps//numpy",
+        "@accounting_py_pip_deps//scipy",
+    ],
+)
+
+py_library(
+    name = "utils",
+    srcs = ["utils.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":definitions",
+        ":distributions",
+        "@accounting_py_pip_deps//numpy",
+    ],
+)
+
+py_library(
+    name = "convolution",
+    srcs = ["convolution.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":definitions",
+        ":distributions",
+        ":utils",
+        "//dp_accounting/pld:common",
+        "@accounting_py_pip_deps//numpy",
+        "@accounting_py_pip_deps//scipy",
+    ],
+)
+
+py_library(
+    name = "core",
+    srcs = ["core.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":convolution",
+        ":definitions",
+        ":distributions",
+        ":utils",
+        "//dp_accounting/pld:pld_pmf",
+        "//dp_accounting/pld:privacy_loss_distribution",
+        "@accounting_py_pip_deps//numpy",
+        "@accounting_py_pip_deps//scipy",
+    ],
+)
+
+py_library(
+    name = "api",
+    srcs = ["api.py"],
+    srcs_version = "PY3",
+    deps = [
+        ":core",
+        ":definitions",
+        ":distributions",
+        ":utils",
+        "//dp_accounting/pld:privacy_loss_distribution",
+    ],
+)
+
+py_test(
+    name = "distributions_test",
+    size = "small",
+    srcs = ["distributions_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":core",
+        ":definitions",
+        ":distributions",
+        ":utils",
+        "@accounting_py_pip_deps//absl_py",
+        "@accounting_py_pip_deps//numpy",
+        "@accounting_py_pip_deps//scipy",
+    ],
+)
+
+py_test(
+    name = "convolution_test",
+    size = "small",
+    srcs = ["convolution_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":convolution",
+        ":definitions",
+        ":distributions",
+        ":utils",
+        "@accounting_py_pip_deps//absl_py",
+        "@accounting_py_pip_deps//numpy",
+    ],
+)
+
+py_test(
+    name = "api_test",
+    size = "small",
+    srcs = ["api_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":api",
+        ":definitions",
+        ":distributions",
+        "//dp_accounting/pld:privacy_loss_distribution",
+        "@accounting_py_pip_deps//absl_py",
+        "@accounting_py_pip_deps//numpy",
+    ],
+)

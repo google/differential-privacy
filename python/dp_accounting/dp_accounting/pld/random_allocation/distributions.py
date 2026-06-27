@@ -135,12 +135,12 @@ def _compute_bin_width(x_array: NDArray[np.float64]) -> float:
   return float(median_diff)
 
 
-def _stable_isclose(*, a: float, b: float) -> bool:
+def stable_isclose(*, a: float, b: float) -> bool:
   """Consistent closeness check using shared spacing tolerances."""
   return bool(np.isclose(a, b, rtol=_SPACING_RTOL, atol=_SPACING_ATOL))
 
 
-def _stable_array_equal(
+def stable_array_equal(
     *, a: NDArray[np.float64], b: NDArray[np.float64]
 ) -> bool:
   """Consistent array closeness check using shared spacing tolerances."""
@@ -296,12 +296,12 @@ class DiscreteDistBase(ABC):
 
   @property
   @abstractmethod
-  def _x_array(self) -> NDArray[np.float64]:
+  def x_array(self) -> NDArray[np.float64]:
     """Materialized support."""
     raise NotImplementedError
 
   def _validate_basic(self) -> None:
-    definitions._validate_discrete_pmf_and_boundaries(
+    definitions.validate_discrete_pmf_and_boundaries(
         self.prob_arr,
         self.p_min,
         self.p_max,
@@ -386,7 +386,7 @@ class SparseDiscreteDist(DiscreteDistBase):
       raise ValueError("x must be strictly increasing")
 
   @property
-  def _x_array(self) -> NDArray[np.float64]:
+  def x_array(self) -> NDArray[np.float64]:
     """Return materialized support points."""
     return self._x_arr
 
@@ -540,7 +540,7 @@ class DenseDiscreteDist(DiscreteDistBase):
     )
 
   @property
-  def _x_array(self) -> NDArray[np.float64]:
+  def x_array(self) -> NDArray[np.float64]:
     """Return materialized support points."""
     return self.grid.x_array
 
@@ -648,7 +648,7 @@ class PLDRealization(DenseDiscreteDist):
       )
 
     exp_moment_val = _exp_moment_terms(
-        prob_arr=self.prob_arr, x_vals=self._x_array
+        prob_arr=self.prob_arr, x_vals=self.x_array
     )
     if np.any(np.isinf(exp_moment_val)):
       raise ValueError(
@@ -702,7 +702,7 @@ class PLDRealization(DenseDiscreteDist):
 # =============================================================================
 
 
-def _enforce_mass_conservation(
+def enforce_mass_conservation(
     *,
     prob_arr: NDArray[np.float64],
     expected_p_min: float,
@@ -722,7 +722,7 @@ def _enforce_mass_conservation(
   Any remaining slack is assigned to the enforced boundary.
   """
   prob_arr = np.asarray(prob_arr, dtype=np.float64).copy()
-  definitions._validate_discrete_pmf_and_boundaries(
+  definitions.validate_discrete_pmf_and_boundaries(
       prob_arr,
       expected_p_min,
       expected_p_max,
@@ -788,7 +788,7 @@ def _compute_bin_width_two_arrays(
   """Compute linear spacing width for two grids and return their average."""
   w1 = _compute_bin_width(x_array_1)
   w2 = _compute_bin_width(x_array_2)
-  if not _stable_isclose(a=w1, b=w2):
+  if not stable_isclose(a=w1, b=w2):
     raise ValueError(f"Grid spacing must match: w1={w1:.12g} vs w2={w2:.12g}")
   return (w1 + w2) / 2
 
@@ -798,7 +798,7 @@ def _compute_bin_width_two_arrays(
 # =============================================================================
 
 
-@definitions._optional_njit()
+@definitions.optional_njit()
 def _adaptive_bins_from_cdf(
     *,
     cdf: NDArray[np.float64],
@@ -830,7 +830,7 @@ def _adaptive_bins_from_cdf(
   return bin_probs
 
 
-@definitions._optional_njit()
+@definitions.optional_njit()
 def _adaptive_bins_from_sf(
     *,
     sf: NDArray[np.float64],
@@ -962,7 +962,7 @@ def _discretize_continuous_prob_arr(
   raise ValueError(f"Unknown BoundType: {bound_type}")
 
 
-def _discretize_aligned_grid(
+def discretize_aligned_grid(
     *,
     x_min: float,
     x_max: float,
@@ -1100,7 +1100,7 @@ def _discretize_aligned_range(
     discretization: float,
 ) -> NDArray[np.float64]:
   """Return a grid covering [x_min, x_max]."""
-  return _discretize_aligned_grid(
+  return discretize_aligned_grid(
       x_min=x_min,
       x_max=x_max,
       spacing_type=spacing_type,
@@ -1135,7 +1135,7 @@ def _continuous_to_grid(
   else:
     raise ValueError(f"Invalid spacing_type: {spacing_type}")
 
-  return _discretize_aligned_grid(
+  return discretize_aligned_grid(
       x_min=x_min,
       x_max=x_max,
       spacing_type=spacing_type,
@@ -1183,7 +1183,7 @@ def _discretize_on_x_array(
   raise ValueError(f"Invalid spacing_type: {spacing_type}")
 
 
-def _discretize_on_grid(
+def discretize_on_grid(
     *,
     dist: stats.rv_continuous | rv_frozen[Any, Any],
     grid: definitions.RegularGrid,
@@ -1261,7 +1261,7 @@ def _discretize_continuous_distribution(
     )
 
   # 2. Map density to PMF with semantics.
-  return _discretize_on_grid(
+  return discretize_on_grid(
       dist=dist,
       grid=grid,
       bound_type=bound_type,
@@ -1303,7 +1303,7 @@ def _numpy_rediscretize_prob(
   return prob_arr_out
 
 
-@definitions._optional_njit()
+@definitions.optional_njit()
 def _numba_rediscretize_prob(
     x_array: NDArray[np.float64],
     prob_arr: NDArray[np.float64],
@@ -1388,7 +1388,7 @@ def _rediscretize_prob(
   return _numpy_rediscretize_prob(x_array, prob_arr, x_array_out, dominates)
 
 
-def _rediscretize_dist(
+def rediscretize_dist(
     *,
     dist: DiscreteDistBase,
     tail_truncation: float,
@@ -1427,11 +1427,11 @@ def _rediscretize_dist(
       tail_truncation=tail_truncation / 2, bound_type=bound_type
   )
 
-  x_array = trunc_dist._x_array
+  x_array = trunc_dist.x_array
   x_min = x_array[0]
   x_max = x_array[-1]
 
-  grid_out = _discretize_aligned_grid(
+  grid_out = discretize_aligned_grid(
       x_min=x_min,
       x_max=x_max,
       spacing_type=spacing_type,
@@ -1447,7 +1447,7 @@ def _rediscretize_dist(
       dominates=(bound_type == definitions.BoundType.DOMINATES),
   )
 
-  prob_arr_out, p_min, p_max = _enforce_mass_conservation(
+  prob_arr_out, p_min, p_max = enforce_mass_conservation(
       prob_arr=prob_arr_out,
       expected_p_min=working_dist.p_min,
       expected_p_max=working_dist.p_max,

@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 
 # numba is an optional dependency: if installed, JIT-compiled functions run
 # significantly faster; if not, callers can dispatch to NumPy fallbacks. _NJIT
-# is imported as a private name so callers must use _optional_njit() and cannot
+# is imported as a private name so callers must use optional_njit() and cannot
 # accidentally bypass the fallback by using @njit directly.
 _NJIT = None
 try:
@@ -28,7 +28,7 @@ except ImportError:
   )
 
 
-def _optional_njit():
+def optional_njit():
   """Return a cached numba njit decorator, or the identity decorator.
 
   Use as a decorator at function-definition time for kernels whose Python
@@ -46,7 +46,7 @@ def has_numba() -> bool:
 
   Use at call time to dispatch between a JIT kernel and a separate NumPy
   fallback when the two implementations differ structurally (e.g. a
-  scalar loop vs. a vectorised array operation).  Unlike _optional_njit,
+  scalar loop vs. a vectorised array operation).  Unlike optional_njit,
   this lets callers choose a fundamentally different code path at runtime.
   """
   return _HAS_NUMBA
@@ -130,7 +130,7 @@ class AllocationSchemeConfig:
 # =============================================================================
 
 
-def _validate_discrete_pmf_and_boundaries(
+def validate_discrete_pmf_and_boundaries(
     prob_arr: NDArray[np.float64],
     p_min: float,
     p_max: float,

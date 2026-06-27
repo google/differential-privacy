@@ -32,76 +32,76 @@ class BinarySelfConvolveTest(absltest.TestCase):
   def test_rejects_invalid_t(self):
     dist = _linear_dist()
     with self.assertRaisesRegex(ValueError, "T must be >= 1"):
-      utils._binary_self_convolve(
+      utils.binary_self_convolve(
           dist=dist,
           T=0,
           tail_truncation=0.0,
           bound_type=definitions.BoundType.DOMINATES,
-          convolve=convolution._fft_convolve,
+          convolve=convolution.fft_convolve,
       )
 
   def test_t1_identity(self):
     dist = _linear_dist()
-    result = utils._binary_self_convolve(
+    result = utils.binary_self_convolve(
         dist=dist,
         T=1,
         tail_truncation=0.0,
         bound_type=definitions.BoundType.DOMINATES,
-        convolve=convolution._fft_convolve,
+        convolve=convolution.fft_convolve,
     )
-    np.testing.assert_allclose(result._x_array, dist._x_array)
+    np.testing.assert_allclose(result.x_array, dist.x_array)
     np.testing.assert_allclose(result.prob_arr, dist.prob_arr)
 
   def test_matches_direct_fft_t2(self):
     dist = _linear_dist()
-    result = utils._binary_self_convolve(
+    result = utils.binary_self_convolve(
         dist=dist,
         T=2,
         tail_truncation=0.0,
         bound_type=definitions.BoundType.DOMINATES,
-        convolve=convolution._fft_convolve,
+        convolve=convolution.fft_convolve,
     )
-    direct = convolution._fft_convolve(
+    direct = convolution.fft_convolve(
         dist_1=dist,
         dist_2=dist,
         tail_truncation=0.0,
         bound_type=definitions.BoundType.DOMINATES,
     )
-    np.testing.assert_allclose(result._x_array, direct._x_array)
+    np.testing.assert_allclose(result.x_array, direct.x_array)
     np.testing.assert_allclose(result.prob_arr, direct.prob_arr, atol=1e-12)
 
   def test_matches_repeated_geometric(self):
     dist = _geometric_dist()
-    result = utils._binary_self_convolve(
+    result = utils.binary_self_convolve(
         dist=dist,
         T=3,
         tail_truncation=0.0,
         bound_type=definitions.BoundType.DOMINATES,
-        convolve=convolution._geometric_convolve,
+        convolve=convolution.geometric_convolve,
     )
-    repeated = convolution._geometric_convolve(
+    repeated = convolution.geometric_convolve(
         dist_1=dist,
         dist_2=dist,
         tail_truncation=0.0,
         bound_type=definitions.BoundType.DOMINATES,
     )
-    repeated = convolution._geometric_convolve(
+    repeated = convolution.geometric_convolve(
         dist_1=repeated,
         dist_2=dist,
         tail_truncation=0.0,
         bound_type=definitions.BoundType.DOMINATES,
     )
-    np.testing.assert_allclose(result._x_array, repeated._x_array)
+    np.testing.assert_allclose(result.x_array, repeated.x_array)
     np.testing.assert_allclose(result.prob_arr, repeated.prob_arr, atol=1e-12)
 
   def test_preserves_mass_fft(self):
     dist = _linear_dist()
-    result = utils._binary_self_convolve(
+    result = utils.binary_self_convolve(
         dist=dist,
         T=5,
         tail_truncation=0.0,
         bound_type=definitions.BoundType.DOMINATES,
-        convolve=convolution._fft_convolve,
+        convolve=convolution.fft_convolve,
     )
     total = math.fsum(
         [*map(float, result.prob_arr), result.p_min, result.p_max]
@@ -121,7 +121,7 @@ class GeometricConvolveTest(absltest.TestCase):
         domain=distributions.Domain.POSITIVES,
     )
 
-    result = convolution._geometric_convolve(
+    result = convolution.geometric_convolve(
         dist_1=dist,
         dist_2=dist,
         tail_truncation=0.0,
@@ -129,21 +129,21 @@ class GeometricConvolveTest(absltest.TestCase):
     )
 
     self.assertEqual(result.step, step)
-    self.assertEqual(utils._log_geometric_to_linear(result).step, step)
+    self.assertEqual(utils.log_geometric_to_linear(result).step, step)
 
 
 class FftSelfConvolveTest(absltest.TestCase):
 
   def test_direct_vs_binary(self):
     dist = _linear_dist(n=9)
-    direct = convolution._fft_self_convolve(
+    direct = convolution.fft_self_convolve(
         dist=dist,
         T=7,
         tail_truncation=0.0,
         bound_type=definitions.BoundType.DOMINATES,
         use_direct=True,
     )
-    binary = convolution._fft_self_convolve(
+    binary = convolution.fft_self_convolve(
         dist=dist,
         T=7,
         tail_truncation=0.0,
@@ -160,8 +160,8 @@ class FftSelfConvolveTest(absltest.TestCase):
     np.testing.assert_allclose(direct_mass, 1.0, atol=1e-10, rtol=0)
     np.testing.assert_allclose(binary_mass, 1.0, atol=1e-10, rtol=0)
 
-    self.assertGreaterEqual(direct._x_array.size, 2)
-    self.assertGreaterEqual(binary._x_array.size, 2)
+    self.assertGreaterEqual(direct.x_array.size, 2)
+    self.assertGreaterEqual(binary.x_array.size, 2)
 
 
 class GeometricKernelTest(absltest.TestCase):

@@ -17,7 +17,7 @@ from dp_accounting.pld.random_allocation import definitions
 # =============================================================================
 
 
-def _convolve_boundary_masses(
+def convolve_boundary_masses(
     p_min_1: float,
     p_max_1: float,
     p_min_2: float,
@@ -54,7 +54,7 @@ def _convolve_boundary_masses(
   return p_min, p_max
 
 
-def _self_convolve_boundary_masses(
+def self_convolve_boundary_masses(
     dist: distributions.DiscreteDistBase,
     num_convolutions: int,
 ) -> tuple[float, float]:
@@ -81,7 +81,7 @@ def _self_convolve_boundary_masses(
 # =============================================================================
 
 
-@definitions._optional_njit()
+@definitions.optional_njit()
 def _kahan_reverse_exclusive_cumsum(
     padded_probs: NDArray[np.float64],
 ) -> NDArray[np.float64]:
@@ -132,7 +132,7 @@ def _expand_to_grid(
     grid: NDArray[np.float64],
 ) -> distributions.SparseDiscreteDist:
   """Insert zero-mass points for missing support values."""
-  x = dist._x_array
+  x = dist.x_array
   pmf = dist.prob_arr
   expanded_pmf = np.zeros_like(grid, dtype=np.float64)
   indices = np.searchsorted(grid, x)
@@ -153,7 +153,7 @@ def _align_distributions_to_union_grid(
     dist_2: distributions.DiscreteDistBase,
 ) -> tuple[distributions.SparseDiscreteDist, distributions.SparseDiscreteDist]:
   """Return distributions on a shared grid by inserting zero-mass points."""
-  x_union = np.unique(np.concatenate((dist_1._x_array, dist_2._x_array)))
+  x_union = np.unique(np.concatenate((dist_1.x_array, dist_2.x_array)))
   return (
       _expand_to_grid(
           dist=dist_1,
@@ -171,7 +171,7 @@ def _align_distributions_to_union_grid(
 # =============================================================================
 
 
-def _binary_self_convolve(
+def binary_self_convolve(
     *,
     dist: distributions.DenseDiscreteDist,
     T: int,  # pylint: disable=invalid-name  # T matches paper notation
@@ -234,7 +234,7 @@ def _combine_distributions(
   else:
     raise ValueError(f"Unknown BoundType: {bound_type}")
 
-  if distributions._stable_array_equal(a=dist_1._x_array, b=dist_2._x_array):
+  if distributions.stable_array_equal(a=dist_1.x_array, b=dist_2.x_array):
     dist_1_aligned, dist_2_aligned = dist_1, dist_2
   else:
     dist_1_aligned, dist_2_aligned = _align_distributions_to_union_grid(
@@ -242,13 +242,13 @@ def _combine_distributions(
         dist_2=dist_2,
     )
 
-  x_array = dist_1_aligned._x_array
+  x_array = dist_1_aligned.x_array
   ccdf_1 = _ccdf_from_pmf(dist_1_aligned)
   ccdf_2 = _ccdf_from_pmf(dist_2_aligned)
   combined_ccdf = ccdf_op(ccdf_1, ccdf_2)
   prob_arr = combined_ccdf[:-2] - combined_ccdf[1:-1]
 
-  prob_arr, p_min, p_max = distributions._enforce_mass_conservation(
+  prob_arr, p_min, p_max = distributions.enforce_mass_conservation(
       prob_arr=prob_arr,
       expected_p_min=max(dist_1_aligned.p_min, dist_2_aligned.p_min),
       expected_p_max=max(dist_1_aligned.p_max, dist_2_aligned.p_max),
@@ -268,7 +268,7 @@ def _combine_distributions(
 # =============================================================================
 
 
-def _exp_linear_to_geometric(
+def exp_linear_to_geometric(
     dist: distributions.DenseDiscreteDist,
 ) -> distributions.DenseDiscreteDist:
   """Map a linear-grid distribution to a geometric-grid one via exp(.).
@@ -294,7 +294,7 @@ def _exp_linear_to_geometric(
   )
 
 
-def _log_geometric_to_linear(
+def log_geometric_to_linear(
     dist: distributions.DenseDiscreteDist,
 ) -> distributions.DenseDiscreteDist:
   """Map a geometric-grid distribution to a linear-grid one via log(.).
@@ -320,7 +320,7 @@ def _log_geometric_to_linear(
   )
 
 
-def _negate_reverse_linear_distribution(
+def negate_reverse_linear_distribution(
     dist: distributions.DenseDiscreteDist,
 ) -> distributions.DenseDiscreteDist:
   """Map X -> -X, reverse PMF order, and swap boundary atoms."""
@@ -334,7 +334,7 @@ def _negate_reverse_linear_distribution(
   )
 
 
-def _calc_pld_dual(
+def calc_pld_dual(
     realization: distributions.PLDRealization,
 ) -> distributions.PLDRealization:
   """Compute the paper PLD dual ``D(L)`` (Definition 3.1).
@@ -355,7 +355,7 @@ def _calc_pld_dual(
   dual_probs_aligned = np.zeros_like(realization.prob_arr)
   mask = realization.prob_arr > 0
   dual_probs_aligned[mask] = np.exp(
-      np.log(realization.prob_arr[mask]) - realization._x_array[mask]
+      np.log(realization.prob_arr[mask]) - realization.x_array[mask]
   )
   dual_probs = np.flip(dual_probs_aligned)
 
@@ -380,29 +380,29 @@ def _calc_pld_dual(
 # =============================================================================
 
 
-def _validate_dense_linear_dist(dist: object) -> None:
+def validate_dense_linear_dist(dist: object) -> None:
   """Raise TypeError if dist is not a LINEAR DenseDiscreteDist."""
   if not (
       isinstance(dist, distributions.DenseDiscreteDist)
       and dist.spacing_type == definitions.SpacingType.LINEAR
   ):
-    _st = getattr(dist, "spacing_type", "?")
+    spacing = getattr(dist, "spacing_type", "?")
     raise TypeError(
         f"Expected DenseDiscreteDist with LINEAR spacing, "
-        f"got {type(dist).__name__} with spacing {_st}"
+        f"got {type(dist).__name__} with spacing {spacing}"
     )
 
 
-def _validate_dense_geometric_dist(dist: object) -> None:
+def validate_dense_geometric_dist(dist: object) -> None:
   """Raise TypeError if dist is not a GEOMETRIC DenseDiscreteDist."""
   if not (
       isinstance(dist, distributions.DenseDiscreteDist)
       and dist.spacing_type == definitions.SpacingType.GEOMETRIC
   ):
-    _st = getattr(dist, "spacing_type", "?")
+    spacing = getattr(dist, "spacing_type", "?")
     raise TypeError(
         f"Expected DenseDiscreteDist with GEOMETRIC spacing, "
-        f"got {type(dist).__name__} with spacing {_st}"
+        f"got {type(dist).__name__} with spacing {spacing}"
     )
 
 
@@ -411,7 +411,7 @@ def _validate_dense_geometric_dist(dist: object) -> None:
 # =============================================================================
 
 
-def _validate_privacy_params(
+def validate_privacy_params(
     params: definitions.PrivacyParams,
     *,
     require_delta: bool = False,
@@ -461,10 +461,10 @@ def _validate_gaussian_params(
   """
   if sigma <= 0:
     raise ValueError(f"sigma must be positive, got {sigma}")
-  _validate_allocation_params(num_steps, num_selected, num_epochs)
+  validate_allocation_params(num_steps, num_selected, num_epochs)
 
 
-def _validate_allocation_params(
+def validate_allocation_params(
     num_steps: int,
     num_selected: int,
     num_epochs: int,
@@ -524,7 +524,7 @@ def _validate_epsilon(epsilon: float | None) -> None:
 # =============================================================================
 
 
-def _validate_bound_type(bound_type: definitions.BoundType) -> None:
+def validate_bound_type(bound_type: definitions.BoundType) -> None:
   """Validate BoundType enum value.
 
   Args:
@@ -546,7 +546,7 @@ def _validate_bound_type(bound_type: definitions.BoundType) -> None:
 # =============================================================================
 
 
-def _validate_discretization_params(
+def validate_discretization_params(
     loss_discretization: float,
     tail_truncation: float,
 ) -> None:
@@ -568,7 +568,7 @@ def _validate_discretization_params(
     raise ValueError(f"tail_truncation must be positive, got {tail_truncation}")
 
 
-def _validate_allocation_scheme_config(
+def validate_allocation_scheme_config(
     config: definitions.AllocationSchemeConfig,
 ) -> None:
   """Validate AllocationSchemeConfig fields.
@@ -585,7 +585,7 @@ def _validate_allocation_scheme_config(
     raise TypeError(
         f"config must be AllocationSchemeConfig, got {type(config)}"
     )
-  _validate_discretization_params(
+  validate_discretization_params(
       config.value_discretization_interval, config.tail_truncation
   )
   if config.max_grid_mult != -1 and config.max_grid_mult <= 0:

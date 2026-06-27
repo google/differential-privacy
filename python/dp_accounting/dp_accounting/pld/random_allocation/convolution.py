@@ -41,7 +41,7 @@ def _check_fft_memory(fft_size: int, label: str = "FFT") -> None:
     )
 
 
-def _fft_convolve(
+def fft_convolve(
     *,
     dist_1: distributions.DenseDiscreteDist,
     dist_2: distributions.DenseDiscreteDist,
@@ -70,7 +70,7 @@ def _fft_convolve(
     raise ValueError(
         "FFT convolution requires nonzero finite mass in both inputs"
     )
-  if not distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
+  if not distributions.stable_isclose(a=dist_1.step, b=dist_2.step):
     raise ValueError(
         f"Grid spacing must match: w1={dist_1.step:.12g} vs "
         f"w2={dist_2.step:.12g}"
@@ -123,10 +123,10 @@ def _fft_convolve(
   # infinity masses. This corrects small drift from FFT arithmetic/clipping.
   conv_pmf *= finite_prob_1 * finite_prob_2 / current_finite_mass
 
-  expected_p_min, expected_p_max = utils._convolve_boundary_masses(
+  expected_p_min, expected_p_max = utils.convolve_boundary_masses(
       dist_1.p_min, dist_1.p_max, dist_2.p_min, dist_2.p_max, dist_1.domain
   )
-  conv_pmf, p_min, p_max = distributions._enforce_mass_conservation(
+  conv_pmf, p_min, p_max = distributions.enforce_mass_conservation(
       prob_arr=conv_pmf,
       expected_p_min=expected_p_min,
       expected_p_max=expected_p_max,
@@ -219,7 +219,7 @@ def _fft_self_convolve_direct(
   # in-place.
   rolled_conv = np.roll(raw_conv, -shift_left)
 
-  conv_p_min, conv_p_max = utils._self_convolve_boundary_masses(
+  conv_p_min, conv_p_max = utils.self_convolve_boundary_masses(
       dist, num_convolutions=T
   )
   if bound_type == definitions.BoundType.DOMINATES:
@@ -254,7 +254,7 @@ def _fft_self_convolve_direct(
 
   x_min = dist.x_min * T + shift_left * dist.step
   pmf_conv = rolled_conv[:window_size]
-  pmf_conv, p_min_final, p_max_final = distributions._enforce_mass_conservation(
+  pmf_conv, p_min_final, p_max_final = distributions.enforce_mass_conservation(
       prob_arr=pmf_conv,
       expected_p_min=conv_p_min,
       expected_p_max=conv_p_max,
@@ -271,7 +271,7 @@ def _fft_self_convolve_direct(
   ).truncate_edges(tail_truncation, bound_type)
 
 
-def _fft_self_convolve(
+def fft_self_convolve(
     *,
     dist: distributions.DenseDiscreteDist,
     T: int,  # pylint: disable=invalid-name  # T matches paper notation
@@ -280,7 +280,7 @@ def _fft_self_convolve(
     use_direct: bool,
 ) -> distributions.DenseDiscreteDist:
   """T-fold FFT self-convolution with optional direct exponentiation path."""
-  utils._validate_dense_linear_dist(dist)
+  utils.validate_dense_linear_dist(dist)
 
   if use_direct:
     try:
@@ -298,12 +298,12 @@ def _fft_self_convolve(
           f"Falling back to binary self-convolution."
       )
 
-  self_conv = utils._binary_self_convolve(
+  self_conv = utils.binary_self_convolve(
       dist=dist,
       T=T,
       tail_truncation=tail_truncation,
       bound_type=bound_type,
-      convolve=_fft_convolve,
+      convolve=fft_convolve,
   )
   return self_conv
 
@@ -375,7 +375,7 @@ def _numpy_geometric_kernel(
   return pmf_out
 
 
-@definitions._optional_njit()
+@definitions.optional_njit()
 def _numba_geometric_kernel(
     *,
     PMF_base: NDArray[np.float64],
@@ -605,7 +605,7 @@ def _add_single_zero_atom_cross_term(
 # =============================================================================
 
 
-def _geometric_convolve(
+def geometric_convolve(
     *,
     dist_1: distributions.DenseDiscreteDist,
     dist_2: distributions.DenseDiscreteDist,
@@ -629,7 +629,7 @@ def _geometric_convolve(
       and dist_2.domain == distributions.Domain.POSITIVES
   ):
     raise TypeError(
-        "_geometric_convolve requires geometric DenseDiscreteDist inputs on "
+        "geometric_convolve requires geometric DenseDiscreteDist inputs on "
         f"Domain.POSITIVES; got dist_1={type(dist_1).__name__} "
         f"(spacing={dist_1.spacing_type}, domain={dist_1.domain}), "
         f"dist_2={type(dist_2).__name__} "
@@ -641,7 +641,7 @@ def _geometric_convolve(
     )
 
   # Ensure both inputs share the same geometric log step.
-  if not distributions._stable_isclose(a=dist_1.step, b=dist_2.step):
+  if not distributions.stable_isclose(a=dist_1.step, b=dist_2.step):
     raise ValueError(
         "Geometric log steps must match: "
         f"step_1={dist_1.step:.12g}, step_2={dist_2.step:.12g}"
@@ -650,9 +650,9 @@ def _geometric_convolve(
 
   # Core Numeric Convolution
   x_out, pmf_conv = _compute_geometric_convolution(
-      x1=dist_1._x_array,
+      x1=dist_1.x_array,
       p1=dist_1.prob_arr,
-      x2=dist_2._x_array,
+      x2=dist_2.x_array,
       p2=dist_2.prob_arr,
       geom_step=geom_step,
       bound_type=bound_type,
@@ -662,7 +662,7 @@ def _geometric_convolve(
   x_out_0 = float(x_out[0])
   pmf_conv = _add_single_zero_atom_cross_term(
       pmf_conv=pmf_conv,
-      x_arr=dist_2._x_array,
+      x_arr=dist_2.x_array,
       prob_arr=dist_2.prob_arr,
       zero_prob=dist_1.p_min,
       x_out_0=x_out_0,
@@ -671,7 +671,7 @@ def _geometric_convolve(
   )
   pmf_conv = _add_single_zero_atom_cross_term(
       pmf_conv=pmf_conv,
-      x_arr=dist_1._x_array,
+      x_arr=dist_1.x_array,
       prob_arr=dist_1.prob_arr,
       zero_prob=dist_2.p_min,
       x_out_0=x_out_0,
@@ -679,11 +679,11 @@ def _geometric_convolve(
       bound_type=bound_type,
   )
 
-  expected_p_min, expected_p_max = utils._convolve_boundary_masses(
+  expected_p_min, expected_p_max = utils.convolve_boundary_masses(
       dist_1.p_min, dist_1.p_max, dist_2.p_min, dist_2.p_max, dist_1.domain
   )
 
-  pmf_conv, p_min, p_max = distributions._enforce_mass_conservation(
+  pmf_conv, p_min, p_max = distributions.enforce_mass_conservation(
       prob_arr=pmf_conv,
       expected_p_min=expected_p_min,
       expected_p_max=expected_p_max,
@@ -701,7 +701,7 @@ def _geometric_convolve(
   ).truncate_edges(tail_truncation, bound_type)
 
 
-def _geometric_self_convolve(
+def geometric_self_convolve(
     *,
     dist: distributions.DenseDiscreteDist,
     T: int,  # pylint: disable=invalid-name  # T matches paper notation
@@ -710,8 +710,8 @@ def _geometric_self_convolve(
 ) -> distributions.DenseDiscreteDist:
   """Self-convolve distribution T times using binary exponentiation."""
   # Input validation
-  utils._validate_dense_geometric_dist(dist)
-  utils._validate_bound_type(bound_type)
+  utils.validate_dense_geometric_dist(dist)
+  utils.validate_bound_type(bound_type)
   if T < 1:
     raise ValueError(f"T must be >= 1, got {T}")
   if tail_truncation < 0:
@@ -719,11 +719,11 @@ def _geometric_self_convolve(
         f"tail_truncation must be non-negative, got {tail_truncation}"
     )
 
-  self_conv = utils._binary_self_convolve(
+  self_conv = utils.binary_self_convolve(
       dist=dist,
       T=T,
       tail_truncation=tail_truncation,
       bound_type=bound_type,
-      convolve=_geometric_convolve,
+      convolve=geometric_convolve,
   )
   return self_conv
