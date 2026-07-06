@@ -52,9 +52,9 @@ def _get_delta_for_epsilon(infinity_mass: float,
     The epsilon-hockey stick divergence.
   """
   # delta is inf_mass + sum_{loss} max(0, 1 - exp(epsilon - loss)) * prob
-  losses = np.asarray(losses)
-  probs = np.asarray(probs)
-  indices = losses > epsilon
+  losses = np.asarray(losses)  # pyrefly: ignore[bad-assignment]
+  probs = np.asarray(probs)  # pyrefly: ignore[bad-assignment]
+  indices = losses > epsilon  # pyrefly: ignore[unsupported-operation]
   return (
       infinity_mass +
       np.dot(-np.expm1(epsilon - losses[indices]), probs[indices])
@@ -187,7 +187,7 @@ def _truncate_tails(probs: ArrayLike, tail_mass_truncation: float,
         return i
     return len(arr)
 
-  left_idx = _find_prefix_to_truncate(probs, tail_mass_truncation / 2)
+  left_idx = _find_prefix_to_truncate(probs, tail_mass_truncation / 2)  # pyrefly: ignore[bad-argument-type]
   right_idx = len(probs) - _find_prefix_to_truncate(
       np.flip(probs), tail_mass_truncation / 2)
   # Be sure that left_idx < right_idx. left_idx >= right_idx might be when
@@ -379,7 +379,7 @@ class DensePLDPmf(PLDPmf):
   def size(self) -> int:
     return len(self._probs)
 
-  def compose(self,
+  def compose(self,  # pyrefly: ignore[bad-override]
               other: 'DensePLDPmf',
               tail_mass_truncation: float = 0) -> 'DensePLDPmf':
     """Computes a PMF resulting from composing two PMFs. See base class."""
@@ -393,7 +393,7 @@ class DensePLDPmf(PLDPmf):
     offset, probs, right_tail = _truncate_tails(probs, tail_mass_truncation,
                                                 self._pessimistic_estimate)
     # pylint: enable=protected-access
-    return DensePLDPmf(self._discretization, lower_loss + offset, probs,
+    return DensePLDPmf(self._discretization, lower_loss + offset, probs,  # pyrefly: ignore[bad-argument-type]
                        infinity_mass + right_tail, self._pessimistic_estimate)
 
   def self_compose(self,
@@ -421,10 +421,10 @@ class DensePLDPmf(PLDPmf):
     losses = (np.arange(self.size) + self._lower_loss) * self._discretization
 
     if isinstance(epsilon, numbers.Number):
-      return _get_delta_for_epsilon(self._infinity_mass, losses,
-                                    self._probs, epsilon)
-    return _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,
-                                             self._probs, epsilon)
+      return _get_delta_for_epsilon(self._infinity_mass, losses,  # pyrefly: ignore[bad-argument-type]
+                                    self._probs, epsilon)  # pyrefly: ignore[bad-argument-type]
+    return _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,  # pyrefly: ignore[bad-argument-type]
+                                             self._probs, epsilon)  # pyrefly: ignore[bad-argument-type]
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta."""
@@ -508,7 +508,7 @@ class SparsePLDPmf(PLDPmf):
   def size(self) -> int:
     return len(self._loss_probs)
 
-  def compose(self,
+  def compose(self,  # pyrefly: ignore[bad-override]
               other: 'SparsePLDPmf',
               tail_mass_truncation: float = 0) -> 'SparsePLDPmf':
     """Computes a PMF resulting from composing two PMFs. See base class."""
@@ -574,7 +574,7 @@ class SparsePLDPmf(PLDPmf):
       return _get_delta_for_epsilon(self._infinity_mass, losses, probs, epsilon)
 
     return _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,
-                                             probs, epsilon)
+                                             probs, epsilon)  # pyrefly: ignore[bad-argument-type]
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta."""

@@ -57,7 +57,7 @@ class LshTreeNode():
     """
     return central_privacy_utils.get_private_average(
         self.nonprivate_points,
-        self.private_count,
+        self.private_count,  # pyrefly: ignore[bad-argument-type]
         self.coreset_param.pcalc.average_privacy_param,
         self.sim_hash.dim,
     )
@@ -135,7 +135,7 @@ class LshTree():
     Args:
       root: Root to use for the LshTree. Required to have private count >= 1.
     """
-    if root.private_count < 1:
+    if root.private_count < 1:  # pyrefly: ignore[unsupported-operation]
       raise ValueError("Private count of the root must be at least 1.")
     coreset_param = root.coreset_param
     logging.debug("Starting tree construction with max_levels %s",
@@ -174,7 +174,7 @@ class LshTree():
     if level_below > max(self.tree.keys()):
       return True
 
-    for maybe_child in self.tree.get(level_below):
+    for maybe_child in self.tree.get(level_below):  # pyrefly: ignore[not-iterable]
       # Each level adds one character to the hash prefix.
       if node.hash_prefix == maybe_child.hash_prefix[:-1]:
         return False
@@ -192,7 +192,7 @@ class LshTree():
 
     def enough_points_to_branch(node: LshTreeNode):
       tree_param = node.coreset_param.tree_param
-      return node.private_count >= tree_param.min_num_points_in_branching_node
+      return node.private_count >= tree_param.min_num_points_in_branching_node  # pyrefly: ignore[unsupported-operation]
 
     return list(filter(enough_points_to_branch, tree_level))
 
@@ -209,6 +209,6 @@ class LshTree():
 
     def enough_points(node: LshTreeNode):
       tree_param = node.coreset_param.tree_param
-      return node.private_count >= tree_param.min_num_points_in_node
+      return node.private_count >= tree_param.min_num_points_in_node  # pyrefly: ignore[unsupported-operation]
 
     return list(filter(enough_points, flatten_children))

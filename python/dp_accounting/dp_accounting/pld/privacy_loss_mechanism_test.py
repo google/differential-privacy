@@ -38,8 +38,8 @@ def _assert_connect_bounds_equal(
     epsilon_lower: Optional[float],
     lower_x: Optional[int],
     upper_x: Optional[int]) -> None:
-  testcase.assertAlmostEqual(connect_dots_bounds.epsilon_upper, epsilon_upper)
-  testcase.assertAlmostEqual(connect_dots_bounds.epsilon_lower, epsilon_lower)
+  testcase.assertAlmostEqual(connect_dots_bounds.epsilon_upper, epsilon_upper)  # pyrefly: ignore[no-matching-overload]
+  testcase.assertAlmostEqual(connect_dots_bounds.epsilon_lower, epsilon_lower)  # pyrefly: ignore[no-matching-overload]
   testcase.assertEqual(connect_dots_bounds.lower_x, lower_x)
   testcase.assertEqual(connect_dots_bounds.upper_x, upper_x)
 
@@ -371,7 +371,7 @@ class LaplacePrivacyLossTest(parameterized.TestCase):
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
     for expected_delta, delta in zip(expected_delta_values,
-                                     pl.get_delta_for_epsilon(epsilon_values)):
+                                     pl.get_delta_for_epsilon(epsilon_values)):  # pyrefly: ignore[bad-argument-type]
       self.assertAlmostEqual(expected_delta, delta)
 
 
@@ -961,7 +961,7 @@ class GaussianPrivacyLossTest(parameterized.TestCase):
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
     for expected_delta, delta in zip(expected_delta_values,
-                                     pl.get_delta_for_epsilon(epsilon_values)):
+                                     pl.get_delta_for_epsilon(epsilon_values)):  # pyrefly: ignore[bad-argument-type]
       self.assertAlmostEqual(expected_delta, delta)
 
 
@@ -1309,7 +1309,7 @@ class DiscreteLaplacePrivacyLossDistributionTest(parameterized.TestCase):
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
     for expected_delta, delta in zip(expected_delta_values,
-                                     pl.get_delta_for_epsilon(epsilon_values)):
+                                     pl.get_delta_for_epsilon(epsilon_values)):  # pyrefly: ignore[bad-argument-type]
       self.assertAlmostEqual(expected_delta, delta)
 
 
@@ -1699,7 +1699,7 @@ class DiscreteGaussianPrivacyLossTest(parameterized.TestCase):
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
     for expected_delta, delta in zip(expected_delta_values,
-                                     pl.get_delta_for_epsilon(epsilon_values)):
+                                     pl.get_delta_for_epsilon(epsilon_values)):  # pyrefly: ignore[bad-argument-type]
       self.assertAlmostEqual(expected_delta, delta)
 
 
@@ -2252,8 +2252,8 @@ class MixtureGaussianPrivacyLossTest(parameterized.TestCase):
     pl_upper = connect_dots_bounds.epsilon_upper
     x_lower = privacy_loss_tail.lower_x_truncation
     x_upper = privacy_loss_tail.upper_x_truncation
-    self.assertAlmostEqual(pl.privacy_loss(x_lower), pl_upper)
-    self.assertAlmostEqual(pl.privacy_loss(x_upper), pl_lower)
+    self.assertAlmostEqual(pl.privacy_loss(x_lower), pl_upper)  # pyrefly: ignore[no-matching-overload]
+    self.assertAlmostEqual(pl.privacy_loss(x_upper), pl_lower)  # pyrefly: ignore[no-matching-overload]
     self.assertIsNone(connect_dots_bounds.lower_x)
     self.assertIsNone(connect_dots_bounds.upper_x)
 
@@ -2446,7 +2446,7 @@ class MixtureGaussianPrivacyLossTest(parameterized.TestCase):
         sampling_probs=padded_sampling_probs,
         adjacency_type=adjacency_type,
     )
-    self.assertAlmostEqual(expected_pl.get_delta_for_epsilon(1),
+    self.assertAlmostEqual(expected_pl.get_delta_for_epsilon(1),  # pyrefly: ignore[no-matching-overload]
                            padded_pl.get_delta_for_epsilon(1))
 
 

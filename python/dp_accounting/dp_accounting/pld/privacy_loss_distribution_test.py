@@ -43,11 +43,11 @@ def _assert_pld_pmf_equal(
     if isinstance(pmf, pld_pmf.SparsePLDPmf):
       return pmf._loss_probs
     elif isinstance(pmf, pld_pmf.DensePLDPmf):
-      return common.list_to_dictionary(pmf._probs, pmf._lower_loss)
+      return common.list_to_dictionary(pmf._probs, pmf._lower_loss)  # pyrefly: ignore[bad-argument-type]
     return {}
 
   test_util.assert_dictionary_almost_equal(
-      testcase, expected_rounded_pmf_add, sparse_loss_probs(pld._pmf_add))
+      testcase, expected_rounded_pmf_add, sparse_loss_probs(pld._pmf_add))  # pyrefly: ignore[bad-argument-type]
   testcase.assertAlmostEqual(expected_infinity_mass_add,
                              pld._pmf_add._infinity_mass)
   if expected_rounded_pmf_remove is None:
@@ -55,9 +55,9 @@ def _assert_pld_pmf_equal(
   else:
     test_util.assert_dictionary_almost_equal(
         testcase,
-        expected_rounded_pmf_remove,
-        sparse_loss_probs(pld._pmf_remove))
-    testcase.assertAlmostEqual(expected_infinity_mass_remove,
+        expected_rounded_pmf_remove,  # pyrefly: ignore[bad-argument-type]
+        sparse_loss_probs(pld._pmf_remove))  # pyrefly: ignore[bad-argument-type]
+    testcase.assertAlmostEqual(expected_infinity_mass_remove,  # pyrefly: ignore[no-matching-overload]
                                pld._pmf_remove._infinity_mass)
     testcase.assertFalse(pld._symmetric)
 
@@ -171,7 +171,7 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
     if symmetric:
       _assert_pld_pmf_equal(self, pld, expected_pmf, infinity_mass)
     else:
-      _assert_pld_pmf_equal(self, pld, expected_pmf_add, infinity_mass_add,
+      _assert_pld_pmf_equal(self, pld, expected_pmf_add, infinity_mass_add,  # pyrefly: ignore[bad-argument-type]
                             expected_pmf, infinity_mass)
 
   def test_compute_mixture(self):
@@ -2771,7 +2771,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
     else:  # Case of REPLACE_SPECIAL.
       _assert_pld_pmf_equal(
-          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0
+          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0  # pyrefly: ignore[bad-argument-type]
       )
 
   @parameterized.parameters(
@@ -2834,7 +2834,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       # REMOVE: {1.224: 0.85, -1.609: 0.15}.
       # ADD: {1.609: 0.75, -1.224: 0.25}.
       _assert_pld_pmf_equal(
-          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0)
+          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0)  # pyrefly: ignore[bad-argument-type]
 
   @parameterized.parameters(
       dict(
@@ -2897,7 +2897,7 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
     else:  # Case of REPLACE_SPECIAL.
       _assert_pld_pmf_equal(
-          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0
+          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0  # pyrefly: ignore[bad-argument-type]
       )
 
   @parameterized.parameters((0.0, 10), (1.1, 4), (0.5, 1))
