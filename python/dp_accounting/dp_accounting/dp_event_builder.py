@@ -73,4 +73,4 @@ class DpEventBuilder(object):
       else:
         self._composed_event = dp_event.ComposedDpEvent(events)
 
-    return self._composed_event
+    return self._composed_event  # pyrefly: ignore[bad-return]

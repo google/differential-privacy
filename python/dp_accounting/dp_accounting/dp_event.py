@@ -104,7 +104,7 @@ class DpEvent(object):
     fields = [('module_name', str), ('class_name', str)]
     fields.extend([(x.name, x.type) for x in attr.fields(cls)])
     named_tuple_wrapper_name = f'_{cls.__name__}NamedTupleWrapper'
-    _NamedTupleWrapper = NamedTuple(named_tuple_wrapper_name, fields)  # pylint: disable=invalid-name
+    _NamedTupleWrapper = NamedTuple(named_tuple_wrapper_name, fields)  # pylint: disable=invalid-name  # pyrefly: ignore[bad-class-definition]
 
     def _to_named_tuple(value):
       if attr.has(type(value)):
@@ -118,14 +118,14 @@ class DpEvent(object):
       elif isinstance(value, Mapping):
         elements = [(k, _to_named_tuple(v)) for k, v in value.items()]
         mapping_type = type(value)
-        value = mapping_type(elements)
+        value = mapping_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
       elif isinstance(value, Sequence):
         elements = [_to_named_tuple(x) for x in value]
         sequence_type = type(value)
-        value = sequence_type(elements)
+        value = sequence_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
       values[key] = value
 
-    return _NamedTupleWrapper(**values)
+    return _NamedTupleWrapper(**values)  # pyrefly: ignore[bad-return, unexpected-keyword]
 
   @classmethod
   def from_named_tuple(cls, obj: DpEventNamedTuple) -> 'DpEvent':
@@ -160,11 +160,11 @@ class DpEvent(object):
       elif isinstance(value, Mapping):
         elements = [(k, _from_named_tuple(v)) for k, v in value.items()]
         mapping_type = type(value)
-        value = mapping_type(elements)
+        value = mapping_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
       elif isinstance(value, Sequence):
         elements = [_from_named_tuple(x) for x in value]
         sequence_type = type(value)
-        value = sequence_type(elements)
+        value = sequence_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
       values[field] = value
 
     module_name = obj.module_name

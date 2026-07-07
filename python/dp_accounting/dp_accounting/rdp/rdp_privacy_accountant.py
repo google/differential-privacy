@@ -212,7 +212,7 @@ def compute_delta(
     logdeltas.append(logdelta)
 
   optimal_index = np.argmin(logdeltas)
-  return min(math.exp(logdeltas[optimal_index]), 1.0), orders[optimal_index]
+  return min(math.exp(logdeltas[optimal_index]), 1.0), orders[optimal_index]  # pyrefly: ignore[bad-index]
 
 
 def compute_epsilon(
@@ -274,7 +274,7 @@ def compute_epsilon(
     eps.append(epsilon)
 
   optimal_index = np.argmin(eps)
-  return max(0, eps[optimal_index]), orders[optimal_index]
+  return max(0, eps[optimal_index]), orders[optimal_index]  # pyrefly: ignore[bad-index]
 
 
 def _stable_inplace_diff_in_log(
@@ -630,13 +630,13 @@ def _compute_rdp_single_epoch_tree_aggregation(
     )
 
   if np.isscalar(step_counts):
-    step_counts = [step_counts]
+    step_counts = [step_counts]  # pyrefly: ignore[bad-assignment]
 
-  for steps in step_counts:
+  for steps in step_counts:  # pyrefly: ignore[not-iterable]
     if steps < 0:
       raise ValueError(f'Steps must be non-negative. Got {step_counts}')
 
-  max_depth = math.ceil(math.log2(max(step_counts) + 1))
+  max_depth = math.ceil(math.log2(max(step_counts) + 1))  # pyrefly: ignore[bad-argument-type]
   return np.array([a * max_depth / (2 * noise_multiplier**2) for a in orders])
 
 
@@ -796,7 +796,7 @@ def _compute_rdp_repeat_and_select(
         f'orders and rdp must be same length, got {len(orders)} & {len(rdp)}.'
     )
 
-  orders = np.asarray(orders)
+  orders = np.asarray(orders)  # pyrefly: ignore[bad-assignment]
   rdp_out = np.zeros_like(orders, dtype=np.float64)  # This will be the output.
   rdp_out += np.inf  # Initialize to infinity.
 
@@ -818,7 +818,7 @@ def _compute_rdp_repeat_and_select(
     # orders[i] = lambda, rdp[i] = epsilon,
     # orders[j] = lambdahat, rdp[j] = epsilonhat
     # First compute constant term
-    c = (1 + shape) * np.min((1 - 1 / orders) * rdp - math.log(gamma) / orders)
+    c = (1 + shape) * np.min((1 - 1 / orders) * rdp - math.log(gamma) / orders)  # pyrefly: ignore[unsupported-operation]
     for i in range(len(orders)):
       if orders[i] > 1:  # Otherwise our formula is invalid.
         rdp_out[i] = rdp[i] + math.log(mean) / (orders[i] - 1) + c
@@ -830,7 +830,7 @@ def _compute_rdp_repeat_and_select(
       rdp_out[i] = min(
           rdp_out[j] for j in range(len(orders)) if orders[i] <= orders[j]
       )
-  return rdp_out
+  return rdp_out  # pyrefly: ignore[bad-return]
 
 
 def _laplace_rdp(eps: float, order: float) -> float:
@@ -1043,7 +1043,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     elif isinstance(event, dp_event.GaussianDpEvent):
       if do_compose:
         self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
-            q=1.0, noise_multiplier=event.noise_multiplier, orders=self._orders
+            q=1.0, noise_multiplier=event.noise_multiplier, orders=self._orders  # pyrefly: ignore[bad-argument-type]
         )
       return None
     elif isinstance(event, dp_event.ZCDpEvent):
@@ -1112,7 +1112,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
             q=event.sampling_probability,
             noise_multiplier=sigma_or_bad_event,
-            orders=self._orders,
+            orders=self._orders,  # pyrefly: ignore[bad-argument-type]
         )
       return None
     elif isinstance(event, dp_event.SampledWithoutReplacementDpEvent):
@@ -1142,7 +1142,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         self._rdp += count * _compute_rdp_sample_wor_gaussian(
             q=event.sample_size / event.source_dataset_size,
             noise_multiplier=sigma_or_bad_event,
-            orders=self._orders,
+            orders=self._orders,  # pyrefly: ignore[bad-argument-type]
         )
       return None
     elif isinstance(event, dp_event.SingleEpochTreeAggregationDpEvent):
@@ -1157,7 +1157,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         )
       if do_compose:
         self._rdp += count * _compute_rdp_single_epoch_tree_aggregation(
-            event.noise_multiplier, event.step_counts, self._orders
+            event.noise_multiplier, event.step_counts, self._orders  # pyrefly: ignore[bad-argument-type]
         )
       return None
     elif isinstance(event, dp_event.LaplaceDpEvent):
@@ -1178,9 +1178,9 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       composition_error = self._maybe_compose(event.event, 1, do_compose)
       if composition_error is None and do_compose:
         self._rdp = (
-            count
+            count  # pyrefly: ignore[unsupported-operation]
             * _compute_rdp_repeat_and_select(
-                self._orders, self._rdp, event.mean, event.shape
+                self._orders, self._rdp, event.mean, event.shape  # pyrefly: ignore[bad-argument-type]
             )
             + save_rdp
         )
@@ -1202,7 +1202,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         self._rdp += count * _compute_randomized_response_rdp(
             event.noise_parameter,
             event.num_buckets,
-            self._orders,
+            self._orders,  # pyrefly: ignore[bad-argument-type]
             self._neighboring_relation,
         )
       return None
@@ -1229,7 +1229,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     effective_delta = -np.expm1(log_term)
     if effective_delta < 0:
       return float('inf'), 0
-    return compute_epsilon(self._orders, self._rdp, effective_delta)
+    return compute_epsilon(self._orders, self._rdp, effective_delta)  # pyrefly: ignore[bad-argument-type]
 
   def get_epsilon(self, target_delta: float) -> float:
     r"""Returns the current epsilon.
@@ -1254,7 +1254,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       A tuple containing the current delta, accounting for all composed
       `DpEvent`\ s, and the optimal order.
     """
-    delta, order = compute_delta(self._orders, self._rdp, target_epsilon)
+    delta, order = compute_delta(self._orders, self._rdp, target_epsilon)  # pyrefly: ignore[bad-argument-type]
     final_delta = delta + self._extra_delta - delta * self._extra_delta
     return final_delta, order
 

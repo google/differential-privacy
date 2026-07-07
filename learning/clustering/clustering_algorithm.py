@@ -97,7 +97,7 @@ class ClusteringMetrics():
 
     # False Matches
     cluster_label_count = np.sum(cross_label_histogram, axis=1)
-    self.false_pairs = num_pairs - self.true_pairs
+    self.false_pairs = num_pairs - self.true_pairs  # pyrefly: ignore[bad-assignment]
     self.false_match_count = (
         (np.sum(cluster_label_count**2) - hist_square_sum) / 2)
     self.false_match_frac = self.false_match_count / self.false_pairs
@@ -171,9 +171,9 @@ class ClusteringResult():
       raise ValueError("Cross label histogram is undefined since data does not "
                        "have any specified labels")
     bin_start = -0.5
-    cluster_label_bins = np.arange(bin_start, np.max(self.labels) + 1, 1)
+    cluster_label_bins = np.arange(bin_start, np.max(self.labels) + 1, 1)  # pyrefly: ignore[no-matching-overload]
     true_label_bins = np.arange(bin_start, np.max(self.data.labels) + 1, 1)
-    hist, _, _ = np.histogram2d(
+    hist, _, _ = np.histogram2d(  # pyrefly: ignore[no-matching-overload]
         self.labels,
         self.data.labels,
         bins=(cluster_label_bins, true_label_bins))

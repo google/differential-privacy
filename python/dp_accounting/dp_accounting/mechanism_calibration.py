@@ -96,7 +96,7 @@ def _search_for_explicit_bracket_interval(
         if np.isnan(next_upper_value):
           raise ValueError('Got NaN for epsilon gap.')
         elif np.sign(next_upper_value) != orig_sign:
-          return ExplicitBracketInterval(upper, next_upper)
+          return ExplicitBracketInterval(upper, next_upper)  # pyrefly: ignore[bad-argument-count]
         upper = next_upper
       except Exception:  # pylint: disable=broad-except
         search_up = False
@@ -108,7 +108,7 @@ def _search_for_explicit_bracket_interval(
         if np.isnan(next_lower_value):
           raise ValueError('Got NaN for epsilon gap.')
         elif np.sign(next_lower_value) != orig_sign:
-          return ExplicitBracketInterval(next_lower, lower)
+          return ExplicitBracketInterval(next_lower, lower)  # pyrefly: ignore[bad-argument-count]
         lower = next_lower
       except Exception:  # pylint: disable=broad-except
         search_down = False
@@ -248,7 +248,7 @@ def calibrate_dp_mechanism(
                      f'{target_delta}.')
 
   if bracket_interval is None:
-    bracket_interval = LowerEndpointAndGuess(0, 1)
+    bracket_interval = LowerEndpointAndGuess(0, 1)  # pyrefly: ignore[bad-argument-count]
 
   if tol is None:
     tol = 1.0 if discrete else 1e-6
@@ -260,7 +260,7 @@ def calibrate_dp_mechanism(
   def epsilon_gap(x: float) -> float:
     if discrete:
       x = round(x)
-    event = make_event_from_param(x)
+    event = make_event_from_param(x)  # pyrefly: ignore[bad-argument-type]
     accountant = make_fresh_accountant()
     if not isinstance(accountant.ledger, dp_event.NoOpDpEvent):
       raise NonEmptyAccountantError()
