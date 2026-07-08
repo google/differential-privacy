@@ -166,19 +166,14 @@ class FftSelfConvolveTest(absltest.TestCase):
 
 class GeometricKernelTest(absltest.TestCase):
 
-  def test_numpy_kernel_matches_numba_kernel(self):
+  def test_kernel_matches_expected_values(self):
     pmf_base = np.array([0.2, 0.0, 0.3, 0.1, 0.4], dtype=np.float64)
     pmf_scaled = np.array([0.1, 0.25, 0.0, 0.15, 0.5], dtype=np.float64)
     delta_lohi = np.array([0, -1, 0, 2, 8], dtype=np.int64)
     delta_hilo = np.array([0, 0, 1, -2, 3], dtype=np.int64)
 
-    expected = convolution._numba_geometric_kernel(
-        PMF_base=pmf_base,
-        PMF_scaled=pmf_scaled,
-        delta_lohi=delta_lohi,
-        delta_hilo=delta_hilo,
-    )
-    actual = convolution._numpy_geometric_kernel(
+    expected = np.array([0.02, 0.15, 0.255, 0.115, 0.2], dtype=np.float64)
+    actual = convolution._geometric_convolution_kernel(
         PMF_base=pmf_base,
         PMF_scaled=pmf_scaled,
         delta_lohi=delta_lohi,
@@ -186,32 +181,6 @@ class GeometricKernelTest(absltest.TestCase):
     )
 
     np.testing.assert_allclose(actual, expected, rtol=0.0, atol=1e-15)
-
-  def test_uses_numpy_fallback_without_numba(self):
-    pmf_base = np.array([0.2, 0.3, 0.5], dtype=np.float64)
-    pmf_scaled = np.array([0.4, 0.1, 0.5], dtype=np.float64)
-    delta_lohi = np.array([0, 0, 1], dtype=np.int64)
-    delta_hilo = np.array([0, 1, -1], dtype=np.int64)
-
-    original_has_numba = definitions._HAS_NUMBA
-    try:
-      definitions._HAS_NUMBA = False
-      expected = convolution._numpy_geometric_kernel(
-          PMF_base=pmf_base,
-          PMF_scaled=pmf_scaled,
-          delta_lohi=delta_lohi,
-          delta_hilo=delta_hilo,
-      )
-      actual = convolution._geometric_kernel(
-          PMF_base=pmf_base,
-          PMF_scaled=pmf_scaled,
-          delta_lohi=delta_lohi,
-          delta_hilo=delta_hilo,
-      )
-    finally:
-      definitions._HAS_NUMBA = original_has_numba
-
-    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=0.0)
 
 
 if __name__ == "__main__":

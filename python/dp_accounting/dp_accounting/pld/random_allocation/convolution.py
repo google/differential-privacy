@@ -330,123 +330,98 @@ def _pad_right_geometric(
   return x_ext, p_ext
 
 
-def _numpy_geometric_kernel(
+def _kahan_add_slice(
+    *,
+    pmf_out: NDArray[np.float64],
+    comp: NDArray[np.float64],
+    start: int,
+    stop: int,
+    vals: NDArray[np.float64],
+    y_scratch: NDArray[np.float64],
+    t_scratch: NDArray[np.float64],
+) -> None:
+  """Kahan-compensated add of a contiguous value slice into ``pmf_out``."""
+  size = stop - start
+  out = pmf_out[start:stop]
+  comp_slice = comp[start:stop]
+  y = y_scratch[:size]
+  t = t_scratch[:size]
+
+  np.subtract(vals, comp_slice, out=y)
+  np.add(out, y, out=t)
+  np.subtract(t, out, out=comp_slice)
+  np.subtract(comp_slice, y, out=comp_slice)
+  out[...] = t
+
+
+def _geometric_convolution_kernel(
     *,
     PMF_base: NDArray[np.float64],
     PMF_scaled: NDArray[np.float64],
     delta_lohi: NDArray[np.int64],
     delta_hilo: NDArray[np.int64],
 ) -> NDArray[np.float64]:
-  """Pure-NumPy fallback for the geometric-grid convolution kernel.
+  """Accumulate geometric-grid convolution terms with vectorized slices.
 
-  For each output bin k, collects all source pairs (i, i+d) that map to it
-  via the precomputed shifts delta_lohi and delta_hilo.
+  For each positive offset ``d``, source pairs ``(i, i+d)`` are mapped to
+  contiguous output slices using ``delta_lohi[d]`` and ``delta_hilo[d]``.  Each
+  slice update uses Kahan compensation to reduce floating-point summation error,
+  and source pairs mapped outside the output support are skipped.
   """
   n = PMF_base.size
   # d=0 (diagonal): both ordered pairs (i, i) are identical, so the d>0 loop
   # below would double-count it; computed once here as an element-wise product.
   pmf_out = PMF_base * PMF_scaled
+  comp = np.zeros(n, dtype=np.float64)
   if n <= 1:
     return pmf_out
 
-  # For each output bin k, the contributing source index is i = k - delta[d].
-  # Pair (i, i+d) maps to bin i+delta_lohi[d]; symmetric pair (i+d, i) to
-  # i+delta_hilo[d].
-  d = np.arange(1, n, dtype=np.int64)
-  for k in range(n):
-    i_lohi = k - delta_lohi[1:]
-    valid_lohi = (0 <= i_lohi) & (i_lohi < n - d)
-    if np.any(valid_lohi):
-      pmf_out[k] += np.sum(
-          PMF_base[i_lohi[valid_lohi]]
-          * PMF_scaled[i_lohi[valid_lohi] + d[valid_lohi]],
-          dtype=np.float64,
-      )
-
-    i_hilo = k - delta_hilo[1:]
-    valid_hilo = (0 <= i_hilo) & (i_hilo < n - d)
-    if np.any(valid_hilo):
-      pmf_out[k] += np.sum(
-          PMF_base[i_hilo[valid_hilo] + d[valid_hilo]]
-          * PMF_scaled[i_hilo[valid_hilo]],
-          dtype=np.float64,
-      )
-
-  return pmf_out
-
-
-@definitions.optional_njit()
-def _numba_geometric_kernel(
-    *,
-    PMF_base: NDArray[np.float64],
-    PMF_scaled: NDArray[np.float64],
-    delta_lohi: NDArray[np.int64],
-    delta_hilo: NDArray[np.int64],
-) -> NDArray[np.float64]:
-  """Scatter source pairs (i, i+d) to output bins via precomputed delta shifts.
-
-  Mass PMF_base[i]*PMF_scaled[i+d] is placed at bin i+delta_lohi[d]; the
-  symmetric term at i+delta_hilo[d].  Kahan summation (comp) reduces
-  floating-point error when many small contributions land in the same bin.
-  """
-  n = PMF_base.size
-  pmf_out = np.zeros(n, dtype=np.float64)
-  comp = np.zeros(n, dtype=np.float64)
-
-  # d=0: diagonal counted once (see _numpy_geometric_kernel for the rationale).
-  for i in range(n):
-    mass = PMF_base[i] * PMF_scaled[i]
-    y = mass - comp[i]
-    t = pmf_out[i] + y
-    comp[i] = (t - pmf_out[i]) - y
-    pmf_out[i] = t
+  vals = np.empty(n, dtype=np.float64)
+  y_scratch = np.empty(n, dtype=np.float64)
+  t_scratch = np.empty(n, dtype=np.float64)
 
   for d in range(1, n):
-    imax = n - d
-    kshift1 = delta_lohi[d]
-    kshift2 = delta_hilo[d]
+    shift = int(delta_lohi[d])
+    i_start = max(0, -shift)
+    i_end = min(n - d, n - shift)
+    if i_start < i_end:
+      size = i_end - i_start
+      np.multiply(
+          PMF_base[i_start:i_end],
+          PMF_scaled[i_start + d : i_end + d],
+          out=vals[:size],
+      )
+      _kahan_add_slice(
+          pmf_out=pmf_out,
+          comp=comp,
+          start=i_start + shift,
+          stop=i_end + shift,
+          vals=vals[:size],
+          y_scratch=y_scratch,
+          t_scratch=t_scratch,
+      )
 
-    for i in range(imax):
-      k1 = i + kshift1
-      mass1 = PMF_base[i] * PMF_scaled[i + d]
-      if 0 <= k1 < n:
-        y = mass1 - comp[k1]
-        t = pmf_out[k1] + y
-        comp[k1] = (t - pmf_out[k1]) - y
-        pmf_out[k1] = t
-
-      k2 = i + kshift2
-      mass2 = PMF_base[i + d] * PMF_scaled[i]
-      if 0 <= k2 < n:
-        y = mass2 - comp[k2]
-        t = pmf_out[k2] + y
-        comp[k2] = (t - pmf_out[k2]) - y
-        pmf_out[k2] = t
+    shift = int(delta_hilo[d])
+    i_start = max(0, -shift)
+    i_end = min(n - d, n - shift)
+    if i_start < i_end:
+      size = i_end - i_start
+      np.multiply(
+          PMF_base[i_start + d : i_end + d],
+          PMF_scaled[i_start:i_end],
+          out=vals[:size],
+      )
+      _kahan_add_slice(
+          pmf_out=pmf_out,
+          comp=comp,
+          start=i_start + shift,
+          stop=i_end + shift,
+          vals=vals[:size],
+          y_scratch=y_scratch,
+          t_scratch=t_scratch,
+      )
 
   return pmf_out
-
-
-def _geometric_kernel(
-    *,
-    PMF_base: NDArray[np.float64],
-    PMF_scaled: NDArray[np.float64],
-    delta_lohi: NDArray[np.int64],
-    delta_hilo: NDArray[np.int64],
-) -> NDArray[np.float64]:
-  """Dispatch geometric-grid convolution to numba or NumPy fallback."""
-  if definitions.has_numba():
-    return _numba_geometric_kernel(
-        PMF_base=PMF_base,
-        PMF_scaled=PMF_scaled,
-        delta_lohi=delta_lohi,
-        delta_hilo=delta_hilo,
-    )
-  return _numpy_geometric_kernel(
-      PMF_base=PMF_base,
-      PMF_scaled=PMF_scaled,
-      delta_lohi=delta_lohi,
-      delta_hilo=delta_hilo,
-  )
 
 
 def _compute_geometric_convolution(
@@ -458,7 +433,7 @@ def _compute_geometric_convolution(
     geom_step: float,
     bound_type: definitions.BoundType,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-  """Align grids, compute bin mapping parameters, and invoke the Numba kernel.
+  """Align grids, compute bin mapping parameters, and invoke the kernel.
 
   Algorithm 4 (`conv`) with internal Algorithm 5 (`range-renorm`) in
   Appendix C of https://arxiv.org/abs/2602.17284.
@@ -475,7 +450,7 @@ def _compute_geometric_convolution(
   scale = x2[0] / x1[0]
 
   # 3. Equalize Lengths (Right-Padding)
-  # The Numba kernel assumes arrays of equal length 'n'.
+  # The geometric kernel assumes arrays of equal length 'n'.
   target_n = max(x1.size, x2.size)
   if x1.size < target_n:
     x1, p1 = _pad_right_geometric(
@@ -492,18 +467,13 @@ def _compute_geometric_convolution(
         target_n=target_n,
     )
 
-  # Convert to float64 for Numba compatibility
-  x_base = x1.astype(np.float64, copy=False)
-  pmf_base = p1.astype(np.float64, copy=False)
-  pmf_scaled = p2.astype(np.float64, copy=False)
-
   # --- B. Grid Mapping Parameters ---
-  n = x_base.size
+  n = x1.size
 
   # Edge case: Single point
   if n == 1:
-    mass = pmf_base[0] * pmf_scaled[0]
-    x_out = np.array([(scale + 1.0) * x_base[0]], dtype=np.float64)
+    mass = p1[0] * p2[0]
+    x_out = np.array([(scale + 1.0) * x1[0]], dtype=np.float64)
     pmf_out = np.array([mass], dtype=np.float64)
     return x_out, pmf_out
 
@@ -539,15 +509,15 @@ def _compute_geometric_convolution(
     raise ValueError(f"Unknown BoundType: {bound_type}")
 
   # --- C. Kernel Execution ---
-  pmf_out = _geometric_kernel(
-      PMF_base=pmf_base,
-      PMF_scaled=pmf_scaled,
+  pmf_out = _geometric_convolution_kernel(
+      PMF_base=p1,
+      PMF_scaled=p2,
       delta_lohi=delta_lohi,
       delta_hilo=delta_hilo,
   )
 
   # Construct output X grid: x_out = x_base * (1 + scale)
-  x_out = x_base * (scale + 1.0)
+  x_out = x1 * (scale + 1.0)
 
   return x_out, pmf_out
 

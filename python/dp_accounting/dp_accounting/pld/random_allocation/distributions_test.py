@@ -314,7 +314,7 @@ class PmfRemapToGridTest(absltest.TestCase):
     pmf_in = np.array([0.2, 0.5, 0.3], dtype=np.float64)
     x_out = x_in.copy()
 
-    pmf_out = distributions._rediscretize_prob(
+    pmf_out = distributions._remap_prob_to_grid(
         x_in, pmf_in, x_out, dominates=True
     )
     np.testing.assert_allclose(pmf_out, pmf_in)
@@ -324,7 +324,7 @@ class PmfRemapToGridTest(absltest.TestCase):
     pmf_in = np.array([0.3, 0.4, 0.3], dtype=np.float64)
     x_out = np.array([1.0, 2.0, 3.0, 4.0])
 
-    pmf_out = distributions._rediscretize_prob(
+    pmf_out = distributions._remap_prob_to_grid(
         x_in, pmf_in, x_out, dominates=True
     )
     self.assertGreaterEqual(pmf_out[2], 0.4)
@@ -334,7 +334,7 @@ class PmfRemapToGridTest(absltest.TestCase):
     pmf_in = np.array([0.3, 0.4, 0.3], dtype=np.float64)
     x_out = np.array([1.0, 2.0, 3.0, 4.0])
 
-    pmf_out = distributions._rediscretize_prob(
+    pmf_out = distributions._remap_prob_to_grid(
         x_in, pmf_in, x_out, dominates=False
     )
     self.assertGreaterEqual(pmf_out[1], 0.4)
@@ -344,7 +344,7 @@ class PmfRemapToGridTest(absltest.TestCase):
     pmf_in = np.array([0.3, 0.4, 0.3], dtype=np.float64)
     x_out = np.array([1.0, 2.0, 3.0])
 
-    pmf_out = distributions._rediscretize_prob(
+    pmf_out = distributions._remap_prob_to_grid(
         x_in, pmf_in, x_out, dominates=True
     )
     _, _, ppos = distributions.enforce_mass_conservation(
@@ -360,7 +360,7 @@ class PmfRemapToGridTest(absltest.TestCase):
     pmf_in = np.array([0.1, 0.3, 0.4, 0.2], dtype=np.float64)
     x_out = np.array([1.0, 2.0, 3.0])
 
-    pmf_out = distributions._rediscretize_prob(
+    pmf_out = distributions._remap_prob_to_grid(
         x_in, pmf_in, x_out, dominates=True
     )
     total_in = math.fsum(map(float, pmf_in))
@@ -624,44 +624,31 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
     np.testing.assert_allclose(total, 1.0)
 
 
-class RediscretizeProbNumbaTest(absltest.TestCase):
+class RediscretizeProbTest(absltest.TestCase):
 
-  def _check_numpy_matches_numba(self, dominates: bool) -> None:
+  def test_remap_prob_to_grid_dominates(self):
     x_in = np.array([0.2, 0.8, 1.0, 1.7, 2.9, 4.2], dtype=np.float64)
     pmf_in = np.array([0.2, 0.0, 0.15, 0.25, 0.1, 0.3], dtype=np.float64)
     x_out = np.array([0.5, 1.0, 1.5, 3.0], dtype=np.float64)
 
-    expected = distributions._numba_rediscretize_prob(
-        x_in, pmf_in, x_out, dominates
-    )
-    actual = distributions._numpy_rediscretize_prob(
-        x_in, pmf_in, x_out, dominates
+    expected = np.array([0.2, 0.15, 0.0, 0.35], dtype=np.float64)
+    actual = distributions._remap_prob_to_grid(
+        x_in, pmf_in, x_out, dominates=True
     )
 
     np.testing.assert_allclose(actual, expected, rtol=0.0, atol=1e-15)
 
-  def test_numpy_matches_numba_dominates(self):
-    self._check_numpy_matches_numba(True)
+  def test_remap_prob_to_grid_is_dominated(self):
+    x_in = np.array([0.2, 0.8, 1.0, 1.7, 2.9, 4.2], dtype=np.float64)
+    pmf_in = np.array([0.2, 0.0, 0.15, 0.25, 0.1, 0.3], dtype=np.float64)
+    x_out = np.array([0.5, 1.0, 1.5, 3.0], dtype=np.float64)
 
-  def test_numpy_matches_numba_is_dominated(self):
-    self._check_numpy_matches_numba(False)
+    expected = np.array([0.0, 0.15, 0.35, 0.3], dtype=np.float64)
+    actual = distributions._remap_prob_to_grid(
+        x_in, pmf_in, x_out, dominates=False
+    )
 
-  def test_dispatch_uses_numpy_fallback_without_numba(self):
-    x_in = np.array([0.2, 1.0, 1.7], dtype=np.float64)
-    pmf_in = np.array([0.2, 0.5, 0.3], dtype=np.float64)
-    x_out = np.array([0.5, 1.0, 1.5], dtype=np.float64)
-
-    original_has_numba = definitions._HAS_NUMBA
-    try:
-      definitions._HAS_NUMBA = False
-      expected = distributions._numpy_rediscretize_prob(
-          x_in, pmf_in, x_out, True
-      )
-      actual = distributions._rediscretize_prob(x_in, pmf_in, x_out, True)
-    finally:
-      definitions._HAS_NUMBA = original_has_numba
-
-    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=0.0)
+    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=1e-15)
 
 
 if __name__ == "__main__":

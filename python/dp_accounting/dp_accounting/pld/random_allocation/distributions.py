@@ -798,7 +798,6 @@ def _compute_bin_width_two_arrays(
 # =============================================================================
 
 
-@definitions.optional_njit()
 def _adaptive_bins_from_cdf(
     *,
     cdf: NDArray[np.float64],
@@ -830,7 +829,6 @@ def _adaptive_bins_from_cdf(
   return bin_probs
 
 
-@definitions.optional_njit()
 def _adaptive_bins_from_sf(
     *,
     sf: NDArray[np.float64],
@@ -1270,7 +1268,7 @@ def _discretize_continuous_distribution(
   )
 
 
-def _numpy_rediscretize_prob(
+def _remap_prob_to_grid(
     x_array: NDArray[np.float64],
     prob_arr: NDArray[np.float64],
     x_array_out: NDArray[np.float64],
@@ -1301,91 +1299,6 @@ def _numpy_rediscretize_prob(
 
   np.add.at(prob_arr_out, indices[valid], mass[valid])
   return prob_arr_out
-
-
-@definitions.optional_njit()
-def _numba_rediscretize_prob(
-    x_array: NDArray[np.float64],
-    prob_arr: NDArray[np.float64],
-    x_array_out: NDArray[np.float64],
-    dominates: bool,
-) -> NDArray[np.float64]:
-  """PMF remap using a single forward scan with Kahan-compensated summation.
-
-  Exploits the fact that both grids are sorted: a single pointer j advances
-  monotonically through x_array_out as i steps through x_array, giving
-  O(n) bin lookup.  Kahan summation accumulates mass into each output bin
-  to minimise floating-point error when many small values land in the same
-  bin.  Overflow/underflow values are dropped; enforce_mass_conservation
-  later folds that lost mass into p_max or p_min.
-  """
-  n_out = x_array_out.size
-  prob_arr_out = np.zeros(n_out)
-  compensations = np.zeros(n_out)
-
-  # single pointer into x_array_out since x_array is strictly increasing
-  j = 0
-
-  if dominates:
-    # ceil: bin = first index with x_array_out[j] >= z; overflow right -> p_max
-    for i in range(x_array.size):
-      z = x_array[i]
-      mass = prob_arr[i]
-      # Skip only zero-mass bins, not small-mass bins
-      if mass <= 0:
-        continue
-
-      # advance while x_array_out[j] < z
-      while j < n_out and x_array_out[j] < z:
-        j += 1
-
-      if j >= n_out:
-        # overflow to the right: discard mass (goes to p_max via
-        # enforce_mass_conservation)
-        continue
-      # include values below x_array_out[0] in the first bin (ceil behavior)
-      y = mass - compensations[j]
-      t = prob_arr_out[j] + y
-      compensations[j] = (t - prob_arr_out[j]) - y
-      prob_arr_out[j] = t
-
-  else:
-    # floor: bin = last index with x_array_out[j] <= z; underflow left -> p_min
-    for i in range(x_array.size):
-      z = x_array[i]
-      mass = prob_arr[i]
-      # Skip only zero-mass bins, not small-mass bins
-      if mass <= 0:
-        continue
-
-      # advance while x_array_out[j] <= z
-      while j < n_out and x_array_out[j] <= z:
-        j += 1
-
-      idx = j - 1
-      if idx < 0:
-        # underflow to the left: discard mass (goes to p_min via
-        # enforce_mass_conservation)
-        continue
-      # include values above x_array_out[-1] in the last bin (floor behavior)
-      y = mass - compensations[idx]
-      t = prob_arr_out[idx] + y
-      compensations[idx] = (t - prob_arr_out[idx]) - y
-      prob_arr_out[idx] = t
-
-  return prob_arr_out
-
-
-def _rediscretize_prob(
-    x_array: NDArray[np.float64],
-    prob_arr: NDArray[np.float64],
-    x_array_out: NDArray[np.float64],
-    dominates: bool,
-) -> NDArray[np.float64]:
-  """Remap PMF onto new grid with domination-aware rounding."""
-  if definitions.has_numba():
-    return _numba_rediscretize_prob(x_array, prob_arr, x_array_out, dominates)
-  return _numpy_rediscretize_prob(x_array, prob_arr, x_array_out, dominates)
 
 
 def rediscretize_dist(
@@ -1440,7 +1353,7 @@ def rediscretize_dist(
   )
   x_array_out = grid_out.x_array
 
-  prob_arr_out = _rediscretize_prob(
+  prob_arr_out = _remap_prob_to_grid(
       x_array=x_array,
       prob_arr=trunc_dist.prob_arr,
       x_array_out=x_array_out,

@@ -81,7 +81,6 @@ def self_convolve_boundary_masses(
 # =============================================================================
 
 
-@definitions.optional_njit()
 def _kahan_reverse_exclusive_cumsum(
     padded_probs: NDArray[np.float64],
 ) -> NDArray[np.float64]:
