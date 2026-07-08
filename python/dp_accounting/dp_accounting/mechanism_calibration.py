@@ -84,13 +84,19 @@ def _search_for_explicit_bracket_interval(
   scale = guess - endpoint
   upper = lower = guess
   search_up = search_down = True
-  orig_sign = np.sign(epsilon_gap(guess))
+  next_upper_value = next_lower_value = epsilon_gap(guess)
+  orig_sign = np.sign(next_upper_value)
+  up_power = down_power = 0
 
-  # For i in (0, -1, 1, -2, 2, -3, 3, ...) try scaled interval (2**i, 2**(i+1)).
-
-  for power in range(1, 31):
-    if search_up:
-      next_upper = endpoint + scale * (2**power)
+  while search_up or search_down:
+    # Try searching in whichever direction we haven't exhausted. If both are
+    # unexhausted, prefer the direction with the smaller gap.
+    up_better = (np.abs(next_upper_value) <= np.abs(next_lower_value))
+    if search_up and (up_better or not search_down):
+      up_power += 1
+      next_upper = endpoint + scale * (2**up_power)
+      if up_power >= 30:
+        search_up = False
       try:
         next_upper_value = epsilon_gap(next_upper)
         if np.isnan(next_upper_value):
@@ -100,9 +106,11 @@ def _search_for_explicit_bracket_interval(
         upper = next_upper
       except Exception:  # pylint: disable=broad-except
         search_up = False
-
-    if search_down:
-      next_lower = endpoint + scale * (2**-power)
+    else:
+      down_power -= 1
+      next_lower = endpoint + scale * (2**down_power)
+      if down_power <= -30:
+        search_down = False
       try:
         next_lower_value = epsilon_gap(next_lower)
         if np.isnan(next_lower_value):
@@ -112,9 +120,6 @@ def _search_for_explicit_bracket_interval(
         lower = next_lower
       except Exception:  # pylint: disable=broad-except
         search_down = False
-
-    if not search_up and not search_down:
-      break
 
   raise NoBracketIntervalFoundError(
       'Unable to find bracketing interval within 2**30 of initial guess. '
