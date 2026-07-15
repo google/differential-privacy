@@ -88,7 +88,7 @@ TEST(ApproxBoundsTest, BasicTest) {
           .SetNumBins(4)
           .SetBase(2)
           .SetThresholdForTest(3)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   (*bounds)->AddEntries(a.begin(), a.end());
@@ -108,7 +108,7 @@ TEST(ApproxBoundsTest, BasicMultipleEntriesTest) {
           .SetScale(1)
           .SetBase(2)
           .SetThresholdForTest(2.5)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   for (const auto& input : a) {
@@ -131,7 +131,7 @@ TEST(ApproxBoundsTest, AddMultipleEntriesInvalidInputTest) {
           .SetScale(1)
           .SetBase(2)
           .SetThresholdForTest(2.5)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
 
@@ -162,7 +162,7 @@ TEST(ApproxBoundsTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
           .SetScale(1)
           .SetBase(2)
           .SetThresholdForTest(2.5)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
 
@@ -194,7 +194,7 @@ TYPED_TEST(ApproxBoundsTest, EmptyHistogramTest) {
           .SetBase(2)
           .SetScale(1)
           .SetSuccessProbability(.95)  // k threshold = 3.04886
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   absl::StatusOr<Output> result = bounds->get()->PartialResult();
@@ -224,7 +224,7 @@ TEST(ApproxBoundsTest, RetriesBoundingTest) {
           .SetScale(1)
           .SetEpsilon(epsilon)
           .SetSuccessProbability(success_probability)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   (*bounds)->AddEntry(3);
@@ -245,7 +245,7 @@ TYPED_TEST(ApproxBoundsTest, ExplicitThresholdNotRelaxed) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(threshold)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   (*bounds)->AddEntry(3);
@@ -269,7 +269,7 @@ TEST(ApproxBoundsTest, InsufficientPrivacyBudgetTest) {
           .SetNumBins(4)
           .SetBase(2)
           .SetThresholdForTest(3)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   (*bounds)->AddEntries(a.begin(), a.end());
@@ -292,7 +292,7 @@ TEST(ApproxBoundsTest, SmallScale) {
           .SetBase(2)
           .SetScale(.1)
           .SetSuccessProbability(.95)  // k threshold = 3.04886
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   (*bounds)->AddEntries(a.begin(), a.end());
@@ -310,7 +310,7 @@ TEST(ApproxBoundsTest, InputBeyondBins) {
           .SetBase(2)
           .SetScale(1)
           .SetSuccessProbability(.95)  // k threshold = 3.04886
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   (*bounds)->AddEntries(a.begin(), a.end());
   absl::StatusOr<Output> result = (*bounds)->PartialResult();
@@ -327,7 +327,7 @@ TEST(ApproxBoundsTest, NegativeMax) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(4)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   (*bounds)->AddEntries(a.begin(), a.end());
   absl::StatusOr<Output> result = (*bounds)->PartialResult();
@@ -497,7 +497,7 @@ TEST(ApproxBoundsTest, DefaultIntTest) {
   absl::StatusOr<std::unique_ptr<ApproxBounds<int>>> bounds =
       ApproxBounds<int>::Builder()
           .SetThresholdForTest(4)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   (*bounds)->AddEntries(a.begin(), a.end());
@@ -512,7 +512,7 @@ TEST(ApproxBoundsTest, DefaultDoubleTest) {
   std::vector<double> small(30, std::numeric_limits<double>::lowest());
   absl::StatusOr<std::unique_ptr<ApproxBounds<double>>> bounds =
       ApproxBounds<double>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   (*bounds)->AddEntries(big.begin(), big.end());
   (*bounds)->AddEntries(small.begin(), small.end());
@@ -534,7 +534,7 @@ TYPED_TEST(ApproxBoundsTest, SerializeAndMergeTest) {
           .SetBase(10)
           .SetScale(1)
           .SetThresholdForTest(2)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds1);
   (*bounds1)->AddEntries(a.begin(), a.end());
@@ -567,7 +567,7 @@ TYPED_TEST(ApproxBoundsTest, SerializeAndMergeOverflowPosBinsTest) {
           .SetBase(10)
           .SetScale(1)
           .SetThresholdForTest(2)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   ApproxBoundsTestPeer::AddMultipleEntries<int64_t>(
@@ -611,7 +611,7 @@ TYPED_TEST(ApproxBoundsTest, SerializeAndMergeOverflowNegBinsTest) {
           .SetBase(10)
           .SetScale(1)
           .SetThresholdForTest(2)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   ApproxBoundsTestPeer::AddMultipleEntries<int64_t>(
@@ -655,7 +655,7 @@ TEST(ApproxBoundsTest, DropNanEntries) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(2)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   for (const auto& element : a) {
@@ -674,7 +674,7 @@ TEST(ApproxBoundsTest, HandleOverflowPosBins) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(2)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   // Add std::numeric_limits<int64_t>::max() + 3 entries to the same bin to try to
@@ -701,7 +701,7 @@ TEST(ApproxBoundsTest, HandleOverflowNegBins) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(2)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   // Add std::numeric_limits<int64_t>::max() + 3 entries to the same bin to try to
   // cause an overflow.
@@ -731,7 +731,7 @@ TEST(ApproxBoundsTest, HandleInfinityEntries) {
           .SetBase(base)
           .SetScale(scale)
           .SetThresholdForTest(2)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   (*bounds)->AddEntries(a.begin(), a.end());
@@ -1035,7 +1035,7 @@ TEST(ApproxBoundsTest, OverflowNoiseFromTypeCast) {
             .SetScale(1)
             .SetThresholdForTest(2)
             .SetEpsilon(1)
-            .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+            .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
             .Build();
     ASSERT_OK(bounds);
     ApproxBoundsTestPeer::AddMultipleEntries<int64_t>(
@@ -1139,7 +1139,7 @@ TYPED_TEST(ApproxBoundsTest, GetBoundingReport) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(3)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   (*bounds)->AddEntries(a.begin(), a.end());

@@ -54,7 +54,7 @@ TYPED_TEST(BoundedStandardDeviationTest, BasicTest) {
   std::vector<TypeParam> a = {1, 5, 7, 9, 13};
   std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
       typename BoundedStandardDeviation<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1)
           .SetLower(0)
           .SetUpper(15)
@@ -66,7 +66,7 @@ TYPED_TEST(BoundedStandardDeviationTest, BasicTest) {
 TYPED_TEST(BoundedStandardDeviationTest, RepeatedResultTest) {
   std::vector<TypeParam> a = {1, 5, 7, 9, 13};
   typename BoundedStandardDeviation<TypeParam>::Builder builder;
-  builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+  builder.SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
       .SetEpsilon(1)
       .SetLower(0)
       .SetUpper(15);
@@ -86,7 +86,7 @@ TYPED_TEST(BoundedStandardDeviationTest, InsufficientPrivacyBudgetTest) {
   std::vector<TypeParam> a = {1, 5, 7, 9, 13};
   std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
       typename BoundedStandardDeviation<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1)
           .SetLower(0)
           .SetUpper(15)
@@ -104,7 +104,7 @@ TYPED_TEST(BoundedStandardDeviationTest, ClampInputTest) {
   std::vector<TypeParam> a = {0, 0, 10, 10};
   std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
       typename BoundedStandardDeviation<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1)
           .SetLower(1)
           .SetUpper(3)
@@ -210,7 +210,7 @@ TYPED_TEST(BoundedStandardDeviationTest, SerializeAndMergeTest) {
       builder.SetEpsilon(.5)
           .SetLower(0)
           .SetUpper(3)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
           .value();
   bsd->AddEntry(1);
@@ -229,7 +229,7 @@ TYPED_TEST(BoundedStandardDeviationTest, SerializeAndMergeTest) {
 TYPED_TEST(BoundedStandardDeviationTest, TwoAlgorithmsOneBuilder) {
   std::vector<TypeParam> a = {-2, 2};
   typename BoundedStandardDeviation<TypeParam>::Builder builder;
-  builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>());
+  builder.SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>());
 
   // First algorithm doesn't clamp anything in a.
   auto alg1 = builder.SetLower(-5).SetUpper(5).Build().value();
@@ -249,14 +249,14 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBounds) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(1.5)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
           .value();
   std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
       typename BoundedStandardDeviation<TypeParam>::Builder()
           .SetEpsilon(1)
           .SetApproxBounds(std::move(bounds))
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
           .value();
   bsd->AddEntries(a.begin(), a.end());
@@ -280,7 +280,7 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBoundsDefault) {
   std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
       typename BoundedStandardDeviation<TypeParam>::Builder()
           .SetEpsilon(1)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
           .value();
   std::vector<TypeParam> big(1000, 10);
@@ -296,7 +296,7 @@ TYPED_TEST(BoundedStandardDeviationTest, AutomaticBoundsDefault) {
 TYPED_TEST(BoundedStandardDeviationTest, PropagateApproxBoundsError) {
   std::unique_ptr<BoundedStandardDeviation<TypeParam>> bsd =
       typename BoundedStandardDeviation<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build()
           .value();
 

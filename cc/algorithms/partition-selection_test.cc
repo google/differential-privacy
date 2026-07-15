@@ -363,7 +363,7 @@ TEST(PartitionSelectionTest,
   LaplacePartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
           .Build(),
@@ -378,7 +378,7 @@ TEST(PartitionSelectionTest,
   LaplacePartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
           .SetMaxPartitionsContributed(-3)
@@ -394,7 +394,7 @@ TEST(PartitionSelectionTest,
   LaplacePartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
           .SetMaxPartitionsContributed(0)
@@ -409,7 +409,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetEpsilon) {
   LaplacePartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetDelta(0.1)
           .SetMaxPartitionsContributed(2)
           .Build(),
@@ -421,7 +421,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetDelta) {
   LaplacePartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetMaxPartitionsContributed(2)
           .Build(),
@@ -433,7 +433,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionNanDelta) {
   LaplacePartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(NAN)
           .SetMaxPartitionsContributed(2)
@@ -446,7 +446,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionNotFiniteDelta) {
   LaplacePartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(std::numeric_limits<double>::infinity())
           .SetMaxPartitionsContributed(2)
@@ -459,7 +459,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionInvalidPositiveDelta) {
   LaplacePartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(5.2)
           .SetMaxPartitionsContributed(2)
@@ -472,7 +472,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionInvalidNegativeDelta) {
   LaplacePartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(-0.1)
           .SetMaxPartitionsContributed(2)
@@ -486,7 +486,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionInvalidNegativeDelta) {
 TEST(PartitionSelectionTest, LaplacePartitionSelectionOneUser) {
   LaplacePartitionSelection::Builder test_builder;
   test_builder
-      .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+      .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
       .SetEpsilon(0.5)
       .SetDelta(0.02)
       .SetMaxPartitionsContributed(1);
@@ -507,7 +507,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionOneUser) {
 TEST(PartitionSelectionTest, LaplacePartitionSelectionAtThreshold) {
   LaplacePartitionSelection::Builder test_builder;
   test_builder
-      .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+      .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
       .SetEpsilon(0.5)
       .SetDelta(0.06766764161)
       .SetMaxPartitionsContributed(1);
@@ -526,7 +526,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionAtThreshold) {
 TEST(PartitionSelectionTest, LaplacePartitionSelectionThreshold) {
   LaplacePartitionSelection::Builder test_builder;
   test_builder
-      .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+      .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
       .SetEpsilon(0.5)
       .SetDelta(0.02)
       .SetMaxPartitionsContributed(1);
@@ -555,7 +555,7 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetBuilderThreshold) {
 TEST(PartitionSelectionTest, LaplacePartitionSelectionNoiseValueIfShouldKeep) {
   LaplacePartitionSelection::Builder test_builder;
   test_builder
-      .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+      .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
       .SetEpsilon(0.5)
       .SetDelta(0.06766764161)
       .SetMaxPartitionsContributed(1);
@@ -1106,7 +1106,7 @@ TEST(PartitionSelectionTest,
   GaussianPartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
           .Build(),
@@ -1121,7 +1121,7 @@ TEST(PartitionSelectionTest,
   GaussianPartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
           .SetMaxPartitionsContributed(-3)
@@ -1137,7 +1137,7 @@ TEST(PartitionSelectionTest,
   GaussianPartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetDelta(0.1)
           .SetEpsilon(2)
           .SetMaxPartitionsContributed(0)
@@ -1152,7 +1152,7 @@ TEST(PartitionSelectionTest, GaussianPartitionSelectionUnsetEpsilon) {
   GaussianPartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetDelta(0.1)
           .SetMaxPartitionsContributed(2)
           .Build(),
@@ -1164,7 +1164,7 @@ TEST(PartitionSelectionTest, GaussianPartitionSelectionUnsetDelta) {
   GaussianPartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetMaxPartitionsContributed(2)
           .Build(),
@@ -1176,7 +1176,7 @@ TEST(PartitionSelectionTest, GaussianPartitionSelectionNanDelta) {
   GaussianPartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(NAN)
           .SetMaxPartitionsContributed(2)
@@ -1189,7 +1189,7 @@ TEST(PartitionSelectionTest, GaussianPartitionSelectionNotFiniteDelta) {
   GaussianPartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(std::numeric_limits<double>::infinity())
           .SetMaxPartitionsContributed(2)
@@ -1202,7 +1202,7 @@ TEST(PartitionSelectionTest, GaussianPartitionSelectionInvalidPositiveDelta) {
   GaussianPartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(5.2)
           .SetMaxPartitionsContributed(2)
@@ -1215,7 +1215,7 @@ TEST(PartitionSelectionTest, GaussianPartitionSelectionInvalidNegativeDelta) {
   GaussianPartitionSelection::Builder test_builder;
   EXPECT_THAT(
       test_builder
-          .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+          .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
           .SetEpsilon(0.1)
           .SetDelta(-0.1)
           .SetMaxPartitionsContributed(2)
@@ -1745,7 +1745,7 @@ TEST(PartitionSelectionTest, GaussianRoundTripDeltaTests) {
 TEST(PartitionSelectionTest, GaussianPartitionSelectionNoiseValueIfShouldKeep) {
   GaussianPartitionSelection::Builder test_builder;
   test_builder
-      .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+      .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
       .SetEpsilon(0.5)
       .SetDelta(0.01)
       .SetMaxPartitionsContributed(1);
@@ -1828,7 +1828,7 @@ TEST(PartitionSelectionTest,
 TEST(PartitionSelectionTest, GaussianPartitionSelectionShouldKeepNoUsers) {
   GaussianPartitionSelection::Builder test_builder;
   test_builder
-      .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+      .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
       .SetEpsilon(0.5)
       .SetDelta(0.01)
       .SetMaxPartitionsContributed(1);
@@ -1849,7 +1849,7 @@ TEST(PartitionSelectionTest, GaussianPartitionSelectionShouldKeepNoUsers) {
 TEST(PartitionSelectionTest, GaussianPartitionSelectionShouldKeep) {
   GaussianPartitionSelection::Builder test_builder;
   test_builder
-      .SetGaussianMechanism(absl::make_unique<GaussianMechanism::Builder>())
+      .SetGaussianMechanism(std::make_unique<GaussianMechanism::Builder>())
       .SetEpsilon(0.5)
       .SetDelta(0.01)
       .SetMaxPartitionsContributed(1);
@@ -2081,7 +2081,7 @@ TEST(PartitionSelectionWithPreThresholdingTest,
      NearTruncatedGeometricPartitionSelectionWithPreThresholdWrapperOK) {
   PartitionSelectionStrategyWithPreThresholding::Builder test_builder;
   std::unique_ptr<MockNearTruncatedStrategy::Builder> mock_builder =
-      absl::make_unique<MockNearTruncatedStrategy::Builder>();
+      std::make_unique<MockNearTruncatedStrategy::Builder>();
   MockNearTruncatedStrategy* mock_builder_ptr = mock_builder->mock();
   // Check that wrapped ShouldKeep is called with (pre-threshold - 1) removed
   EXPECT_CALL(*mock_builder_ptr, ShouldKeep(14)).Times(1);
@@ -2100,7 +2100,7 @@ TEST(PartitionSelectionWithPreThresholdingTest,
      LaplacePartitionSelectionWithPreThresholdWrapperOK) {
   PartitionSelectionStrategyWithPreThresholding::Builder test_builder;
   std::unique_ptr<MockLaplaceStrategy::Builder> mock_builder =
-      absl::make_unique<MockLaplaceStrategy::Builder>();
+      std::make_unique<MockLaplaceStrategy::Builder>();
   MockLaplaceStrategy* mock_builder_ptr = mock_builder->mock();
   // Check that wrapped ShouldKeep is called with (pre-threshold - 1) removed
   EXPECT_CALL(*mock_builder_ptr, ShouldKeep(14)).Times(1);
@@ -2119,7 +2119,7 @@ TEST(PartitionSelectionWithPreThresholdingTest,
      GaussianPartitionSelectionWithPreThresholdWrapperOK) {
   PartitionSelectionStrategyWithPreThresholding::Builder test_builder;
   std::unique_ptr<MockGaussianStrategy::Builder> mock_builder =
-      absl::make_unique<MockGaussianStrategy::Builder>();
+      std::make_unique<MockGaussianStrategy::Builder>();
   MockGaussianStrategy* mock_builder_ptr = mock_builder->mock();
   // Check that wrapped ShouldKeep is called with (pre-threshold - 1) removed
   EXPECT_CALL(*mock_builder_ptr, ShouldKeep(14)).Times(1);

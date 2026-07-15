@@ -72,7 +72,7 @@ TYPED_TEST(CountTest, BasicTest) {
   absl::StatusOr<std::unique_ptr<Count<TypeParam>>> count =
       typename Count<TypeParam>::Builder()
           .SetEpsilon(kDefaultEpsilon)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(count);
   auto result = (*count)->Result(c.begin(), c.end());
@@ -84,7 +84,7 @@ TYPED_TEST(CountTest, RepeatedResultTest) {
   std::vector<TypeParam> c = {1, 2, 3, 4, 2, 3};
   typename Count<TypeParam>::Builder builder;
   builder.SetEpsilon(kDefaultEpsilon)
-      .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>());
+      .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>());
   absl::StatusOr<std::unique_ptr<Count<TypeParam>>> count1 =
 
       builder.Build();
@@ -110,7 +110,7 @@ TYPED_TEST(CountTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
   absl::StatusOr<std::unique_ptr<Count<TypeParam>>> count =
       typename Count<TypeParam>::Builder()
           .SetEpsilon(kDefaultEpsilon)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(count);
 
@@ -133,7 +133,7 @@ TYPED_TEST(CountTest, InsufficientPrivacyBudgetTest) {
   absl::StatusOr<std::unique_ptr<Count<TypeParam>>> count =
       typename Count<TypeParam>::Builder()
           .SetEpsilon(kDefaultEpsilon)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(count);
 
@@ -172,7 +172,7 @@ TEST(CountTest, BasicOverflowTest) {
   absl::StatusOr<std::unique_ptr<Count<int64_t>>> count =
       typename Count<int64_t>::Builder()
           .SetEpsilon(kDefaultEpsilon)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
 
   CountTestPeer::AddMultipleEntries<int64_t>(
@@ -191,7 +191,7 @@ TEST(CountTest, OverflowFromAddNoseTypeCastTest) {
     absl::StatusOr<std::unique_ptr<Count<int64_t>>> count =
         typename Count<int64_t>::Builder()
             .SetEpsilon(kDefaultEpsilon)
-            .SetLaplaceMechanism(absl::make_unique<LaplaceMechanism::Builder>())
+            .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
             .Build();
 
     CountTestPeer::AddMultipleEntries<int64_t>(
@@ -233,7 +233,7 @@ TEST(CountTest, MergeTest) {
   absl::StatusOr<std::unique_ptr<Count<double>>> count =
       Count<double>::Builder()
           .SetEpsilon(kDefaultEpsilon)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(count);
   (*count)->AddEntry(0);
@@ -248,7 +248,7 @@ TEST(CountTest, MergeTest) {
 
 TEST(CountTest, SerializeAndMergeOverflowTest) {
   Count<int64_t>::Builder builder;
-  builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>());
+  builder.SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>());
   absl::StatusOr<std::unique_ptr<Count<int64_t>>> count1 =
       builder.SetEpsilon(kDefaultEpsilon).Build();
   ASSERT_OK(count1);
@@ -287,7 +287,7 @@ TEST(CountTest, DeltaNotSetGaussian) {
       Count<double>::Builder()
           .SetEpsilon(0.5)
           .SetLaplaceMechanism(
-              absl::make_unique<
+              std::make_unique<
                   differential_privacy::GaussianMechanism::Builder>())
           .Build();
   EXPECT_THAT(failed_count,
@@ -301,7 +301,7 @@ TEST(CountTest, BasicGaussian) {
           .SetEpsilon(1e100)
           .SetDelta(0.99)
           .SetLaplaceMechanism(
-              absl::make_unique<
+              std::make_unique<
                   differential_privacy::GaussianMechanism::Builder>())
           .Build();
   ASSERT_OK(count);

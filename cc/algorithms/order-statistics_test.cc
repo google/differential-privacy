@@ -42,7 +42,7 @@ TEST(OrderStatisticsTest, Max) {
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(max);
   for (int64_t i = 0; i < kDataSize; ++i) {
@@ -59,7 +59,7 @@ TEST(OrderStatisticsTest, Min) {
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   for (int64_t i = 0; i < kDataSize; ++i) {
     (*min)->AddEntry(std::round(static_cast<double>(200) * i / kDataSize));
@@ -77,7 +77,7 @@ TEST(OrderStatisticsTest, Median) {
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(median);
   for (int64_t i = 0; i < kDataSize; ++i) {
@@ -127,7 +127,7 @@ TEST(OrderStatisticsTest, Percentile) {
           .SetEpsilon(epsilon)
           .SetLower(lower)
           .SetUpper(upper)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(percentile);
   for (int64_t i = 0; i < kDataSize; ++i) {
@@ -178,7 +178,7 @@ TEST(OrderStatisticsTest, Median_DefaultBounds) {
   absl::StatusOr<std::unique_ptr<Median<int64_t>>> median =
       Median<int64_t>::Builder()
           .SetEpsilon(epsilon)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(median);
   for (int64_t i = 0; i < kDataSize; ++i) {

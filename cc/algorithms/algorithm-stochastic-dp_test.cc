@@ -62,12 +62,12 @@ typedef ::testing::Types<BoundedSum<double>, BoundedMean<double>,
 TYPED_TEST_SUITE(StochasticDifferentialPrivacyTest, BoundedDpAlgorithms);
 
 TYPED_TEST(StochasticDifferentialPrivacyTest, AllBoundedDpAlgorithms) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       testing::DefaultDatasetSize(), true /* sorted_only */,
       testing::DefaultDataScale(), testing::DefaultDataOffset());
   auto algorithm = typename TypeParam::Builder()
                        .SetLaplaceMechanism(
-                           absl::make_unique<SeededLaplaceMechanism::Builder>())
+                           std::make_unique<SeededLaplaceMechanism::Builder>())
                        .SetEpsilon(std::log(3))
                        .SetLower(sequence->RangeMin())
                        .SetUpper(sequence->RangeMax())
@@ -80,7 +80,7 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllBoundedDpAlgorithms) {
 }
 
 TEST(StochasticDifferentialPrivacyTest, Max) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       testing::DefaultDatasetSize(), true /* sorted_only */,
       testing::DefaultDataScale(), testing::DefaultDataOffset());
 
@@ -88,7 +88,7 @@ TEST(StochasticDifferentialPrivacyTest, Max) {
   double upper = sequence->RangeMax();
   auto algorithm = Max<double>::Builder()
                        .SetLaplaceMechanism(
-                           absl::make_unique<SeededLaplaceMechanism::Builder>())
+                           std::make_unique<SeededLaplaceMechanism::Builder>())
                        .SetEpsilon(std::log(3))
                        .SetLower(lower)
                        .SetUpper(upper)
@@ -101,7 +101,7 @@ TEST(StochasticDifferentialPrivacyTest, Max) {
 }
 
 TEST(StochasticDifferentialPrivacyTest, Min) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       testing::DefaultDatasetSize(), true /* sorted_only */,
       testing::DefaultDataScale(), testing::DefaultDataOffset());
 
@@ -109,7 +109,7 @@ TEST(StochasticDifferentialPrivacyTest, Min) {
   double upper = sequence->RangeMax();
   auto algorithm = Min<double>::Builder()
                        .SetLaplaceMechanism(
-                           absl::make_unique<SeededLaplaceMechanism::Builder>())
+                           std::make_unique<SeededLaplaceMechanism::Builder>())
                        .SetEpsilon(std::log(3))
                        .SetLower(lower)
                        .SetUpper(upper)
@@ -122,7 +122,7 @@ TEST(StochasticDifferentialPrivacyTest, Min) {
 }
 
 TEST(StochasticDifferentialPrivacyTest, Median) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       testing::DefaultDatasetSize(), true /* sorted_only */,
       testing::DefaultDataScale(), testing::DefaultDataOffset());
 
@@ -130,7 +130,7 @@ TEST(StochasticDifferentialPrivacyTest, Median) {
   double upper = sequence->RangeMax();
   auto algorithm = Median<double>::Builder()
                        .SetLaplaceMechanism(
-                           absl::make_unique<SeededLaplaceMechanism::Builder>())
+                           std::make_unique<SeededLaplaceMechanism::Builder>())
                        .SetEpsilon(std::log(3))
                        .SetLower(lower)
                        .SetUpper(upper)
@@ -143,7 +143,7 @@ TEST(StochasticDifferentialPrivacyTest, Median) {
 }
 
 TEST(StochasticDifferentialPrivacyTest, Percentile) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       testing::DefaultDatasetSize(), true /* sorted_only */,
       testing::DefaultDataScale(), testing::DefaultDataOffset());
 
@@ -152,7 +152,7 @@ TEST(StochasticDifferentialPrivacyTest, Percentile) {
   double upper = sequence->RangeMax();
   auto algorithm = Percentile<double>::Builder()
                        .SetLaplaceMechanism(
-                           absl::make_unique<SeededLaplaceMechanism::Builder>())
+                           std::make_unique<SeededLaplaceMechanism::Builder>())
                        .SetPercentile(percentile)
                        .SetEpsilon(std::log(3))
                        .SetLower(lower)
@@ -174,11 +174,11 @@ TEST(StochasticDifferentialPrivacyTest, CountNonBranchingSearch) {
   std::vector<int64_t> dataset(kCountNonBranchingSearchDatasetSize, 0);
   std::vector<std::vector<int64_t>> datasets;
   datasets.emplace_back(dataset);
-  auto sequence = absl::make_unique<StoredSequence<int64_t>>(datasets);
+  auto sequence = std::make_unique<StoredSequence<int64_t>>(datasets);
   std::unique_ptr<Count<int64_t>> algorithm =
       Count<int64_t>::Builder()
           .SetLaplaceMechanism(
-              absl::make_unique<SeededLaplaceMechanism::Builder>())
+              std::make_unique<SeededLaplaceMechanism::Builder>())
           .SetEpsilon(std::log(3))
           .Build()
           .value();
@@ -190,12 +190,12 @@ TEST(StochasticDifferentialPrivacyTest, CountNonBranchingSearch) {
 
 // The stochaster tester tests the first output element: approximate minimum.
 TEST(StochasticDifferentialPrivacyTest, ApproxBoundsMinimum) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       testing::DefaultDatasetSize(), true, testing::DefaultDataScale(),
       testing::DefaultDataOffset());
   auto algorithm = ApproxBounds<double>::Builder()
                        .SetLaplaceMechanism(
-                           absl::make_unique<SeededLaplaceMechanism::Builder>())
+                           std::make_unique<SeededLaplaceMechanism::Builder>())
                        .SetEpsilon(1)
                        .SetBase(2)
                        .SetNumBins(1)
@@ -209,14 +209,14 @@ TEST(StochasticDifferentialPrivacyTest, ApproxBoundsMinimum) {
 }
 
 TYPED_TEST(StochasticDifferentialPrivacyTest, AllApproxBoundedDpAlgorithms) {
-  auto sequence = absl::make_unique<HaltonSequence<double>>(
+  auto sequence = std::make_unique<HaltonSequence<double>>(
       testing::DefaultDatasetSize(), true, testing::DefaultDataScale(),
       testing::DefaultDataOffset());
 
   absl::StatusOr<std::unique_ptr<ApproxBounds<double>>> bounds =
       ApproxBounds<double>::Builder()
           .SetLaplaceMechanism(
-              absl::make_unique<SeededLaplaceMechanism::Builder>())
+              std::make_unique<SeededLaplaceMechanism::Builder>())
           .SetEpsilon(kDefaultBoundsEpsilon)
           .SetScale(.2)
           .SetBase(2)
@@ -233,7 +233,7 @@ TYPED_TEST(StochasticDifferentialPrivacyTest, AllApproxBoundedDpAlgorithms) {
   absl::StatusOr<std::unique_ptr<TypeParam>> algorithm =
       typename TypeParam::Builder()
           .SetLaplaceMechanism(
-              absl::make_unique<SeededLaplaceMechanism::Builder>(mech_builder))
+              std::make_unique<SeededLaplaceMechanism::Builder>(mech_builder))
           .SetEpsilon(kDefaultOverallEpsilon)
           .SetApproxBounds(std::move(bounds).value())
           .Build();
