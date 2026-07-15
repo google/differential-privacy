@@ -46,7 +46,7 @@ absl::StatusOr<int> ReturnStatusOrError(absl::string_view msg) {
 }
 
 absl::StatusOr<std::unique_ptr<int>> ReturnStatusOrPtrValue(int v) {
-  return absl::make_unique<int>(v);
+  return std::make_unique<int>(v);
 }
 
 TEST(AssignOrReturn, Works) {
