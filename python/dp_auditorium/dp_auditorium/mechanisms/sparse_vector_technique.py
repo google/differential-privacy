@@ -256,14 +256,14 @@ class SVT1(AbstractSVTMechanism):
         * self._queries.sensitivity
         / self._epsilon
     )
-    return queries_values + self._rng.laplace(
+    return queries_values + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0, query_noise_scale, size=(num_samples, self._num_queries)
     )
 
   @override
   def get_noisy_thresholds(self, num_samples: int) -> np.ndarray:
     threshold_noise_scale = 2 * self._queries.sensitivity / self._epsilon
-    return self._threshold + self._rng.laplace(
+    return self._threshold + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0, threshold_noise_scale, size=(num_samples, 1)
     )
 
@@ -273,7 +273,7 @@ class SVT1(AbstractSVTMechanism):
   ) -> tuple[np.ndarray, np.ndarray]:
     queries_pass_threshold = noisy_queries >= noisy_threshold
     return (
-        np.where(
+        np.where(  # pyrefly: ignore[no-matching-overload]
             queries_pass_threshold,
             mechanism_config.DataValues.SVT_ABOVE_THRESHOLD,
             mechanism_config.DataValues.SVT_BELOW_THRESHOLD,
@@ -303,7 +303,7 @@ class SVT2(AbstractSVTMechanism):
         * self._queries.sensitivity
         / self._epsilon
     )
-    return queries_values + self._rng.laplace(
+    return queries_values + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0, query_noise_scale, size=(num_samples, self._num_queries)
     )
 
@@ -315,7 +315,7 @@ class SVT2(AbstractSVTMechanism):
         * self._max_answered_queries
         / self._epsilon
     )
-    return self._threshold + self._rng.laplace(
+    return self._threshold + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0,
         threshold_noise_scale,
         size=(num_samples, 1),
@@ -327,7 +327,7 @@ class SVT2(AbstractSVTMechanism):
   ) -> tuple[np.ndarray, np.ndarray]:
     queries_pass_threshold = noisy_queries >= noisy_threshold
     return (
-        np.where(
+        np.where(  # pyrefly: ignore[no-matching-overload]
             queries_pass_threshold,
             mechanism_config.DataValues.SVT_ABOVE_THRESHOLD,
             mechanism_config.DataValues.SVT_BELOW_THRESHOLD,
@@ -359,14 +359,14 @@ class SVT3(AbstractSVTMechanism):
         * self._queries.sensitivity
         / self._epsilon
     )
-    return queries_values + self._rng.laplace(
+    return queries_values + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0, query_noise_scale, size=(num_samples, self._num_queries)
     )
 
   @override
   def get_noisy_thresholds(self, num_samples: int) -> np.ndarray:
     threshold_noise_scale = 2 * self._queries.sensitivity / self._epsilon
-    return self._threshold + self._rng.laplace(
+    return self._threshold + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0, threshold_noise_scale, size=(num_samples, 1)
     )
 
@@ -376,7 +376,7 @@ class SVT3(AbstractSVTMechanism):
   ) -> tuple[np.ndarray, np.ndarray]:
     queries_pass_threshold = noisy_queries >= noisy_threshold
     return (
-        np.where(
+        np.where(  # pyrefly: ignore[no-matching-overload]
             queries_pass_threshold,
             noisy_queries,
             mechanism_config.DataValues.SVT_BELOW_THRESHOLD,
@@ -403,14 +403,14 @@ class SVT4(AbstractSVTMechanism):
       self, queries_values: np.ndarray, num_samples: int
   ) -> np.ndarray:
     query_noise_scale = 4 * self._queries.sensitivity / (3 * self._epsilon)
-    return queries_values + self._rng.laplace(
+    return queries_values + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0, query_noise_scale, size=(num_samples, self._num_queries)
     )
 
   @override
   def get_noisy_thresholds(self, num_samples: int) -> np.ndarray:
     threshold_noise_scale = 4 * self._queries.sensitivity / self._epsilon
-    return self._threshold + self._rng.laplace(
+    return self._threshold + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0,
         threshold_noise_scale,
         size=(num_samples, 1),
@@ -422,7 +422,7 @@ class SVT4(AbstractSVTMechanism):
   ) -> tuple[np.ndarray, np.ndarray]:
     queries_pass_threshold = noisy_queries >= noisy_threshold
     return (
-        np.where(
+        np.where(  # pyrefly: ignore[no-matching-overload]
             queries_pass_threshold,
             mechanism_config.DataValues.SVT_ABOVE_THRESHOLD,
             mechanism_config.DataValues.SVT_BELOW_THRESHOLD,
@@ -451,7 +451,7 @@ class SVT5(AbstractSVTMechanism):
   @override
   def get_noisy_thresholds(self, num_samples: int) -> np.ndarray:
     threshold_noise_scale = 2 * self._queries.sensitivity / self._epsilon
-    return self._threshold + self._rng.laplace(
+    return self._threshold + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0,
         threshold_noise_scale,
         size=(num_samples, 1),
@@ -463,7 +463,7 @@ class SVT5(AbstractSVTMechanism):
   ) -> tuple[np.ndarray, np.ndarray]:
     queries_pass_threshold = noisy_queries >= noisy_threshold
     return (
-        np.where(
+        np.where(  # pyrefly: ignore[no-matching-overload]
             queries_pass_threshold,
             mechanism_config.DataValues.SVT_ABOVE_THRESHOLD,
             mechanism_config.DataValues.SVT_BELOW_THRESHOLD,
@@ -488,14 +488,14 @@ class SVT6(AbstractSVTMechanism):
       self, queries_values: np.ndarray, num_samples: int
   ) -> np.ndarray:
     query_noise_scale = 2 * self._queries.sensitivity / self._epsilon
-    return queries_values + self._rng.laplace(
+    return queries_values + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0, query_noise_scale, size=(num_samples, self._num_queries)
     )
 
   @override
   def get_noisy_thresholds(self, num_samples: int) -> np.ndarray:
     threshold_noise_scale = 2 * self._queries.sensitivity / self._epsilon
-    return self._threshold + self._rng.laplace(
+    return self._threshold + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0,
         threshold_noise_scale,
         size=(num_samples, 1),
@@ -507,7 +507,7 @@ class SVT6(AbstractSVTMechanism):
   ) -> tuple[np.ndarray, np.ndarray]:
     queries_pass_threshold = noisy_queries >= noisy_threshold
     return (
-        np.where(
+        np.where(  # pyrefly: ignore[no-matching-overload]
             queries_pass_threshold,
             mechanism_config.DataValues.SVT_ABOVE_THRESHOLD,
             mechanism_config.DataValues.SVT_BELOW_THRESHOLD,

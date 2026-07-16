@@ -82,7 +82,7 @@ def mean_mechanism_report(
       max_value=1.0,
   )
   # Initialize the mechanism.
-  mechanism = mean.MeanMechanism(mech_config, rng)
+  mechanism = mean.MeanMechanism(mech_config, rng)  # pyrefly: ignore[bad-argument-type]
 
   # Configuration for a Hockey-Stick property tester. Given arrays s1 and s2
   # with samples two distributions it will estimate the hockey-stick divergence
@@ -135,7 +135,7 @@ def mean_mechanism_report(
       property_tester=property_tester,
   )
 
-  return test_runner.test_privacy(mechanism, "non-private-mean-mechanism")
+  return test_runner.test_privacy(mechanism, "non-private-mean-mechanism")  # pyrefly: ignore[bad-argument-type]
 
 
 def main(argv: Sequence[str]) -> None:

@@ -32,7 +32,7 @@ from dp_auditorium.testers import property_tester_utils
 
 
 def _estimate_discrete_distribution(
-    samples: IntArray,
+    samples: IntArray,  # pyrefly: ignore[not-a-type]
     universe_size: int,
 ) -> np.ndarray:
   """Returns estimated probability mass function over universe using samples.
