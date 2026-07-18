@@ -10,6 +10,8 @@ compositions. The PrivacyAccountant classes can ingest DpEvents and return the
 ε, δ of the composite mechanism. Privacy Loss Distributions (PLDs) and RDP
 accounting are currently supported.
 
+API documentation is available on [ReadTheDocs](https://dp-accounting.readthedocs.io/).
+
 More detailed definitions and references about PLDs can be found
 [in our supplementary pdf document](https://github.com/google/differential-privacy/tree/main/common_docs/Privacy_Loss_Distributions.pdf).
 

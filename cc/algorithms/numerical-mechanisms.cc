@@ -126,7 +126,7 @@ LaplaceMechanism::Builder::Build() {
   if (!gran_or_status.ok()) return gran_or_status.status();
 
   return absl::StatusOr<std::unique_ptr<NumericalMechanism>>(
-      absl::make_unique<LaplaceMechanism>(epsilon, l1));
+      std::make_unique<LaplaceMechanism>(epsilon, l1));
 }
 
 LaplaceMechanism::LaplaceMechanism(double epsilon, double sensitivity)
@@ -240,8 +240,7 @@ GaussianMechanism::Builder::Build() {
           "Standard deviation must be finite and positive.");
     }
     std::unique_ptr<NumericalMechanism> result =
-        absl::make_unique<GaussianMechanism>(stddev_.value(),
-                                             std::move(distro));
+        std::make_unique<GaussianMechanism>(stddev_.value(), std::move(distro));
     return result;
   }  // Else construct from DP parameters.
 
@@ -251,8 +250,8 @@ GaussianMechanism::Builder::Build() {
   ASSIGN_OR_RETURN(double l2, CalculateL2Sensitivity());
 
   return absl::StatusOr<std::unique_ptr<NumericalMechanism>>(
-      absl::make_unique<GaussianMechanism>(epsilon.value(), GetDelta().value(),
-                                           l2, std::move(distro)));
+      std::make_unique<GaussianMechanism>(epsilon.value(), GetDelta().value(),
+                                          l2, std::move(distro)));
 }
 
 absl::StatusOr<double> GaussianMechanism::Builder::CalculateL2Sensitivity() {

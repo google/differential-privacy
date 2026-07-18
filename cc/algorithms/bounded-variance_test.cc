@@ -109,7 +109,7 @@ TYPED_TEST(BoundedVarianceTest, BasicTest) {
   std::vector<TypeParam> a = {1, 2, 3, 4, 5};
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
       typename BoundedVariance<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(0)
           .SetUpper(6)
@@ -124,7 +124,7 @@ TYPED_TEST(BoundedVarianceTest, BasicMultipleEntriesTest) {
   std::vector<TypeParam> a = {1, 2, 3, 4, 5};
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
       typename BoundedVariance<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(0)
           .SetUpper(6)
@@ -142,7 +142,7 @@ TYPED_TEST(BoundedVarianceTest, BasicMultipleEntriesTest) {
 TEST(BoundedVarianceTest, AddMultipleEntriesInvalidInputTest) {
   absl::StatusOr<std::unique_ptr<BoundedVariance<float>>> bv =
       typename BoundedVariance<float>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(0)
           .SetUpper(6)
@@ -166,7 +166,7 @@ TEST(BoundedVarianceTest, AddMultipleEntriesInvalidInputTest) {
 TYPED_TEST(BoundedVarianceTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
       typename BoundedVariance<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(0)
           .SetUpper(6)
@@ -195,7 +195,7 @@ TYPED_TEST(BoundedVarianceTest, AddMultipleEntriesInvalidNumberOfEntriesTest) {
 TYPED_TEST(BoundedVarianceTest, RepeatedResultTest) {
   std::vector<TypeParam> a = {1, 2, 3, 4, 5};
   typename BoundedVariance<TypeParam>::Builder builder;
-  builder.SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+  builder.SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
       .SetEpsilon(1.0)
       .SetLower(0)
       .SetUpper(6);
@@ -219,7 +219,7 @@ TYPED_TEST(BoundedVarianceTest, InsufficientPrivacyBudgetTest) {
   std::vector<TypeParam> a = {1, 2, 3, 4, 5};
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
       typename BoundedVariance<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(0)
           .SetUpper(6)
@@ -236,7 +236,7 @@ TYPED_TEST(BoundedVarianceTest, ClampInputTest) {
   std::vector<TypeParam> a = {0, 0, 1, 1};
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
       typename BoundedVariance<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1.0)
           .SetLower(1)
           .SetUpper(3)
@@ -294,7 +294,7 @@ TYPED_TEST(BoundedVarianceTest, EmptyInputsBoundsTest) {
     absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
         typename BoundedVariance<TypeParam>::Builder()
             .SetLaplaceMechanism(
-                absl::make_unique<ZeroNoiseMechanism::Builder>())
+                std::make_unique<ZeroNoiseMechanism::Builder>())
             .SetEpsilon(1.0)
             .SetLower(lower)
             .SetUpper(upper)
@@ -314,7 +314,7 @@ TYPED_TEST(BoundedVarianceTest, GaussianInputTest) {
       BoundedVariance<double>::Builder()
           .SetLower(-20)
           .SetUpper(20)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bv);
   // Generate the large sample of points from a seeded Laplace distribution.
@@ -396,7 +396,7 @@ TYPED_TEST(BoundedVarianceTest, SerializeMergeTest) {
           .SetEpsilon(.5)
           .SetLower(0)
           .SetUpper(3)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bv1);
   (*bv1)->AddEntry(2);
@@ -409,7 +409,7 @@ TYPED_TEST(BoundedVarianceTest, SerializeMergeTest) {
           .SetEpsilon(.5)
           .SetLower(0)
           .SetUpper(3)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bv2);
   (*bv2)->AddEntry(6);
@@ -433,13 +433,13 @@ TYPED_TEST(BoundedVarianceTest,
       typename ApproxBounds<TypeParam>::Builder()
           .SetThresholdForTest(0.5)
           .SetNumBins(50)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(kDefaultEpsilon / 2)
           .Build();
   ASSERT_OK(bounds1);
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv1 =
       typename BoundedVariance<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(kDefaultEpsilon)
           .SetApproxBounds(std::move(bounds1).value())
           .Build();
@@ -454,13 +454,13 @@ TYPED_TEST(BoundedVarianceTest,
       typename ApproxBounds<TypeParam>::Builder()
           .SetThresholdForTest(0.5)
           .SetNumBins(50)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(kDefaultEpsilon / 2)
           .Build();
   ASSERT_OK(bounds2);
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv2 =
       typename BoundedVariance<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(kDefaultEpsilon)
           .SetApproxBounds(std::move(bounds2).value())
           .Build();
@@ -486,13 +486,13 @@ TYPED_TEST(BoundedVarianceTest,
       typename ApproxBounds<TypeParam>::Builder()
           .SetThresholdForTest(0.5)
           .SetNumBins(50)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(kDefaultEpsilon / 2)
           .Build();
   ASSERT_OK(bounds1);
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv1 =
       typename BoundedVariance<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(kDefaultEpsilon)
           .SetBoundsProvider(
               std::make_unique<ApproxBoundsAsBoundsProvider<TypeParam>>(
@@ -509,13 +509,13 @@ TYPED_TEST(BoundedVarianceTest,
       typename ApproxBounds<TypeParam>::Builder()
           .SetThresholdForTest(0.5)
           .SetNumBins(50)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(kDefaultEpsilon / 2)
           .Build();
   ASSERT_OK(bounds2);
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv2 =
       typename BoundedVariance<TypeParam>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(kDefaultEpsilon)
           .SetBoundsProvider(
               std::make_unique<ApproxBoundsAsBoundsProvider<TypeParam>>(
@@ -566,7 +566,7 @@ TEST(BoundedVarianceTest, OverflowRawCountTest) {
 
   std::unique_ptr<BoundedVariance<double>> bv =
       builder
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-1)
           .SetUpper(1)
           .Build()
@@ -590,7 +590,7 @@ TEST(BoundedVarianceTest, OverflowAddEntryManualBounds) {
 
   std::unique_ptr<BoundedVariance<int32_t>> bv =
       builder
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-1)
           .SetUpper(1)
           .Build()
@@ -612,7 +612,7 @@ TEST(BoundedVarianceTest, UnderflowAddEntryManualBounds) {
 
   std::unique_ptr<BoundedVariance<int32_t>> bv =
       builder
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-1)
           .SetUpper(1)
           .Build()
@@ -633,7 +633,7 @@ TEST(BoundedVarianceTest, OverflowRawCountMergeManualBoundsTest) {
 
   std::unique_ptr<BoundedVariance<double>> bv =
       builder
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(0)
           .SetUpper(10)
           .Build()
@@ -667,7 +667,7 @@ TEST(BoundedVarianceTest, OverflowMergeManualBoundsTest) {
 
   std::unique_ptr<BoundedVariance<int32_t>> bv =
       builder
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-1)
           .SetUpper(1)
           .Build()
@@ -693,7 +693,7 @@ TEST(BoundedVarianceTest, UnderflowMergeManualBoundsTest) {
 
   std::unique_ptr<BoundedVariance<int32_t>> bv =
       builder
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetLower(-1)
           .SetUpper(1)
           .Build()
@@ -742,7 +742,7 @@ TEST(BoundedVarianceTest, DropNanEntries) {
   std::vector<double> a = {1, 2, 3, 4, NAN, NAN, 5};
   absl::StatusOr<std::unique_ptr<BoundedVariance<double>>> bv =
       BoundedVariance<double>::Builder()
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(1)
           .SetLower(0)
           .SetUpper(6)
@@ -776,14 +776,14 @@ TYPED_TEST(BoundedVarianceTest, AutomaticBoundsContainZero) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(1)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
       typename BoundedVariance<TypeParam>::Builder()
           .SetEpsilon(1)
           .SetApproxBounds(std::move(*bounds))
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bv);
   (*bv)->AddEntries(a.begin(), a.end());
@@ -811,14 +811,14 @@ TEST(BoundedVarianceTest, AutomaticBoundsNegative) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(1.5)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   absl::StatusOr<std::unique_ptr<BoundedVariance<double>>> bv =
       BoundedVariance<double>::Builder()
           .SetEpsilon(1)
           .SetApproxBounds(std::move(bounds).value())
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bv);
   (*bv)->AddEntries(a.begin(), a.end());
@@ -854,14 +854,14 @@ TEST(BoundedVarianceTest, AutomaticBoundsPositive) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(1.5)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   absl::StatusOr<std::unique_ptr<BoundedVariance<double>>> bv =
       BoundedVariance<double>::Builder()
           .SetEpsilon(1)
           .SetApproxBounds(std::move(bounds).value())
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bv);
   (*bv)->AddEntries(a.begin(), a.end());
@@ -893,7 +893,7 @@ TYPED_TEST(BoundedVarianceTest, AutomaticBoundsDefault) {
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
       typename BoundedVariance<TypeParam>::Builder()
           .SetEpsilon(1)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bv);
   std::vector<TypeParam> big(570, 10);
@@ -925,14 +925,14 @@ TYPED_TEST(BoundedVarianceTest, AutomaticBoundsZero) {
           .SetBase(2)
           .SetScale(1)
           .SetThresholdForTest(1.5)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bounds);
   absl::StatusOr<std::unique_ptr<BoundedVariance<TypeParam>>> bv =
       typename BoundedVariance<TypeParam>::Builder()
           .SetEpsilon(1)
           .SetApproxBounds(std::move(bounds).value())
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bv);
   (*bv)->AddEntries(a.begin(), a.end());
@@ -950,7 +950,7 @@ TYPED_TEST(BoundedVarianceTest, Reset) {
           .SetNumBins(3)
           .SetBase(10)
           .SetScale(1)
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .SetEpsilon(kDefaultEpsilon / 2)
           .SetThresholdForTest(0.5)
           .Build();
@@ -959,7 +959,7 @@ TYPED_TEST(BoundedVarianceTest, Reset) {
       typename BoundedVariance<TypeParam>::Builder()
           .SetEpsilon(1)
           .SetApproxBounds(std::move(bounds).value())
-          .SetLaplaceMechanism(absl::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
           .Build();
   ASSERT_OK(bv);
 

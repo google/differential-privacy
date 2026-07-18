@@ -96,7 +96,7 @@ def get_alpha_interval(
       num_queries=1,
       sensitivity=radius)
   lower_bound_alpha = multipliers.get_alpha(all_eps_std_dev, radius)
-  return mechanism_calibration.LowerEndpointAndGuess(lower_bound_alpha,
+  return mechanism_calibration.LowerEndpointAndGuess(lower_bound_alpha,  # pyrefly: ignore[bad-argument-count]
                                                      2 * lower_bound_alpha)
 
 

@@ -136,17 +136,17 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
 
   @abc.abstractmethod
   def get_epsilon(self, target_delta: float) -> float:
-    """Gets the current epsilon.
+    r"""Gets the current epsilon.
 
     Args:
       target_delta: The target delta.
 
     Returns:
-      The current epsilon, accounting for all composed `DpEvent`s.
+      The current epsilon, accounting for all composed `DpEvent`\ s.
     """
 
   def get_delta(self, target_epsilon: float) -> float:
-    """Gets the current delta.
+    r"""Gets the current delta.
 
     An implementer of `PrivacyAccountant` may choose not to override this, in
     which case `NotImplementedError` will be raised.
@@ -155,6 +155,6 @@ class PrivacyAccountant(metaclass=abc.ABCMeta):
       target_epsilon: The target epsilon.
 
     Returns:
-      The current delta, accounting for all composed `DpEvent`s.
+      The current delta, accounting for all composed `DpEvent`\ s.
     """
     raise NotImplementedError()

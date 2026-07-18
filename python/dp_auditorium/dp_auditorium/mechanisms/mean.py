@@ -55,11 +55,11 @@ class MeanMechanism:
     if self._delta == 0.0:
       # Laplace mechanism.
       self._noise_factor = 1.0
-      self._noise_function = self._rng.laplace
+      self._noise_function = self._rng.laplace  # pyrefly: ignore[missing-attribute]
     else:
       # Gaussian mechanism.
       self._noise_factor = np.sqrt(2.0 * np.log(1.25 / self._delta))
-      self._noise_function = self._rng.normal
+      self._noise_function = self._rng.normal  # pyrefly: ignore[missing-attribute]
 
   def _get_counts(
       self, data: np.ndarray, num_samples: int
@@ -77,7 +77,7 @@ class MeanMechanism:
       the entry in the tuple is an array of length num_samples.
     """
     noise_scale = 1.0 / self._epsilon_budget_scale / self._epsilon
-    noisy_counts = len(data) + self._rng.laplace(
+    noisy_counts = len(data) + self._rng.laplace(  # pyrefly: ignore[missing-attribute]
         0, noise_scale, (num_samples, 1)
     )
     if self._use_noised_counts_for_calculating_mean:

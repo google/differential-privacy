@@ -101,7 +101,16 @@ class DpFunctionsParamsTest {
           maxPartitionsContributed = 2,
         ),
       exceptionMessage =
-        "maxPartitionsContributed must be 1 if partition level contribution bounding is set. Provided value: 2",
+        "maxPartitionsContributed must be 1 if partition or record level contribution bounding is set. Provided value: 2",
+    ),
+    RECORD_LEVEL_CONTRIBUTION_BOUNDING_MAX_PARTITIONS_CONTRIBUTED(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          contributionBoundingLevel = ContributionBoundingLevel.RECORD_LEVEL,
+          maxPartitionsContributed = 2,
+        ),
+      exceptionMessage =
+        "maxPartitionsContributed must be 1 if partition or record level contribution bounding is set. Provided value: 2",
     ),
     MAX_PARTITIONS_CONTRIBUTED_NOT_SET_WHEN_CONTRIBUTION_BOUNDING_LEVEL_REQUIRES_CROSS_PARTITION_BOUNDING(
       aggregationParams =
@@ -138,6 +147,15 @@ class DpFunctionsParamsTest {
         ),
       exceptionMessage =
         "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) or vectorMaxTotalNorm must be set because specified PARTITION_LEVEL contribution bounding level requires per partition bounding",
+    ),
+    RECORD_LEVEL_CONTRIBUTION_BOUNDING_MAX_CONTRIBUTIONS_PER_PARTITION(
+      aggregationParams =
+        AGGREGATION_PARAMS.copy(
+          contributionBoundingLevel = ContributionBoundingLevel.RECORD_LEVEL,
+          maxContributionsPerPartition = 2,
+        ),
+      exceptionMessage =
+        "maxContributionsPerPartition must be 1 when contributionBoundingLevel is RECORD_LEVEL. Provided value: 2",
     ),
     ZERO_MAX_CONTRIBUTIONS(
       aggregationParams = AGGREGATION_PARAMS.copy(maxContributions = 0),
@@ -565,7 +583,16 @@ class DpFunctionsParamsTest {
           maxPartitionsContributed = 2,
         ),
       exceptionMessage =
-        "maxPartitionsContributed must be 1 if partition level contribution bounding is set. Provided value: 2",
+        "maxPartitionsContributed must be 1 if partition or record level contribution bounding is set. Provided value: 2",
+    ),
+    RECORD_LEVEL_CONTRIBUTION_BOUNDING_MAX_PARTITIONS_CONTRIBUTED(
+      selectPartitionsParams =
+        SELECT_PARTITIONS_PARAMS.copy(
+          contributionBoundingLevel = ContributionBoundingLevel.RECORD_LEVEL,
+          maxPartitionsContributed = 2,
+        ),
+      exceptionMessage =
+        "maxPartitionsContributed must be 1 if partition or record level contribution bounding is set. Provided value: 2",
     ),
     NOT_POSITIVE_PRETHRESHOLD(
       selectPartitionsParams = SELECT_PARTITIONS_PARAMS.copy(preThreshold = 0),

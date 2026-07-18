@@ -239,15 +239,15 @@ def compute_self_convolve_bounds(
     # Set orders so whose absolute values are not too large; otherwise, we may
     # run into numerical issues.
     orders = (
-        np.concatenate((np.arange(-20, 0), np.arange(1, 21))) / len(input_list))
+        np.concatenate((np.arange(-20, 0), np.arange(1, 21))) / len(input_list))  # pyrefly: ignore[bad-assignment]
 
   # Compute log of the moment generating function at the specified orders.
   log_mgfs = [
       special.logsumexp(np.arange(len(input_list)) * order, b=input_list)
-      for order in orders
+      for order in orders  # pyrefly: ignore[not-iterable]
   ]
 
-  for order, log_mgf_value in zip(orders, log_mgfs):
+  for order, log_mgf_value in zip(orders, log_mgfs):  # pyrefly: ignore[bad-argument-type]
     # Use Chernoff bound to update the upper/lower bound. See equation (5) in
     # the supplementary material.
     bound = (num_times * log_mgf_value +
@@ -280,7 +280,7 @@ def self_convolve(input_list: ArrayLike,
     of input_list[i_1] * input_list[i_2] * ... * input_list[i_num_times].
   """
   truncation_lower_bound, truncation_upper_bound = compute_self_convolve_bounds(
-      input_list, num_times, tail_mass_truncation)
+      input_list, num_times, tail_mass_truncation)  # pyrefly: ignore[bad-argument-type]
 
   # Use FFT to compute the convolution
   output_len = truncation_upper_bound - truncation_lower_bound + 1

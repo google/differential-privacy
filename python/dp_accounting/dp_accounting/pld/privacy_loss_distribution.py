@@ -635,7 +635,7 @@ def _create_pld_pmf_from_monotone_privacy_loss(
         rounded_epsilons = np.array(rounded_epsilons)
 
         deltas = monotone_privacy_loss.get_delta_for_epsilon(
-            rounded_epsilons * value_discretization_interval)
+            rounded_epsilons * value_discretization_interval)  # pyrefly: ignore[bad-argument-type]
 
         return pld_pmf.create_pmf_pessimistic_connect_dots(
             value_discretization_interval,
@@ -655,7 +655,7 @@ def _create_pld_pmf_from_monotone_privacy_loss(
                                      rounded_epsilon_upper + 1)
 
         deltas = monotone_privacy_loss.get_delta_for_epsilon(
-            rounded_epsilons * value_discretization_interval)
+            rounded_epsilons * value_discretization_interval)  # pyrefly: ignore[bad-argument-type]
 
         # Use a specialized numerically stable approach for continuous noise
         return pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
@@ -673,7 +673,7 @@ def _create_pld_pmf_from_monotone_privacy_loss(
   infinity_mass = tail_pld.tail_probability_mass_function.get(math.inf, 0)
   for privacy_loss in tail_pld.tail_probability_mass_function:
     if privacy_loss != math.inf:
-      rounded_probability_mass_function[round_fn(
+      rounded_probability_mass_function[round_fn(  # pyrefly: ignore[unsupported-operation]
           privacy_loss / value_discretization_interval
       )] += tail_pld.tail_probability_mass_function[privacy_loss]
 
@@ -683,7 +683,7 @@ def _create_pld_pmf_from_monotone_privacy_loss(
     # Compute PMF for the x's. Note that a vectorized call to mu_upper_cdf can
     # be much faster than many scalar calls.
     cdf_values = monotone_privacy_loss.mu_upper_cdf(xs)
-    probability_mass = cdf_values[1:] - cdf_values[:-1]
+    probability_mass = cdf_values[1:] - cdf_values[:-1]  # pyrefly: ignore[bad-index]
 
     for x, prob in zip(xs[1:], probability_mass):
       rounded_probability_mass_function[round_fn(
@@ -713,7 +713,7 @@ def _create_pld_pmf_from_monotone_privacy_loss(
     # Compute PLD for discretization intervals. Note that a vectorized call to
     # mu_upper_cdf is much faster than many scalar calls.
     cdf_values = monotone_privacy_loss.mu_upper_cdf(xs)
-    probability_mass = cdf_values[1:] - cdf_values[:-1]
+    probability_mass = cdf_values[1:] - cdf_values[:-1]  # pyrefly: ignore[bad-index]
 
     # Each x in [lower_x, upper_x] results in privacy loss that lies in
     # [value_discretization_interval * rounded_down_value,
@@ -1352,8 +1352,8 @@ def from_privacy_parameters(
 
   rounded_probability_mass_function[math.ceil(
       epsilon /
-      value_discretization_interval)] = (1 - delta) / (1 + math.exp(-epsilon))
-  rounded_probability_mass_function[math.ceil(
+      value_discretization_interval)] = (1 - delta) / (1 + math.exp(-epsilon))  # pyrefly: ignore[unsupported-operation]
+  rounded_probability_mass_function[math.ceil(  # pyrefly: ignore[unsupported-operation]
       -epsilon /
       value_discretization_interval)] += (1 - delta) / (1 + math.exp(epsilon))
 

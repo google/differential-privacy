@@ -132,7 +132,7 @@ class CountCombiner(
         contributions
           .size()
           .toLong()
-          .coerceInIfContributionBoundingEnabled(
+          .coerceInIfPerPartitionContributionBoundingEnabled(
             0,
             aggregationParams.maxContributionsPerPartition!!.toLong(),
             aggregationParams,
@@ -410,8 +410,16 @@ class SumCombiner(
           0.0
         } else {
           contributions.singleValueContributionsList
+            .map {
+              it.coerceInIfPerRecordContributionBoundingEnabled(
+                aggregationParams.minTotalValue!!,
+                aggregationParams.maxTotalValue!!,
+                aggregationParams,
+                executionMode,
+              )
+            }
             .sum()
-            .coerceInIfContributionBoundingEnabled(
+            .coerceInIfPerPartitionContributionBoundingEnabled(
               aggregationParams.minTotalValue!!,
               aggregationParams.maxTotalValue!!,
               aggregationParams,
@@ -485,8 +493,14 @@ class VectorSumCombiner(
     sumsPerDimension +=
       contributions.multiValueContributionsList
         .map { contribution -> ArrayRealVector(contribution.valuesList.toDoubleArray()) }
+        .map { vector ->
+          vector.clipIfPerRecordContributionBoundingEnabled(
+            aggregationParams.vectorMaxTotalNorm!!,
+            aggregationParams.vectorNormKind!!,
+          )
+        }
         .reduceOrNull { acc, vector -> acc.add(vector) }
-        ?.clipIfContributionBoundingEnabled(
+        ?.clipIfPerPartitionContributionBoundingEnabled(
           aggregationParams.vectorMaxTotalNorm!!,
           aggregationParams.vectorNormKind!!,
         )
@@ -548,13 +562,27 @@ class VectorSumCombiner(
     return noisedVector.toArray().asList()
   }
 
-  private fun RealVector.clipIfContributionBoundingEnabled(
+  private fun RealVector.clipIfPerRecordContributionBoundingEnabled(
+    maxNorm: Double,
+    normKind: NormKind,
+  ): RealVector {
+    if (!aggregationParams.applyPerRecordBounding(executionMode)) {
+      return this.copy()
+    }
+    return clip(maxNorm, normKind)
+  }
+
+  private fun RealVector.clipIfPerPartitionContributionBoundingEnabled(
     maxNorm: Double,
     normKind: NormKind,
   ): RealVector {
     if (!aggregationParams.applyPerPartitionBounding(executionMode)) {
       return this.copy()
     }
+    return clip(maxNorm, normKind)
+  }
+
+  private fun RealVector.clip(maxNorm: Double, normKind: NormKind): RealVector {
     // L_INF is treated differently. When clamping, each component is clamped independently.
     if (normKind == NormKind.L_INF) {
       return this.map { it.coerceIn(-maxNorm, maxNorm) }
@@ -656,7 +684,7 @@ class MeanCombiner(
       normalizedSum =
         contributions.singleValueContributionsList
           .map {
-            it.coerceInIfContributionBoundingEnabled(
+            it.coerceInIfPerRecordOrPerPartitionContributionBoundingEnabled(
               aggregationParams.minValue!!,
               aggregationParams.maxValue!!,
               aggregationParams,
@@ -713,8 +741,7 @@ class MeanCombiner(
  * @property count the differentially private count (if requested).
  */
 @Immutable
-data class MeanCombinerResult(val mean: Double, val sum: Double?, val count: Double?) :
-  Serializable
+data class MeanCombinerResult(val mean: Double, val sum: Double?, val count: Double?) : Serializable
 
 /**
  * A [Combiner] for the [MetricType.QUANTILES].
@@ -871,7 +898,7 @@ class VarianceCombiner(
     varianceAccumulator {
       val coercedValues =
         contributions.singleValueContributionsList.map {
-          it.coerceInIfContributionBoundingEnabled(
+          it.coerceInIfPerRecordOrPerPartitionContributionBoundingEnabled(
             aggregationParams.minValue!!,
             aggregationParams.maxValue!!,
             aggregationParams,
@@ -975,8 +1002,9 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
     }
   }
 
-  override val requiresPerPartitionBoundedInput =
-    combiners.any { it.requiresPerPartitionBoundedInput }
+  override val requiresPerPartitionBoundedInput = combiners.any {
+    it.requiresPerPartitionBoundedInput
+  }
 
   /**
    * Creates a [CompoundAccumulator] by invoking the `createAccumulator` method on each underlying
@@ -1126,8 +1154,9 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
    *
    * @return True if it has post aggregation partition selection combiner.
    */
-  fun hasPostAggregationCombiner() =
-    combiners.any { combiner -> combiner is PostAggregationPartitionSelectionCombiner }
+  fun hasPostAggregationCombiner() = combiners.any { combiner ->
+    combiner is PostAggregationPartitionSelectionCombiner
+  }
 
   companion object {
     private fun throwIfCompoundCombiner() {
@@ -1140,7 +1169,7 @@ class CompoundCombiner(val combiners: Iterable<Combiner<*, *>>) :
  * Clamp value to the range [minimumValue, maximumValue] if per partition contribution bounding is
  * required.
  */
-private fun <T : Comparable<T>> T.coerceInIfContributionBoundingEnabled(
+private fun <T : Comparable<T>> T.coerceInIfPerPartitionContributionBoundingEnabled(
   minimumValue: T,
   maximumValue: T,
   params: AggregationParams,
@@ -1148,6 +1177,44 @@ private fun <T : Comparable<T>> T.coerceInIfContributionBoundingEnabled(
 ): T {
   // Per-pertition bounding implies clamping.
   return if (params.applyPerPartitionBounding(executionMode)) {
+    coerceIn(minimumValue, maximumValue)
+  } else {
+    this
+  }
+}
+
+/**
+ * Clamp value to the range [minimumValue, maximumValue] if per record contribution bounding is
+ * required.
+ */
+private fun <T : Comparable<T>> T.coerceInIfPerRecordContributionBoundingEnabled(
+  minimumValue: T,
+  maximumValue: T,
+  params: AggregationParams,
+  executionMode: ExecutionMode,
+): T {
+  // Per-record bounding implies clamping.
+  return if (params.applyPerRecordBounding(executionMode)) {
+    coerceIn(minimumValue, maximumValue)
+  } else {
+    this
+  }
+}
+
+/**
+ * Clamp value to the range [minimumValue, maximumValue] if per record or per partition contribution
+ * bounding is required.
+ */
+private fun <T : Comparable<T>> T.coerceInIfPerRecordOrPerPartitionContributionBoundingEnabled(
+  minimumValue: T,
+  maximumValue: T,
+  params: AggregationParams,
+  executionMode: ExecutionMode,
+): T {
+  // Per-record bounding implies clamping.
+  return if (
+    params.applyPerRecordBounding(executionMode) || params.applyPerPartitionBounding(executionMode)
+  ) {
     coerceIn(minimumValue, maximumValue)
   } else {
     this

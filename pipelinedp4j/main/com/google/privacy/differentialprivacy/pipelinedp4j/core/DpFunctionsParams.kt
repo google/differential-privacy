@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList
 import com.google.errorprone.annotations.Immutable
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.DATASET_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.PARTITION_LEVEL
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.RECORD_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.COUNT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.MEAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.PRIVACY_ID_COUNT
@@ -60,6 +61,20 @@ sealed interface Params {
 }
 
 /**
+ * Whether per-record contribution bounding should be applied with respect to execution mode.
+ *
+ * It can be used outside of this class to determine whether per-record contribution bounding should
+ * be applied with respect to [contributionBoundingLevel] and [executionMode].
+ *
+ * This property should not be used for validation of [Params] because it accounts for the execution
+ * mode and validation should always be performed for the production mode only.
+ * [contributionBoundingLevel] represents the contribution bounding level that is used in production
+ * therefore only its values should be used for validation.
+ */
+fun Params.applyPerRecordBounding(executionMode: ExecutionMode): Boolean =
+  perRecordBoundingShouldBeApplied(executionMode, contributionBoundingLevel)
+
+/**
  * Whether per-partition contribution bounding should be applied with respect to execution mode.
  *
  * It can be used outside of this class to determine whether per-partition contribution bounding
@@ -86,6 +101,18 @@ fun Params.applyPerPartitionBounding(executionMode: ExecutionMode): Boolean =
  */
 fun Params.applyPartitionsContributedBounding(executionMode: ExecutionMode): Boolean =
   partitionsContributedBoundingShouldBeApplied(executionMode, contributionBoundingLevel)
+
+/**
+ * Determines whether per-record contribution bounding should be applied given [executionMode] and
+ * [contributionBoundingLevel].
+ */
+fun perRecordBoundingShouldBeApplied(
+  executionMode: ExecutionMode,
+  contributionBoundingLevel: ContributionBoundingLevel,
+): Boolean =
+  executionMode.appliesContributionBounding &&
+    !contributionBoundingLevel.withContributionsPerPartitionBounding &&
+    !contributionBoundingLevel.withPartitionsContributedBounding
 
 /**
  * Determines whether per-partition contribution bounding should be applied given [executionMode]
@@ -234,6 +261,13 @@ fun validateAggregationParams(
         params.vectorMaxTotalNorm != null
     ) {
       "maxContributionsPerPartition or maxContributions or (minTotalValue, maxTotalValue) or vectorMaxTotalNorm must be set because specified ${params.contributionBoundingLevel} contribution bounding level requires per partition bounding."
+    }
+  }
+  // When contributionBoundingLevel is RECORD_LEVEL, maxContributionsPerPartition must be 1.
+  if (params.contributionBoundingLevel == RECORD_LEVEL) {
+    require(params.maxContributionsPerPartition == 1) {
+      "maxContributionsPerPartition must be 1 when contributionBoundingLevel is RECORD_LEVEL. " +
+        "Provided value: ${params.maxContributionsPerPartition}."
     }
   }
   // Max contributions.
@@ -457,6 +491,11 @@ enum class ContributionBoundingLevel(
     withPartitionsContributedBounding = false,
     withContributionsPerPartitionBounding = true,
   ),
+  /** No contribution bounding is applied. */
+  RECORD_LEVEL(
+    withPartitionsContributedBounding = false,
+    withContributionsPerPartitionBounding = false,
+  ),
 }
 
 /**
@@ -594,12 +633,14 @@ private fun validateBaseParams(params: Params) {
       "Provided values: maxPartitionsContributed=${params.maxPartitionsContributed}."
   }
   // Contribution bounding level.
-  require(
-    params.contributionBoundingLevel != PARTITION_LEVEL ||
-      (params.contributionBoundingLevel == PARTITION_LEVEL && params.maxPartitionsContributed == 1)
+  if (
+    params.contributionBoundingLevel == PARTITION_LEVEL ||
+      params.contributionBoundingLevel == RECORD_LEVEL
   ) {
-    "maxPartitionsContributed must be 1 if partition level contribution bounding is set. " +
-      "Provided value: ${params.maxPartitionsContributed}."
+    require(params.maxPartitionsContributed == 1) {
+      "maxPartitionsContributed must be 1 if partition or record level contribution bounding is set. " +
+        "Provided value: ${params.maxPartitionsContributed}."
+    }
   }
 
   // Pre-threshold.

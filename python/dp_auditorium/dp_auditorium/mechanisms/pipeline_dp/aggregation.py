@@ -80,7 +80,7 @@ class AggregationMechanism(interfaces.Mechanism):
   def __call__(self, data: np.ndarray, num_samples: int) -> np.ndarray:
     """Returns an array of samples of a DP aggregation using pipeline_dp."""
     result = []
-    data = list(data)  # PipelineDP works now for list only.
+    data = list(data)  # PipelineDP works now for list only.  # pyrefly: ignore[bad-assignment]
     for _ in range(num_samples):
-      result.append(self._compute_aggregations(data))
+      result.append(self._compute_aggregations(data))  # pyrefly: ignore[bad-argument-type]
     return np.array(result)

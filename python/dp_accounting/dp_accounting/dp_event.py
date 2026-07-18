@@ -77,11 +77,11 @@ class DpEventNamedTuple(Protocol):
 
 @attr.s(frozen=True)
 class DpEvent(object):
-  """Represents application of a private mechanism.
+  r"""Represents application of a private mechanism.
 
   A `DpEvent` describes a differentially private mechanism sufficiently for
   computing the associated privacy losses, both in isolation and in combination
-  with other `DpEvent`s.
+  with other `DpEvent`\ s.
   """
 
   def to_named_tuple(self) -> DpEventNamedTuple:
@@ -104,7 +104,7 @@ class DpEvent(object):
     fields = [('module_name', str), ('class_name', str)]
     fields.extend([(x.name, x.type) for x in attr.fields(cls)])
     named_tuple_wrapper_name = f'_{cls.__name__}NamedTupleWrapper'
-    _NamedTupleWrapper = NamedTuple(named_tuple_wrapper_name, fields)  # pylint: disable=invalid-name
+    _NamedTupleWrapper = NamedTuple(named_tuple_wrapper_name, fields)  # pylint: disable=invalid-name  # pyrefly: ignore[bad-class-definition]
 
     def _to_named_tuple(value):
       if attr.has(type(value)):
@@ -118,14 +118,14 @@ class DpEvent(object):
       elif isinstance(value, Mapping):
         elements = [(k, _to_named_tuple(v)) for k, v in value.items()]
         mapping_type = type(value)
-        value = mapping_type(elements)
+        value = mapping_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
       elif isinstance(value, Sequence):
         elements = [_to_named_tuple(x) for x in value]
         sequence_type = type(value)
-        value = sequence_type(elements)
+        value = sequence_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
       values[key] = value
 
-    return _NamedTupleWrapper(**values)
+    return _NamedTupleWrapper(**values)  # pyrefly: ignore[bad-return, unexpected-keyword]
 
   @classmethod
   def from_named_tuple(cls, obj: DpEventNamedTuple) -> 'DpEvent':
@@ -160,11 +160,11 @@ class DpEvent(object):
       elif isinstance(value, Mapping):
         elements = [(k, _from_named_tuple(v)) for k, v in value.items()]
         mapping_type = type(value)
-        value = mapping_type(elements)
+        value = mapping_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
       elif isinstance(value, Sequence):
         elements = [_from_named_tuple(x) for x in value]
         sequence_type = type(value)
-        value = sequence_type(elements)
+        value = sequence_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
       values[field] = value
 
     module_name = obj.module_name
@@ -285,12 +285,12 @@ class GaussianDpEvent(DpEvent):
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class LaplaceDpEvent(DpEvent):
-  """Represents an application of the Laplace mechanism.
+  r"""Represents an application of the Laplace mechanism.
 
   For values v_i and noise z sampled coordinate-wise from the Laplace
   distribution L(0, s), this mechanism returns sum_i v_i + z.
   The probability density function of the Laplace distribution L(0, s) with
-  parameter s is given as exp(-|x|/s) * (0.5/s) at x for any real value x.
+  parameter s is given as exp(-\|x\|/s) * (0.5/s) at x for any real value x.
   If the L_1 norm of the values are bounded ||v_i||_1 <= C, the noise_multiplier
   is defined as s / C.
   """
@@ -327,9 +327,10 @@ class DiscreteGaussianDpEvent(DpEvent):
   Unlike for the continuous Gaussian, the univariate and multivariate cases are
   not equivalent for the discrete Gaussian. The `dimension` parameter specifies
   the dimensionality of the output:
-    - dimension=1: Univariate.
-    - dimension>1: Multivariate.
-    - dimension=None: Unknown. (Default.) Accountants should be conservative.
+
+  - `dimension=1`: Univariate.
+  - `dimension>1`: Multivariate.
+  - `dimension=None`: Unknown. (Default.) Accountants should be conservative.
 
   See https://arxiv.org/abs/2004.00010 for details.
   """
@@ -494,6 +495,28 @@ class ExponentialMechanismDpEvent(DpEvent):
 
   Attributes:
     epsilon: The epsilon parameter of the exponential mechanism.
+  """
+
+  epsilon: float
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
+class PermuteAndFlipDpEvent(DpEvent):
+  """Represents an application of the permute-and-flip mechanism.
+
+  See https://arxiv.org/abs/2010.12603 (McKenna & Sheldon, 2020) for details.
+
+  Unlike the exponential mechanism which is epsilon-bounded range, the
+  permute-and-flip mechanism satisfies standard epsilon-DP. Its privacy loss
+  distribution is identical to that of the Laplace mechanism with parameter
+  1/epsilon. A dedicated event type is provided for API clarity and to allow
+  future tighter analyses.
+
+  For RDP accounting, we use the tight Laplace RDP formula (Mironov, 2017).
+  For PLD accounting, we use the Laplace privacy loss distribution.
+
+  Attributes:
+    epsilon: The epsilon parameter of the permute-and-flip mechanism.
   """
 
   epsilon: float

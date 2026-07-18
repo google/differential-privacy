@@ -71,7 +71,7 @@ class SimHash():
       raise ValueError(f"Hash prefix {hash_prefix} has length greater than or "
                        f"equal to max hash length ({self.max_hash_len})")
     projected_values = np.matmul(datapoints,
-                                 self.projection_vectors[prefix_length])
+                                 self.projection_vectors[prefix_length])  # pyrefly: ignore[unsupported-operation]
     return {
         "0": datapoints[projected_values >= 0],
         "1": datapoints[projected_values < 0]

@@ -48,7 +48,7 @@ class NoisyMaxMechanism:
     counts = collections.Counter(data)
     counts_array = [counts[i] for i in range(self.num_elements)]
 
-    noise = self.rng.gumbel(
+    noise = self.rng.gumbel(  # pyrefly: ignore[missing-attribute]
         loc=0, scale=2 / self.epsilon, size=(num_samples, self.num_elements)
     )
     noisy_counts = counts_array + noise

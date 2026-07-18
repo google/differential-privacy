@@ -378,7 +378,7 @@ TYPED_TEST(NumericalMechanismsTest, LaplaceBuilderSensitivityTooHigh) {
 }
 
 TEST(NumericalMechanismsTest, LaplaceAddsNoise) {
-  auto distro = absl::make_unique<MockLaplaceDistribution>();
+  auto distro = std::make_unique<MockLaplaceDistribution>();
   ON_CALL(*distro, Sample()).WillByDefault(Return(10.0));
   LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));
 
@@ -449,7 +449,7 @@ TEST(NumericalMechanismsTest, LaplaceVarianceCorrect) {
 }
 
 TEST(NumericalMechanismsTest, LaplaceWorksForIntegers) {
-  auto distro = absl::make_unique<MockLaplaceDistribution>();
+  auto distro = std::make_unique<MockLaplaceDistribution>();
   ON_CALL(*distro, Sample()).WillByDefault(Return(10.0));
   LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));
 
@@ -691,7 +691,7 @@ TEST(NumericalMechanismsTest, LaplaceEstimatesL1WithL0AndLInf) {
 }
 
 TEST(NumericalMechanismsTest, AddNoise) {
-  auto distro = absl::make_unique<MockLaplaceDistribution>();
+  auto distro = std::make_unique<MockLaplaceDistribution>();
   double granularity = distro->GetGranularity();
   ON_CALL(*distro, Sample()).WillByDefault(Return(10));
   LaplaceMechanism mechanism(1.0, 1.0, std::move(distro));

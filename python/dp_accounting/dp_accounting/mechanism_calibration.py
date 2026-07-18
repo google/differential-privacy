@@ -84,37 +84,42 @@ def _search_for_explicit_bracket_interval(
   scale = guess - endpoint
   upper = lower = guess
   search_up = search_down = True
-  orig_sign = np.sign(epsilon_gap(guess))
+  next_upper_value = next_lower_value = epsilon_gap(guess)
+  orig_sign = np.sign(next_upper_value)
+  up_power = down_power = 0
 
-  # For i in (0, -1, 1, -2, 2, -3, 3, ...) try scaled interval (2**i, 2**(i+1)).
-
-  for power in range(1, 31):
-    if search_up:
-      next_upper = endpoint + scale * (2**power)
+  while search_up or search_down:
+    # Try searching in whichever direction we haven't exhausted. If both are
+    # unexhausted, prefer the direction with the smaller gap.
+    up_better = (np.abs(next_upper_value) <= np.abs(next_lower_value))
+    if search_up and (up_better or not search_down):
+      up_power += 1
+      next_upper = endpoint + scale * (2**up_power)
+      if up_power >= 30:
+        search_up = False
       try:
         next_upper_value = epsilon_gap(next_upper)
         if np.isnan(next_upper_value):
           raise ValueError('Got NaN for epsilon gap.')
         elif np.sign(next_upper_value) != orig_sign:
-          return ExplicitBracketInterval(upper, next_upper)
+          return ExplicitBracketInterval(upper, next_upper)  # pyrefly: ignore[bad-argument-count]
         upper = next_upper
       except Exception:  # pylint: disable=broad-except
         search_up = False
-
-    if search_down:
-      next_lower = endpoint + scale * (2**-power)
+    else:
+      down_power -= 1
+      next_lower = endpoint + scale * (2**down_power)
+      if down_power <= -30:
+        search_down = False
       try:
         next_lower_value = epsilon_gap(next_lower)
         if np.isnan(next_lower_value):
           raise ValueError('Got NaN for epsilon gap.')
         elif np.sign(next_lower_value) != orig_sign:
-          return ExplicitBracketInterval(next_lower, lower)
+          return ExplicitBracketInterval(next_lower, lower)  # pyrefly: ignore[bad-argument-count]
         lower = next_lower
       except Exception:  # pylint: disable=broad-except
         search_down = False
-
-    if not search_up and not search_down:
-      break
 
   raise NoBracketIntervalFoundError(
       'Unable to find bracketing interval within 2**30 of initial guess. '
@@ -184,7 +189,7 @@ def calibrate_dp_mechanism(
     bracket_interval: Optional[BracketInterval] = None,
     discrete: bool = False,
     tol: Optional[float] = None) -> Union[float, int]:
-  """Searches for optimal mechanism parameter value within privacy budget.
+  r"""Searches for optimal mechanism parameter value within privacy budget.
 
   The procedure searches over the space of parameters by creating, for each
   sample value, a DpEvent representing the mechanism generated from that value,
@@ -214,9 +219,9 @@ def calibrate_dp_mechanism(
       is 0.5. 3) An integer is returned.
     tol: The tolerance, in parameter space. If the maximum (or minimum) value of
       the parameter that meets the privacy requirements is x*,
-      calibrate_dp_mechanism is guaranteed to return a value x such that |x -
-      x*| <= tol. If `None`, tol is set to 1e-6 for continuous parameters or 0.5
-      for discrete parameters.
+      calibrate_dp_mechanism is guaranteed to return a value x such that \|x -
+      x*\| <= tol. If `None`, tol is set to 1e-6 for continuous parameters or
+      0.5 for discrete parameters.
 
   Returns:
     A value of the parameter within tol of the optimum subject to the privacy
@@ -248,7 +253,7 @@ def calibrate_dp_mechanism(
                      f'{target_delta}.')
 
   if bracket_interval is None:
-    bracket_interval = LowerEndpointAndGuess(0, 1)
+    bracket_interval = LowerEndpointAndGuess(0, 1)  # pyrefly: ignore[bad-argument-count]
 
   if tol is None:
     tol = 1.0 if discrete else 1e-6
@@ -260,7 +265,7 @@ def calibrate_dp_mechanism(
   def epsilon_gap(x: float) -> float:
     if discrete:
       x = round(x)
-    event = make_event_from_param(x)
+    event = make_event_from_param(x)  # pyrefly: ignore[bad-argument-type]
     accountant = make_fresh_accountant()
     if not isinstance(accountant.ledger, dp_event.NoOpDpEvent):
       raise NonEmptyAccountantError()
