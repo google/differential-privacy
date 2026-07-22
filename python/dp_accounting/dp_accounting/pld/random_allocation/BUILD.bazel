@@ -52,6 +52,7 @@ py_library(
         ":definitions",
         "@accounting_py_pip_deps//numpy",
         "@accounting_py_pip_deps//scipy",
+        "@accounting_py_pip_deps//typing_extensions",
     ],
 )
 
