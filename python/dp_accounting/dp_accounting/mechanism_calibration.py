@@ -26,6 +26,8 @@ from scipy import optimize
 from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
 
+_MIN_TOL = optimize._zeros_py._rtol  # pylint: disable=protected-access
+
 
 class BracketInterval(object):
   pass
@@ -132,6 +134,7 @@ def _bisect(
     lower: float,
     upper: float,
     tol: float,
+    rtol: float = 0.0,
     lower_value: Optional[float] = None,
     upper_value: Optional[float] = None,
 ) -> float:
@@ -143,7 +146,9 @@ def _bisect(
       opposite signs at the endpoints.
     lower: Lower endpoint.
     upper: Upper endpoint.
-    tol: Terminate when endpoints are within tol of each other.
+    tol: Terminate when endpoints are within tol + rtol * |endpoint|
+      of each other, where endpoint is the endpoint we would return.
+    rtol: See tol.
     lower_value: Value at lower endpoint.
     upper_value: Value at upper endpoint.
 
@@ -166,8 +171,10 @@ def _bisect(
   if lower_value * upper_value > 0:
     raise ValueError('Values must have opposite signs.')
 
-  if upper - lower <= tol:
-    return lower if lower_value < 0 else upper
+  if lower_value < 0 and upper - lower < tol + rtol * abs(lower):
+    return lower
+  elif upper_value < 0 and upper - lower < tol + rtol * abs(upper):
+    return upper
 
   middle = (lower + upper) / 2
   middle_value = function(middle)
@@ -175,20 +182,27 @@ def _bisect(
   if middle_value == 0:
     return middle
   elif lower_value * middle_value < 0:
-    return _bisect(function, lower, middle, tol, lower_value, middle_value)
+    return _bisect(
+        function, lower, middle, tol, rtol, lower_value, middle_value
+    )
   else:
-    return _bisect(function, middle, upper, tol, middle_value, upper_value)
+    return _bisect(
+        function, middle, upper, tol, rtol, middle_value, upper_value
+    )
 
 
 def calibrate_dp_mechanism(
     make_fresh_accountant: Callable[[], privacy_accountant.PrivacyAccountant],
-    make_event_from_param: Union[Callable[[float], dp_event.DpEvent],
-                                 Callable[[int], dp_event.DpEvent]],
+    make_event_from_param: Union[
+        Callable[[float], dp_event.DpEvent], Callable[[int], dp_event.DpEvent]
+    ],
     target_epsilon: float,
     target_delta: float,
     bracket_interval: Optional[BracketInterval] = None,
     discrete: bool = False,
-    tol: Optional[float] = None) -> Union[float, int]:
+    tol: Optional[float] = None,
+    rtol: Optional[float] = None,
+) -> Union[float, int]:
   r"""Searches for optimal mechanism parameter value within privacy budget.
 
   The procedure searches over the space of parameters by creating, for each
@@ -215,13 +229,16 @@ def calibrate_dp_mechanism(
     discrete: A bool determining whether the parameter is continuous or discrete
       valued. If True, the parameter is assumed to take only integer values.
       Concretely, `discrete=True` has three effects. 1) ints, not floats are
-      passed to `make_event_from_param`. 2) The minimum optimization tolerance
-      is 0.5. 3) An integer is returned.
+      passed to `make_event_from_param`. 2) The minimum optimization (absolute)
+      tolerance is 1.0. 3) An integer is returned.
     tol: The tolerance, in parameter space. If the maximum (or minimum) value of
       the parameter that meets the privacy requirements is x*,
       calibrate_dp_mechanism is guaranteed to return a value x such that \|x -
-      x*\| <= tol. If `None`, tol is set to 1e-6 for continuous parameters or
-      0.5 for discrete parameters.
+      x*\| <= tol + rtol * \|x\|. If both tol and rtol are `None`, (tol, rtol)
+      is set to (0, 1e-6) for continuous parameters or (1, 0) for discrete
+      parameters. If only one of tol or rtol is `None`, it is set to 0.
+    rtol: The relative tolerance, in parameter space. See description of `tol`
+      for more details.
 
   Returns:
     A value of the parameter within tol of the optimum subject to the privacy
@@ -255,12 +272,32 @@ def calibrate_dp_mechanism(
   if bracket_interval is None:
     bracket_interval = LowerEndpointAndGuess(0, 1)  # pyrefly: ignore[bad-argument-count]
 
-  if tol is None:
-    tol = 1.0 if discrete else 1e-6
-  elif discrete:
+  # brentq doesn't support atol < _MIN_TOL or rtol < _MIN_TOL. To minimize
+  # complexity for the user we let them set either to zero and correct it for
+  # them.
+  match (tol is None, rtol is None):
+    case (True, True):
+      tol, rtol = (1.0, _MIN_TOL) if discrete else (_MIN_TOL, 1e-6)
+    case (True, False):
+      if rtol <= 0:
+        raise ValueError(f'rtol must be positive if tol is None. Found {rtol}.')
+      tol = _MIN_TOL
+    case (False, True):
+      if tol <= 0:
+        raise ValueError(f'tol must be positive if rtol is None. Found {tol}.')
+      rtol = _MIN_TOL
+    case (False, False):
+      if tol < 0:
+        raise ValueError(f'tol must be nonnegative. Found {tol}.')
+      if rtol < 0:
+        raise ValueError(f'rtol must be nonnegative. Found {rtol}.')
+      if tol <= 0 and rtol <= 0:
+        raise ValueError('At least one of tol or rtol must be positive.')
+  if discrete:
     tol = max(tol, 1.0)
-  elif tol <= 0:
-    raise ValueError(f'tol must be positive. Found {tol}.')
+  else:
+    tol = max(tol, _MIN_TOL)
+  rtol = max(rtol, _MIN_TOL)
 
   def epsilon_gap(x: float) -> float:
     if discrete:
@@ -284,6 +321,7 @@ def calibrate_dp_mechanism(
         bracket_interval.endpoint_1,
         bracket_interval.endpoint_2,
         xtol=tol,
+        rtol=rtol,
         full_output=True)
   except ValueError as err:
     raise ValueError(
@@ -296,13 +334,15 @@ def calibrate_dp_mechanism(
     # We need to ensure that gap is not positive, guaranteeing the returned
     # parameter gives no less privacy than was requested. Since epsilon_gap can
     # be expensive to compute, we first try values near the returned root.
-    # Considering brentq's contract that there exists a root within tol of the
-    # returned value, in most cases adding +/- tol will suffice.
+    # Considering brentq's contract that there exists a root within
+    # (tol + rtol * root) of the returned value, in most cases adding +/-
+    # (tol + rtol * root) will suffice.
+    offset = tol + rtol * root
     if epsilon_gap(root) > 0:
-      if epsilon_gap(root + tol) < 0:
-        root += tol
-      elif epsilon_gap(root - tol) < 0:
-        root -= tol
+      if epsilon_gap(root + offset) < 0:
+        root += offset
+      elif epsilon_gap(root - offset) < 0:
+        root -= offset
       else:
         root = None
 
@@ -313,6 +353,7 @@ def calibrate_dp_mechanism(
         bracket_interval.endpoint_1,
         bracket_interval.endpoint_2,
         tol,
+        rtol,
     )
 
   if discrete:

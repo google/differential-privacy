@@ -74,6 +74,41 @@ class MechanismCalibrationTest(parameterized.TestCase):
     self.assertLessEqual(epsilon, 2)
 
   @parameterized.named_parameters(
+      ('identity', lambda x: x, 2.0),
+      ('4_minus_x', lambda x: 4 - x, 2.0),
+      ('square', np.square, np.sqrt(2)),
+      ('cbrt', np.cbrt, 8.0),
+      ('cubic', lambda x: (x - 5) ** 3 + 2, 5),
+      ('trig_one', lambda x: np.cos(x / 3) + 2, 3 * np.pi / 2),
+      ('trig_two', lambda x: np.sin(x - 5) + (x + 3) / 4, 5),
+      ('trig_three', lambda x: (13 - x) / 4 - np.sin(x - 5), 5),
+  )
+  def test_basic_inversion_with_rtol(self, eps_fn, expected):
+    scaling = 1e9
+    wrapped_eps_fn = lambda x: eps_fn(x * scaling)
+
+    value = mechanism_calibration.calibrate_dp_mechanism(
+        make_fresh_accountant=lambda: FakeAccountant(wrapped_eps_fn),
+        make_event_from_param=FakeEvent,
+        target_epsilon=2,
+        target_delta=0,
+        bracket_interval=mechanism_calibration.ExplicitBracketInterval(
+            0, 10 / scaling
+        ),
+        tol=0.0,
+        rtol=1e-6,
+    )
+
+    self.assertIsInstance(value, float)
+    # Slightly larger tolerance to accomodate precision loss from scaling.
+    self.assertBetween(expected / (value * scaling), 1 - 2e-6, 1 + 2e-6)
+
+    accountant = FakeAccountant(wrapped_eps_fn)
+    accountant.compose(FakeEvent(value))
+    epsilon = accountant.get_epsilon(0)
+    self.assertLessEqual(epsilon, 2)
+
+  @parameterized.named_parameters(
       ('neg_one_pos_one', lambda x: -1 if x < 0 else 1),
       ('pos_one_neg_one', lambda x: 1 if x < 0 else -1),
       ('sawtooth', lambda x: x - 1 if x < 0 else x + 1),
@@ -286,15 +321,25 @@ class MechanismCalibrationTest(parameterized.TestCase):
           bracket_interval=mechanism_calibration.LowerEndpointAndGuess(2, 0),
       )
 
-  def test_negative_tol(self):
-    with self.assertRaisesRegex(ValueError, 'tol'):
+  @parameterized.named_parameters(
+      ('negative_tol_rtol_none', -1, None, r'^tol'),
+      ('negative_tol_rtol_positive', -1, 1, r'^tol'),
+      ('zero_tol_rtol_none', 0, None, r'^tol'),
+      ('negative_rtol_tol_none', None, -1, 'rtol'),
+      ('negative_rtol_tol_positive', 1, -1, 'rtol'),
+      ('zero_rtol_tol_none', None, 0, 'rtol'),
+      ('both_zero', 0, 0, 'tol or rtol'),
+  )
+  def test_invalid_tol_or_rtol(self, tol, rtol, error_msg):
+    with self.assertRaisesRegex(ValueError, error_msg):
       mechanism_calibration.calibrate_dp_mechanism(
           make_fresh_accountant=lambda: FakeAccountant(lambda x: x),
           make_event_from_param=FakeEvent,
           target_epsilon=1.0,
           target_delta=0.0,
           bracket_interval=mechanism_calibration.LowerEndpointAndGuess(0, 1),
-          tol=-1,
+          tol=tol,
+          rtol=rtol,
       )
 
   def test_no_bracket_interval_found(self):
