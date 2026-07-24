@@ -220,8 +220,8 @@ def calibrate_dp_mechanism(
     tol: The tolerance, in parameter space. If the maximum (or minimum) value of
       the parameter that meets the privacy requirements is x*,
       calibrate_dp_mechanism is guaranteed to return a value x such that \|x -
-      x*\| <= tol. If `None`, tol is set to 1e-6 for continuous parameters or
-      0.5 for discrete parameters.
+      x*\| <= tol. If `None`, tol is set to 1e-6 times the bracket interval
+      width for continuous parameters or 1.0 for discrete parameters.
 
   Returns:
     A value of the parameter within tol of the optimum subject to the privacy
@@ -235,7 +235,6 @@ def calibrate_dp_mechanism(
     NonEmptyAccountantError: if make_fresh_accountant returns an accountant with
       nonempty ledger.
   """
-
   if not callable(make_fresh_accountant):
     raise TypeError(f'make_fresh_accountant must be callable. '
                     f'found {type(make_fresh_accountant)}.')
@@ -253,14 +252,7 @@ def calibrate_dp_mechanism(
                      f'{target_delta}.')
 
   if bracket_interval is None:
-    bracket_interval = LowerEndpointAndGuess(0, 1)  # pyrefly: ignore[bad-argument-count]
-
-  if tol is None:
-    tol = 1.0 if discrete else 1e-6
-  elif discrete:
-    tol = max(tol, 1.0)
-  elif tol <= 0:
-    raise ValueError(f'tol must be positive. Found {tol}.')
+    bracket_interval = LowerEndpointAndGuess(0, 1)
 
   def epsilon_gap(x: float) -> float:
     if discrete:
@@ -274,9 +266,24 @@ def calibrate_dp_mechanism(
   if isinstance(bracket_interval, LowerEndpointAndGuess):
     bracket_interval = _search_for_explicit_bracket_interval(
         bracket_interval, epsilon_gap)
-  elif not isinstance(bracket_interval, ExplicitBracketInterval):
+  elif isinstance(bracket_interval, ExplicitBracketInterval):
+    if bracket_interval.endpoint_1 >= bracket_interval.endpoint_2:
+      raise ValueError(
+          f'bracket_interval.endpoint_1 ({bracket_interval.endpoint_1}) must be'
+          ' less than bracket_interval.endpoint_2'
+          f' ({bracket_interval.endpoint_2}).'
+      )
+  else:
     raise TypeError(f'Unrecognized bracket_interval type: '
                     f'{type(bracket_interval)}')
+
+  if tol is None:
+    interval_width = bracket_interval.endpoint_2 - bracket_interval.endpoint_1
+    tol = 1.0 if discrete else 1e-6 * interval_width
+  elif discrete:
+    tol = max(tol, 1.0)
+  elif tol <= 0:
+    raise ValueError(f'tol must be positive. Found {tol}.')
 
   try:
     root, result = optimize.brentq(
