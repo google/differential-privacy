@@ -252,7 +252,7 @@ def calibrate_dp_mechanism(
                      f'{target_delta}.')
 
   if bracket_interval is None:
-    bracket_interval = LowerEndpointAndGuess(0, 1)
+    bracket_interval = LowerEndpointAndGuess(0, 1)  # pyrefly: ignore[bad-argument-count]
 
   def epsilon_gap(x: float) -> float:
     if discrete:
