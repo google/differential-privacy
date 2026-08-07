@@ -228,14 +228,15 @@ internal constructor(
     noiseKind,
   ) {
   override fun run(testMode: TestMode): Sequence<QueryPerGroupResult<GroupKeysT>> {
-    val localResult =
-      (runWithDpEngine(testMode) as LocalFrameworkTable<GroupKeysT, DpAggregates>).data
+    val dpEngineResult: DpEngineResult<GroupKeysT> = runWithDpEngine(testMode)
+    val localAggregationResults =
+      (dpEngineResult.aggregationResults as LocalFrameworkTable<GroupKeysT, DpAggregates>).data
     val mapToResultFn =
       createConvertDpAggregatesToQueryPerGroupResultFn(
         aggregations.outputColumnNamesWithMetricTypes(),
         aggregations.outputColumnNameToFeatureIdMap(),
       )
-    return localResult.map(mapToResultFn)
+    return localAggregationResults.map(mapToResultFn)
   }
 
   private fun createConvertDpAggregatesToQueryPerGroupResultFn(
