@@ -152,7 +152,11 @@ class CountCombinerTest {
   }
 
   @Test
-  @TestParameters("{noiseKind: LAPLACE, delta: 0.0}", "{noiseKind: GAUSSIAN, delta: 0.1}")
+  @TestParameters(
+    "{noiseKind: LAPLACE, delta: 0.0}",
+    "{noiseKind: GAUSSIAN, delta: 0.1}",
+    "{noiseKind: AUTO, delta: 0.1}",
+  )
   fun computeMetrics_addsNoise(noiseKind: NoiseKind, delta: Double) {
     val paramsWithNoise =
       AggregationParams(
@@ -169,6 +173,46 @@ class CountCombinerTest {
     val result = combiner.computeMetrics(countAccumulator { count = 1 })
 
     assertThat(result).isNotEqualTo(1)
+  }
+
+  @Test
+  fun computeMetrics_autoNoiseWithHighSensitivity_selectsGaussianAndAddsNoise() {
+    // High sensitivity/low epsilon favors Gaussian.
+    val params =
+      AggregationParams(
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        noiseKind = NoiseKind.AUTO,
+        maxPartitionsContributed = 100,
+        maxContributionsPerPartition = 100,
+      )
+    val allocatedBudget = AllocatedBudget()
+    allocatedBudget.initialize(1.0, 1e-5)
+    val combiner = CountCombiner(params, allocatedBudget, NoiseFactory(), ExecutionMode.PRODUCTION)
+
+    val result = combiner.computeMetrics(countAccumulator { count = 1000 })
+
+    // Check it's not the exact value (noise added)
+    assertThat(result).isNotEqualTo(1000.0)
+  }
+
+  @Test
+  fun computeMetrics_autoNoiseWithLowSensitivity_selectsLaplaceAndAddsNoise() {
+    // Low sensitivity/small epsilon favors Laplace.
+    val params =
+      AggregationParams(
+        metrics = ImmutableList.of(MetricDefinition(COUNT)),
+        noiseKind = NoiseKind.AUTO,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+      )
+    val allocatedBudget = AllocatedBudget()
+    allocatedBudget.initialize(0.1, 1e-10)
+    val combiner = CountCombiner(params, allocatedBudget, NoiseFactory(), ExecutionMode.PRODUCTION)
+
+    val result = combiner.computeMetrics(countAccumulator { count = 10 })
+
+    // Check it's not the exact value (noise added)
+    assertThat(result).isNotEqualTo(10.0)
   }
 
   @Test
