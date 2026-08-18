@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-load("@rules_java//java:defs.bzl", "java_binary")
+load("@rules_java//java:defs.bzl", "java_binary", "java_library")
 load("@rules_jvm_external//:defs.bzl", "artifact")
 
 package(
@@ -43,8 +43,16 @@ java_library(
 
 java_binary(
     name = "Main",
-    srcs = glob(["*.java"]),
     main_class = "com.google.privacy.differentialprivacy.example.Main",
+    resources = glob(["*.csv"]),
+    runtime_deps = [
+        ":main_lib",
+    ],
+)
+
+java_library(
+    name = "main_lib",
+    srcs = glob(["*.java"]),
     resources = glob(["*.csv"]),
     deps = [
         ":autovalue",
