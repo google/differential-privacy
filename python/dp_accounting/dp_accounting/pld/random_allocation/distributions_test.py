@@ -86,17 +86,17 @@ class DenseDiscreteDistTest(absltest.TestCase):
 
 
 class DiscretizeRangeTest(absltest.TestCase):
-  """Tests for _discretize_aligned_range."""
+  """Tests for discretize_aligned_grid."""
 
   def test_linear_spacing(self):
     n_grid = 100
-    x = distributions._discretize_aligned_range(
+    x = distributions.discretize_aligned_grid(
         x_min=0.0,
         x_max=10.0,
         spacing_type=definitions.SpacingType.LINEAR,
         align_to_multiples=True,
         discretization=(10.0 - 0.0) / (n_grid - 1),
-    )
+    ).x_array
     self.assertGreaterEqual(len(x), n_grid)
     self.assertLessEqual(x[0], 0.0)
     self.assertGreaterEqual(x[-1], 10.0)
@@ -105,13 +105,13 @@ class DiscretizeRangeTest(absltest.TestCase):
 
   def test_geometric_spacing(self):
     n_grid = 100
-    x = distributions._discretize_aligned_range(
+    x = distributions.discretize_aligned_grid(
         x_min=1.0,
         x_max=100.0,
         spacing_type=definitions.SpacingType.GEOMETRIC,
         align_to_multiples=True,
         discretization=np.log(100.0 / 1.0) / (n_grid - 1),
-    )
+    ).x_array
     self.assertGreaterEqual(len(x), n_grid)
     self.assertLessEqual(x[0], 1.0)
     self.assertGreaterEqual(x[-1], 100.0)
@@ -120,7 +120,7 @@ class DiscretizeRangeTest(absltest.TestCase):
 
   def test_nonpositive_discretization_rejected(self):
     with self.assertRaisesRegex(ValueError, "discretization must be positive"):
-      distributions._discretize_aligned_range(
+      distributions.discretize_aligned_grid(
           x_min=0.0,
           x_max=10.0,
           spacing_type=definitions.SpacingType.LINEAR,
@@ -130,13 +130,13 @@ class DiscretizeRangeTest(absltest.TestCase):
 
   def test_two_points_linear(self):
     n_grid = 100
-    x = distributions._discretize_aligned_range(
+    x = distributions.discretize_aligned_grid(
         x_min=1.0,
         x_max=3.0,
         spacing_type=definitions.SpacingType.LINEAR,
         align_to_multiples=True,
         discretization=(3.0 - 1.0) / (n_grid - 1),
-    )
+    ).x_array
     self.assertGreaterEqual(len(x), n_grid)
     self.assertLessEqual(x[0], 1.0)
     self.assertGreaterEqual(x[-1], 3.0)
@@ -148,13 +148,13 @@ class DiscretizeRangeTest(absltest.TestCase):
     x_max = 1.4160541697856062
     discretization = 0.041648652052517825
 
-    x = distributions._discretize_aligned_range(
+    x = distributions.discretize_aligned_grid(
         x_min=x_min,
         x_max=x_max,
         spacing_type=definitions.SpacingType.LINEAR,
         align_to_multiples=True,
         discretization=discretization,
-    )
+    ).x_array
 
     self.assertLessEqual(x[0], x_min)
     self.assertGreaterEqual(x[-1], x_max)
@@ -163,13 +163,13 @@ class DiscretizeRangeTest(absltest.TestCase):
 
   def test_linear_aligned_spacing_matches_requested_step(self):
     discretization = 0.25
-    x = distributions._discretize_aligned_range(
+    x = distributions.discretize_aligned_grid(
         x_min=-1.12,
         x_max=2.18,
         spacing_type=definitions.SpacingType.LINEAR,
         align_to_multiples=True,
         discretization=discretization,
-    )
+    ).x_array
 
     np.testing.assert_allclose(
         distributions._compute_bin_width(x), discretization

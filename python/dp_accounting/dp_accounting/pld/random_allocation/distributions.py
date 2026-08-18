@@ -38,7 +38,7 @@ class Domain(enum.Enum):
 # =============================================================================
 
 
-def _strip_zero_edges(prob_arr: np.np.typing.NDArray) -> tuple[int, int]:
+def _strip_zero_edges(prob_arr: np.typing.NDArray) -> tuple[int, int]:
   """Return (min_ind, max_ind) of the nonzero range in prob_arr.
 
   Raises ValueError if all mass is zero.
@@ -51,11 +51,11 @@ def _strip_zero_edges(prob_arr: np.np.typing.NDArray) -> tuple[int, int]:
 
 def _zero_mass(
     *,
-    values: np.np.typing.NDArray,
+    values: np.typing.NDArray,
     mass: float,
     from_left: bool,
     exact: bool,
-) -> np.np.typing.NDArray:
+) -> np.typing.NDArray:
   """Remove mass from one side of ``values``, selected by ``from_left``.
 
   If ``exact`` is true, partially consume the pivot bin so that exactly
@@ -96,7 +96,7 @@ def _zero_mass(
   return values
 
 
-def _compute_bin_log_ratio(x_array: np.np.typing.NDArray) -> float:
+def _compute_bin_log_ratio(x_array: np.typing.NDArray) -> float:
   """Compute geometric log-ratio spacing for a grid."""
   if x_array.size < 2:
     raise ValueError("Cannot compute geometric bin ratio with less than 2 bins")
@@ -116,7 +116,7 @@ def _compute_bin_log_ratio(x_array: np.np.typing.NDArray) -> float:
   return log_ratio
 
 
-def _compute_bin_width(x_array: np.np.typing.NDArray) -> float:
+def _compute_bin_width(x_array: np.typing.NDArray) -> float:
   """Compute linear spacing width for a grid."""
   if x_array.size < 2:
     raise ValueError("Cannot compute width with less than 2 bins")
@@ -139,7 +139,7 @@ def stable_isclose(*, a: float, b: float) -> bool:
 
 
 def stable_array_equal(
-    *, a: np.np.typing.NDArray, b: np.np.typing.NDArray
+    *, a: np.typing.NDArray, b: np.typing.NDArray
 ) -> bool:
   """Consistent array closeness check using shared spacing tolerances."""
   return a.shape == b.shape and np.allclose(
@@ -149,9 +149,9 @@ def stable_array_equal(
 
 def _exp_moment_terms(
     *,
-    prob_arr: np.np.typing.NDArray,
-    x_vals: np.np.typing.NDArray,
-) -> np.np.typing.NDArray:
+    prob_arr: np.typing.NDArray,
+    x_vals: np.typing.NDArray,
+) -> np.typing.NDArray:
   """Return per-bin contributions to ``E[exp(-X)]``.
 
   For very negative ``x_vals`` the naive product ``p * exp(-x)`` can overflow
@@ -182,12 +182,12 @@ def _exp_moment_terms(
 
 
 def _compute_truncation(
-    prob_arr: np.np.typing.NDArray,
+    prob_arr: np.typing.NDArray,
     p_min: float,
     p_max: float,
     tail_truncation: float,
     bound_type: definitions.BoundType,
-) -> tuple[np.np.typing.NDArray, float, float, int, int]:
+) -> tuple[np.typing.NDArray, float, float, int, int]:
   """Compute truncated distribution parameters without creating objects.
 
   Algorithm:
@@ -1147,11 +1147,11 @@ def discretize_on_grid(
 
 
 def _remap_prob_to_grid(
-    x_array: np.np.typing.NDArray,
-    prob_arr: np.np.typing.NDArray,
-    x_array_out: np.np.typing.NDArray,
+    x_array: np.typing.NDArray,
+    prob_arr: np.typing.NDArray,
+    x_array_out: np.typing.NDArray,
     dominates: bool,
-) -> np.np.typing.NDArray:
+) -> np.typing.NDArray:
   """Vectorised PMF remap using np.searchsorted + np.add.at.
 
   Uses binary search to locate each input value's target output bin in one
