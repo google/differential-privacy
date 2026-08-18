@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import math
 
-import numpy as np
 from absl.testing import absltest
+import numpy as np
 from scipy import stats
 
 from dp_accounting.pld.random_allocation import core
-from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import definitions
+from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import utils
 
 
@@ -176,34 +176,6 @@ class DiscretizeRangeTest(absltest.TestCase):
     )
     np.testing.assert_allclose(x / discretization, np.round(x / discretization))
 
-  def test_continuous_discretization_uses_requested_linear_step(self):
-    result = distributions._discretize_continuous_distribution(
-        dist=stats.norm(loc=0.0, scale=1.0),
-        tail_truncation=1e-3,
-        bound_type=definitions.BoundType.DOMINATES,
-        spacing_type=definitions.SpacingType.LINEAR,
-        step=0.1,
-        align_to_multiples=True,
-    )
-
-    np.testing.assert_allclose(
-        distributions._compute_bin_width(result.x_array), 0.1
-    )
-
-  def test_continuous_discretization_uses_requested_geometric_step(self):
-    step = np.log(1.05)
-    result = distributions._discretize_continuous_distribution(
-        dist=stats.lognorm(s=0.5, scale=1.0),
-        tail_truncation=1e-3,
-        bound_type=definitions.BoundType.DOMINATES,
-        spacing_type=definitions.SpacingType.GEOMETRIC,
-        step=step,
-        align_to_multiples=True,
-    )
-
-    self.assertEqual(result.step, step)
-    np.testing.assert_allclose(np.exp(result.step), 1.05)
-
   def test_generated_geometric_grid_preserves_pld_default_step(self):
     grid = distributions.discretize_aligned_grid(
         x_min=0.1,
@@ -274,7 +246,7 @@ class ComputeDiscretePmfTest(absltest.TestCase):
         pmf_min_increment=0.0,
     )
 
-    self.assertEqual(len(bin_prob), 10)
+    self.assertLen(bin_prob, 10)
     self.assertTrue(np.all(bin_prob >= 0))
     np.testing.assert_allclose(bin_prob, 0.1, atol=0.01, rtol=0)
     self.assertLess(p_left, 0.01)

@@ -7,13 +7,17 @@ import os
 import warnings
 
 import numpy as np
-from numpy.typing import NDArray
-from scipy.fft import irfft, next_fast_len, rfft
+import scipy.fft
 
 from dp_accounting.pld import common
-from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import definitions
+from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import utils
+
+NDArray = np.typing.NDArray
+irfft = scipy.fft.irfft
+next_fast_len = scipy.fft.next_fast_len
+rfft = scipy.fft.rfft
 
 # Maximum bytes for a single FFT allocation (default 8 GB, override via
 # MAX_FFT_BYTES env var).
@@ -25,11 +29,9 @@ _GRID_ROUNDING_TOL = 10 * np.finfo(np.float64).eps
 
 
 def _check_fft_memory(fft_size: int, label: str = "FFT") -> None:
-  """Raise MemoryError if an FFT of this size would exceed the safety limit.
-
-  rfft produces complex128 output (~16 bytes per element) and the input is
-  float64 (~8 bytes), so peak usage is roughly 24 * fft_size bytes.
-  """
+  """Raise MemoryError if an FFT of this size would exceed the safety limit."""
+  # rfft produces complex128 output (~16 bytes per element) and the input is
+  # float64 (~8 bytes), so peak usage is roughly 24 * fft_size bytes.
   estimated_bytes = 24 * fft_size
   if estimated_bytes > MAX_FFT_BYTES:
     raise MemoryError(
@@ -310,11 +312,11 @@ def fft_self_convolve(
 
 def _pad_right_geometric(
     *,
-    x: NDArray[np.float64],
-    p: NDArray[np.float64],
+    x: np.ndarray,
+    p: np.ndarray,
     geom_step: float,
     target_n: int,
-) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+) -> tuple[np.ndarray, np.ndarray]:
   """Extend grid to the right to reach target_n using geometric log step."""
   x = np.asarray(x, dtype=np.float64)
   p = np.asarray(p, dtype=np.float64)
@@ -332,13 +334,13 @@ def _pad_right_geometric(
 
 def _kahan_add_slice(
     *,
-    pmf_out: NDArray[np.float64],
-    comp: NDArray[np.float64],
+    pmf_out: np.ndarray,
+    comp: np.ndarray,
     start: int,
     stop: int,
-    vals: NDArray[np.float64],
-    y_scratch: NDArray[np.float64],
-    t_scratch: NDArray[np.float64],
+    vals: np.ndarray,
+    y_scratch: np.ndarray,
+    t_scratch: np.ndarray,
 ) -> None:
   """Kahan-compensated add of a contiguous value slice into ``pmf_out``."""
   size = stop - start
@@ -356,11 +358,11 @@ def _kahan_add_slice(
 
 def _geometric_convolution_kernel(
     *,
-    PMF_base: NDArray[np.float64],
-    PMF_scaled: NDArray[np.float64],
-    delta_lohi: NDArray[np.int64],
-    delta_hilo: NDArray[np.int64],
-) -> NDArray[np.float64]:
+    PMF_base: np.ndarray,
+    PMF_scaled: np.ndarray,
+    delta_lohi: np.ndarray,
+    delta_hilo: np.ndarray,
+) -> np.ndarray:
   """Accumulate geometric-grid convolution terms with vectorized slices.
 
   For each positive offset ``d``, source pairs ``(i, i+d)`` are mapped to
@@ -460,7 +462,7 @@ def _compute_geometric_convolution(
         target_n=target_n,
     )
   elif x2.size < target_n:
-    x2, p2 = _pad_right_geometric(
+    _, p2 = _pad_right_geometric(
         x=x2,
         p=p2,
         geom_step=geom_step,

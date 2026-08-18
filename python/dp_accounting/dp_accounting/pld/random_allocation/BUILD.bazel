@@ -38,7 +38,6 @@ py_library(
 py_library(
     name = "definitions",
     srcs = ["definitions.py"],
-    srcs_version = "PY3",
     deps = [
         "@accounting_py_pip_deps//numpy",
     ],
@@ -47,7 +46,6 @@ py_library(
 py_library(
     name = "distributions",
     srcs = ["distributions.py"],
-    srcs_version = "PY3",
     deps = [
         ":definitions",
         "@accounting_py_pip_deps//numpy",
@@ -59,7 +57,6 @@ py_library(
 py_library(
     name = "utils",
     srcs = ["utils.py"],
-    srcs_version = "PY3",
     deps = [
         ":definitions",
         ":distributions",
@@ -70,7 +67,6 @@ py_library(
 py_library(
     name = "convolution",
     srcs = ["convolution.py"],
-    srcs_version = "PY3",
     deps = [
         ":definitions",
         ":distributions",
@@ -84,7 +80,6 @@ py_library(
 py_library(
     name = "core",
     srcs = ["core.py"],
-    srcs_version = "PY3",
     deps = [
         ":convolution",
         ":definitions",
@@ -100,7 +95,6 @@ py_library(
 py_library(
     name = "api",
     srcs = ["api.py"],
-    srcs_version = "PY3",
     deps = [
         ":core",
         ":definitions",
@@ -114,7 +108,6 @@ py_test(
     name = "distributions_test",
     size = "small",
     srcs = ["distributions_test.py"],
-    python_version = "PY3",
     deps = [
         ":core",
         ":definitions",
@@ -130,7 +123,6 @@ py_test(
     name = "convolution_test",
     size = "small",
     srcs = ["convolution_test.py"],
-    python_version = "PY3",
     deps = [
         ":convolution",
         ":definitions",
@@ -145,7 +137,6 @@ py_test(
     name = "api_test",
     size = "small",
     srcs = ["api_test.py"],
-    python_version = "PY3",
     deps = [
         ":api",
         ":definitions",

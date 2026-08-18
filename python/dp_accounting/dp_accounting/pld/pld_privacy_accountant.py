@@ -306,7 +306,9 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             ),
         )
       if do_compose:
-        if event.event.noise_multiplier == 0:
+        if event.num_selected == 0:
+          pass
+        elif event.event.noise_multiplier == 0:
           self._contains_non_dp_event = True
         else:
           params = random_allocation.PrivacyParams(

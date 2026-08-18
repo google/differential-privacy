@@ -262,7 +262,7 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     exact_epsilon = 2.4265
     exact_delta = 1e-6
     self.assertAlmostEqual(
-        accountant.get_delta(exact_epsilon), exact_delta, delta=1e-3)
+        accountant.get_delta(exact_epsilon), exact_delta, delta=1e-7)
     self.assertAlmostEqual(
         accountant.get_epsilon(exact_delta), exact_epsilon, delta=1e-3)
 

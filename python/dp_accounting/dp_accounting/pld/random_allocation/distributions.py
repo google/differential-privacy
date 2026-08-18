@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
+import abc
 import copy
+import enum
 import math
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 from scipy import stats
-from scipy.stats._distn_infrastructure import rv_frozen
+from scipy.stats import _distn_infrastructure
 from typing_extensions import Self
 
 from dp_accounting.pld.random_allocation import definitions
 
+
+rv_frozen = _distn_infrastructure.rv_frozen
 _PMF_MASS_TOL = (
     10 * np.finfo(float).eps
 )  # total-mass tolerance (10× machine epsilon)
@@ -23,12 +23,10 @@ _RENORMALIZATION_THRESHOLD = 10 * np.finfo(float).eps
 _REALIZATION_MOMENT_TOL = 1e-12
 _SPACING_ATOL = 1e-12
 _SPACING_RTOL = 1e-6
-_MIN_GRID_SIZE = 100  # Minimum number of points in a  discretization grid.
 _MAX_SAFE_EXP_ARG = math.log(np.finfo(np.float64).max)
-_TAIL_SWITCH = 1e-10
 
 
-class Domain(Enum):
+class Domain(enum.Enum):
   """Domain of a discrete distribution's support."""
 
   REALS = "reals"  # p_min = mass at −∞, p_max = mass at +∞
@@ -40,7 +38,7 @@ class Domain(Enum):
 # =============================================================================
 
 
-def _strip_zero_edges(prob_arr: NDArray[np.float64]) -> tuple[int, int]:
+def _strip_zero_edges(prob_arr: np.np.typing.NDArray) -> tuple[int, int]:
   """Return (min_ind, max_ind) of the nonzero range in prob_arr.
 
   Raises ValueError if all mass is zero.
@@ -53,11 +51,11 @@ def _strip_zero_edges(prob_arr: NDArray[np.float64]) -> tuple[int, int]:
 
 def _zero_mass(
     *,
-    values: NDArray[np.float64],
+    values: np.np.typing.NDArray,
     mass: float,
     from_left: bool,
     exact: bool,
-) -> NDArray[np.float64]:
+) -> np.np.typing.NDArray:
   """Remove mass from one side of ``values``, selected by ``from_left``.
 
   If ``exact`` is true, partially consume the pivot bin so that exactly
@@ -98,7 +96,7 @@ def _zero_mass(
   return values
 
 
-def _compute_bin_log_ratio(x_array: NDArray[np.float64]) -> float:
+def _compute_bin_log_ratio(x_array: np.np.typing.NDArray) -> float:
   """Compute geometric log-ratio spacing for a grid."""
   if x_array.size < 2:
     raise ValueError("Cannot compute geometric bin ratio with less than 2 bins")
@@ -118,7 +116,7 @@ def _compute_bin_log_ratio(x_array: NDArray[np.float64]) -> float:
   return log_ratio
 
 
-def _compute_bin_width(x_array: NDArray[np.float64]) -> float:
+def _compute_bin_width(x_array: np.np.typing.NDArray) -> float:
   """Compute linear spacing width for a grid."""
   if x_array.size < 2:
     raise ValueError("Cannot compute width with less than 2 bins")
@@ -141,7 +139,7 @@ def stable_isclose(*, a: float, b: float) -> bool:
 
 
 def stable_array_equal(
-    *, a: NDArray[np.float64], b: NDArray[np.float64]
+    *, a: np.np.typing.NDArray, b: np.np.typing.NDArray
 ) -> bool:
   """Consistent array closeness check using shared spacing tolerances."""
   return a.shape == b.shape and np.allclose(
@@ -151,9 +149,9 @@ def stable_array_equal(
 
 def _exp_moment_terms(
     *,
-    prob_arr: NDArray[np.float64],
-    x_vals: NDArray[np.float64],
-) -> NDArray[np.float64]:
+    prob_arr: np.np.typing.NDArray,
+    x_vals: np.np.typing.NDArray,
+) -> np.np.typing.NDArray:
   """Return per-bin contributions to ``E[exp(-X)]``.
 
   For very negative ``x_vals`` the naive product ``p * exp(-x)`` can overflow
@@ -184,12 +182,12 @@ def _exp_moment_terms(
 
 
 def _compute_truncation(
-    prob_arr: NDArray[np.float64],
+    prob_arr: np.np.typing.NDArray,
     p_min: float,
     p_max: float,
     tail_truncation: float,
     bound_type: definitions.BoundType,
-) -> tuple[NDArray[np.float64], float, float, int, int]:
+) -> tuple[np.np.typing.NDArray, float, float, int, int]:
   """Compute truncated distribution parameters without creating objects.
 
   Algorithm:
@@ -270,7 +268,7 @@ def _compute_truncation(
 # =============================================================================
 
 
-class DiscreteDistBase(ABC):
+class DiscreteDistBase(abc.ABC):
   """Abstract base for discrete PMF representations with boundary masses.
 
   Attributes:
@@ -282,7 +280,7 @@ class DiscreteDistBase(ABC):
 
   def __init__(
       self,
-      prob_arr: NDArray[np.float64],
+      prob_arr: np.typing.NDArray[np.float64],
       p_min: float = 0.0,
       p_max: float = 0.0,
       domain: Domain = Domain.REALS,
@@ -295,8 +293,8 @@ class DiscreteDistBase(ABC):
     self._validate_basic()
 
   @property
-  @abstractmethod
-  def x_array(self) -> NDArray[np.float64]:
+  @abc.abstractmethod
+  def x_array(self) -> np.typing.NDArray[np.float64]:
     """Materialized support."""
     raise NotImplementedError
 
@@ -338,10 +336,10 @@ class DiscreteDistBase(ABC):
         new_prob_arr, new_p_min, new_p_max, min_ind, max_ind
     )
 
-  @abstractmethod
+  @abc.abstractmethod
   def _create_truncated(
       self,
-      new_prob_arr: NDArray[np.float64],
+      new_prob_arr: np.typing.NDArray[np.float64],
       new_p_min: float,
       new_p_max: float,
       min_ind: int,
@@ -368,8 +366,8 @@ class SparseDiscreteDist(DiscreteDistBase):
 
   def __init__(
       self,
-      x_array: NDArray[np.float64],
-      prob_arr: NDArray[np.float64],
+      x_array: np.typing.NDArray[np.float64],
+      prob_arr: np.typing.NDArray[np.float64],
       p_min: float = 0.0,
       p_max: float = 0.0,
       domain: Domain = Domain.REALS,
@@ -386,13 +384,13 @@ class SparseDiscreteDist(DiscreteDistBase):
       raise ValueError("x must be strictly increasing")
 
   @property
-  def x_array(self) -> NDArray[np.float64]:
+  def x_array(self) -> np.typing.NDArray[np.float64]:
     """Return materialized support points."""
     return self._x_arr
 
   def _create_truncated(
       self,
-      new_prob_arr: NDArray[np.float64],
+      new_prob_arr: np.typing.NDArray[np.float64],
       new_p_min: float,
       new_p_max: float,
       min_ind: int,
@@ -430,13 +428,14 @@ class DenseDiscreteDist(DiscreteDistBase):
     p_max: Upper boundary mass at +∞.
     spacing_type: LINEAR or GEOMETRIC grid family.
     domain: REALS or POSITIVES.
+    grid: Underlying grid.
   """
 
   def __init__(
       self,
       x_min: float,
       step: float,
-      prob_arr: NDArray[np.float64],
+      prob_arr: np.typing.NDArray[np.float64],
       p_min: float = 0.0,
       p_max: float = 0.0,
       spacing_type: definitions.SpacingType = definitions.SpacingType.LINEAR,
@@ -466,7 +465,7 @@ class DenseDiscreteDist(DiscreteDistBase):
       cls,
       *,
       grid: definitions.RegularGrid,
-      prob_arr: NDArray[np.float64],
+      prob_arr: np.typing.NDArray[np.float64],
       p_min: float = 0.0,
       p_max: float = 0.0,
       domain: Domain = Domain.REALS,
@@ -515,8 +514,8 @@ class DenseDiscreteDist(DiscreteDistBase):
   @classmethod
   def from_x_array(
       cls,
-      x_array: NDArray[np.float64],
-      prob_arr: NDArray[np.float64],
+      x_array: np.typing.NDArray[np.float64],
+      prob_arr: np.typing.NDArray[np.float64],
       p_min: float = 0.0,
       p_max: float = 0.0,
       spacing_type: definitions.SpacingType = definitions.SpacingType.LINEAR,
@@ -540,13 +539,13 @@ class DenseDiscreteDist(DiscreteDistBase):
     )
 
   @property
-  def x_array(self) -> NDArray[np.float64]:
+  def x_array(self) -> np.typing.NDArray[np.float64]:
     """Return materialized support points."""
     return self.grid.x_array
 
   def _create_truncated(
       self,
-      new_prob_arr: NDArray[np.float64],
+      new_prob_arr: np.typing.NDArray[np.float64],
       new_p_min: float,
       new_p_max: float,
       min_ind: int,
@@ -600,7 +599,7 @@ class PLDRealization(DenseDiscreteDist):
       self,
       x_min: float,
       step: float,
-      prob_arr: NDArray[np.float64],
+      prob_arr: np.typing.NDArray[np.float64],
       p_min: float = 0.0,
       p_max: float = 0.0,
   ) -> None:
@@ -680,7 +679,7 @@ class PLDRealization(DenseDiscreteDist):
 
   def _create_truncated(
       self,
-      new_prob_arr: NDArray[np.float64],
+      new_prob_arr: np.typing.NDArray[np.float64],
       new_p_min: float,
       new_p_max: float,
       min_ind: int,
@@ -704,11 +703,11 @@ class PLDRealization(DenseDiscreteDist):
 
 def enforce_mass_conservation(
     *,
-    prob_arr: NDArray[np.float64],
+    prob_arr: np.typing.NDArray[np.float64],
     expected_p_min: float,
     expected_p_max: float,
     bound_type: definitions.BoundType,
-) -> tuple[NDArray[np.float64], float, float]:
+) -> tuple[np.typing.NDArray[np.float64], float, float]:
   """Enforce total mass with one bound-type-selected boundary held fixed.
 
   - ``DOMINATES`` enforces ``expected_p_max``.
@@ -782,17 +781,6 @@ def enforce_mass_conservation(
   )
 
 
-def _compute_bin_width_two_arrays(
-    *, x_array_1: NDArray[np.float64], x_array_2: NDArray[np.float64]
-) -> float:
-  """Compute linear spacing width for two grids and return their average."""
-  w1 = _compute_bin_width(x_array_1)
-  w2 = _compute_bin_width(x_array_2)
-  if not stable_isclose(a=w1, b=w2):
-    raise ValueError(f"Grid spacing must match: w1={w1:.12g} vs w2={w2:.12g}")
-  return (w1 + w2) / 2
-
-
 # =============================================================================
 # Continuous Distribution Discretization
 # =============================================================================
@@ -800,9 +788,9 @@ def _compute_bin_width_two_arrays(
 
 def _adaptive_bins_from_cdf(
     *,
-    cdf: NDArray[np.float64],
+    cdf: np.typing.NDArray[np.float64],
     tail_truncation: float,
-) -> NDArray[np.float64]:
+) -> np.typing.NDArray[np.float64]:
   """Adaptive binning from CDF with mass accumulation.
 
   Accumulates mass from CDF increments until threshold is reached, then assigns
@@ -831,9 +819,9 @@ def _adaptive_bins_from_cdf(
 
 def _adaptive_bins_from_sf(
     *,
-    sf: NDArray[np.float64],
+    sf: np.typing.NDArray[np.float64],
     tail_truncation: float,
-) -> NDArray[np.float64]:
+) -> np.typing.NDArray[np.float64]:
   """Adaptive binning from survival function with mass accumulation.
 
   Accumulates mass from SF increments until threshold is reached, then assigns
@@ -863,9 +851,9 @@ def _adaptive_bins_from_sf(
 
 def _stable_cdf_and_sf(
     *,
-    dist: stats.rv_continuous | rv_frozen[Any, Any],
-    x_array: NDArray[np.float64],
-) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    dist: stats.rv_continuous | rv_frozen,
+    x_array: np.typing.NDArray[np.float64],
+) -> tuple[np.typing.NDArray[np.float64], np.typing.NDArray[np.float64]]:
   median = dist.median()
   cdf = np.empty_like(x_array, dtype=np.float64)
   sf = np.empty_like(x_array, dtype=np.float64)
@@ -889,11 +877,11 @@ def _stable_cdf_and_sf(
 
 def _compute_discrete_prob(
     *,
-    dist: stats.rv_continuous | rv_frozen[Any, Any],
-    x_array: NDArray[np.float64],
+    dist: stats.rv_continuous | rv_frozen,
+    x_array: np.typing.NDArray[np.float64],
     bound_type: definitions.BoundType,
     pmf_min_increment: float,
-) -> tuple[NDArray[np.float64], float, float]:
+) -> tuple[np.typing.NDArray[np.float64], float, float]:
   """Compute bin probabilities via adaptive CDF/SF increments (logcdf/logsf).
 
   pmf_min_increment controls the minimum CDF/SF increment that becomes a
@@ -927,11 +915,11 @@ def _compute_discrete_prob(
 
 def _discretize_continuous_prob_arr(
     *,
-    dist: stats.rv_continuous | rv_frozen[Any, Any],
-    x_array: NDArray[np.float64],
+    dist: stats.rv_continuous | rv_frozen,
+    x_array: np.typing.NDArray[np.float64],
     bound_type: definitions.BoundType,
     pmf_min_increment: float,
-) -> tuple[NDArray[np.float64], float, float]:
+) -> tuple[np.typing.NDArray[np.float64], float, float]:
   """Compute discrete PMF and boundary masses on a materialized grid."""
   bin_probs, p_left, p_right = _compute_discrete_prob(
       dist=dist,
@@ -1089,27 +1077,9 @@ def discretize_aligned_grid(
   )
 
 
-def _discretize_aligned_range(
-    *,
-    x_min: float,
-    x_max: float,
-    spacing_type: definitions.SpacingType,
-    align_to_multiples: bool,
-    discretization: float,
-) -> NDArray[np.float64]:
-  """Return a grid covering [x_min, x_max]."""
-  return discretize_aligned_grid(
-      x_min=x_min,
-      x_max=x_max,
-      spacing_type=spacing_type,
-      align_to_multiples=align_to_multiples,
-      discretization=discretization,
-  ).x_array
-
-
 def _continuous_to_grid(
     *,
-    dist: stats.rv_continuous | rv_frozen[Any, Any],
+    dist: stats.rv_continuous | rv_frozen,
     tail_truncation: float,
     spacing_type: definitions.SpacingType,
     step: float,
@@ -1142,48 +1112,9 @@ def _continuous_to_grid(
   )
 
 
-def _discretize_on_x_array(
-    *,
-    dist: stats.rv_continuous | rv_frozen[Any, Any],
-    x_array: NDArray[np.float64],
-    bound_type: definitions.BoundType,
-    pmf_min_increment: float,
-    spacing_type: definitions.SpacingType,
-    domain: Domain = Domain.REALS,
-) -> DenseDiscreteDist:
-  """Convert continuous distribution to discrete PMF with bounding semantics."""
-  prob_arr, p_min, p_max = _discretize_continuous_prob_arr(
-      dist=dist,
-      x_array=x_array,
-      bound_type=bound_type,
-      pmf_min_increment=pmf_min_increment,
-  )
-
-  if spacing_type == definitions.SpacingType.LINEAR:
-    return DenseDiscreteDist.from_x_array(
-        x_array=x_array,
-        prob_arr=prob_arr,
-        p_min=p_min,
-        p_max=p_max,
-        domain=domain,
-    )
-
-  if spacing_type == definitions.SpacingType.GEOMETRIC:
-    return DenseDiscreteDist.from_x_array(
-        x_array=x_array,
-        prob_arr=prob_arr,
-        p_min=p_min,
-        p_max=p_max,
-        spacing_type=definitions.SpacingType.GEOMETRIC,
-        domain=Domain.POSITIVES,
-    )
-
-  raise ValueError(f"Invalid spacing_type: {spacing_type}")
-
-
 def discretize_on_grid(
     *,
-    dist: stats.rv_continuous | rv_frozen[Any, Any],
+    dist: stats.rv_continuous | rv_frozen,
     grid: definitions.RegularGrid,
     bound_type: definitions.BoundType,
     pmf_min_increment: float,
@@ -1215,65 +1146,12 @@ def discretize_on_grid(
   raise ValueError(f"Invalid spacing_type: {grid.spacing_type}")
 
 
-def _discretize_continuous_distribution(
-    *,
-    dist: stats.rv_continuous | rv_frozen[Any, Any],
-    tail_truncation: float,
-    bound_type: definitions.BoundType,
-    spacing_type: definitions.SpacingType,
-    step: float,
-    align_to_multiples: bool,
-    domain: Domain = Domain.REALS,
-) -> DenseDiscreteDist:
-  """Discretize a continuous distribution to a typed structured representation.
-
-  Args:
-      dist: Continuous distribution to discretize.
-      tail_truncation: Tail mass budget used to define quantile bounds and
-          bin increment floor.
-      bound_type: Tie-breaking direction for interval mass assignment.
-      spacing_type: Output grid spacing family (linear or geometric).
-      step: Linear bin width or geometric log-ratio.
-      align_to_multiples: Whether to align the quantile-derived bounds to
-          integer step multiples.
-      domain: Domain semantics for boundary masses in the output discrete
-          distribution.
-
-  Returns:
-      Discretized distribution on a structured dense grid.
-  """
-
-  grid = _continuous_to_grid(
-      dist=dist,
-      tail_truncation=tail_truncation,
-      spacing_type=spacing_type,
-      step=step,
-      align_to_multiples=align_to_multiples,
-  )
-  x_array = grid.x_array
-  if x_array[0] <= 0 and domain == Domain.POSITIVES:
-    dist_name = getattr(dist, "name", type(dist).__name__)
-    raise ValueError(
-        f"Cannot discretize {dist_name} to a positive range, got "
-        f"x_min={x_array[0]}"
-    )
-
-  # 2. Map density to PMF with semantics.
-  return discretize_on_grid(
-      dist=dist,
-      grid=grid,
-      bound_type=bound_type,
-      pmf_min_increment=tail_truncation,
-      domain=domain,
-  )
-
-
 def _remap_prob_to_grid(
-    x_array: NDArray[np.float64],
-    prob_arr: NDArray[np.float64],
-    x_array_out: NDArray[np.float64],
+    x_array: np.np.typing.NDArray,
+    prob_arr: np.np.typing.NDArray,
+    x_array_out: np.np.typing.NDArray,
     dominates: bool,
-) -> NDArray[np.float64]:
+) -> np.np.typing.NDArray:
   """Vectorised PMF remap using np.searchsorted + np.add.at.
 
   Uses binary search to locate each input value's target output bin in one

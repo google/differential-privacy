@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Callable
+from typing import Callable
 
 import numpy as np
-from numpy.typing import NDArray
 
-from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import definitions
+from dp_accounting.pld.random_allocation import distributions
 
 
 # =============================================================================
@@ -82,8 +81,8 @@ def self_convolve_boundary_masses(
 
 
 def _kahan_reverse_exclusive_cumsum(
-    padded_probs: NDArray[np.float64],
-) -> NDArray[np.float64]:
+    padded_probs: np.ndarray,
+) -> np.ndarray:
   """Compute exclusive CCDF using Kahan summation for numerical stability.
 
   Computes exclusive reverse cumulative sum: CCDF[i] = sum(padded_probs[i+1:]).
@@ -111,7 +110,7 @@ def _kahan_reverse_exclusive_cumsum(
 
 def _ccdf_from_pmf(
     dist: distributions.DiscreteDistBase,
-) -> NDArray[np.float64]:
+) -> np.ndarray:
   """Convert distribution PMF to padded complementary CDF.
 
   Returns CCDF over [−∞/0, l_0, l_1, ..., +∞]:
@@ -128,7 +127,7 @@ def _ccdf_from_pmf(
 def _expand_to_grid(
     *,
     dist: distributions.DiscreteDistBase,
-    grid: NDArray[np.float64],
+    grid: np.ndarray,
 ) -> distributions.SparseDiscreteDist:
   """Insert zero-mass points for missing support values."""
   x = dist.x_array
@@ -212,54 +211,6 @@ def binary_self_convolve(
   # If T is a power of two, acc_dist is never set; return the final squared
   # base_dist.
   return acc_dist if acc_dist is not None else base_dist
-
-
-def _combine_distributions(
-    *,
-    dist_1: distributions.DiscreteDistBase,
-    dist_2: distributions.DiscreteDistBase,
-    bound_type: definitions.BoundType,
-) -> distributions.SparseDiscreteDist:
-  """Combine two distributions by tightening bounds via CCDF min/max.
-
-  For DOMINATES: tighter dominating distribution via pointwise min CCDF.
-  For IS_DOMINATED: tighter dominated distribution via pointwise max CCDF.
-  """
-  ccdf_op: Any
-  if bound_type == definitions.BoundType.DOMINATES:
-    ccdf_op = np.minimum
-  elif bound_type == definitions.BoundType.IS_DOMINATED:
-    ccdf_op = np.maximum
-  else:
-    raise ValueError(f"Unknown BoundType: {bound_type}")
-
-  if distributions.stable_array_equal(a=dist_1.x_array, b=dist_2.x_array):
-    dist_1_aligned, dist_2_aligned = dist_1, dist_2
-  else:
-    dist_1_aligned, dist_2_aligned = _align_distributions_to_union_grid(
-        dist_1=dist_1,
-        dist_2=dist_2,
-    )
-
-  x_array = dist_1_aligned.x_array
-  ccdf_1 = _ccdf_from_pmf(dist_1_aligned)
-  ccdf_2 = _ccdf_from_pmf(dist_2_aligned)
-  combined_ccdf = ccdf_op(ccdf_1, ccdf_2)
-  prob_arr = combined_ccdf[:-2] - combined_ccdf[1:-1]
-
-  prob_arr, p_min, p_max = distributions.enforce_mass_conservation(
-      prob_arr=prob_arr,
-      expected_p_min=max(dist_1_aligned.p_min, dist_2_aligned.p_min),
-      expected_p_max=max(dist_1_aligned.p_max, dist_2_aligned.p_max),
-      bound_type=bound_type,
-  )
-
-  return distributions.SparseDiscreteDist(
-      x_array=x_array,
-      prob_arr=prob_arr,
-      p_min=p_min,
-      p_max=p_max,
-  )
 
 
 # =============================================================================
@@ -591,29 +542,4 @@ def validate_allocation_scheme_config(
     raise ValueError(
         f"max_grid_mult must be -1 (no limit) or a positive integer, "
         f"got {config.max_grid_mult}"
-    )
-
-
-def _validate_optional_discretization_params(
-    initial_discretization: float | None = None,
-    initial_tail_truncation: float | None = None,
-) -> None:
-  """Validate optional discretization parameters.
-
-  Args:
-      initial_discretization: Optional initial loss discretization interval.
-      initial_tail_truncation: Optional initial tail truncation threshold.
-
-  Raises:
-      ValueError: If any provided parameter is invalid.
-
-  """
-  if initial_discretization is not None and initial_discretization <= 0:
-    raise ValueError(
-        f"initial_discretization must be positive, got {initial_discretization}"
-    )
-  if initial_tail_truncation is not None and initial_tail_truncation <= 0:
-    raise ValueError(
-        "initial_tail_truncation must be positive, got "
-        f"{initial_tail_truncation}"
     )

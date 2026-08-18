@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from functools import partial
+import functools
 from typing import Callable
 
 import numpy as np
@@ -11,8 +11,8 @@ from scipy import stats
 from dp_accounting.pld import pld_pmf
 from dp_accounting.pld import privacy_loss_distribution
 from dp_accounting.pld.random_allocation import convolution
-from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import definitions
+from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import utils
 
 
@@ -617,7 +617,7 @@ def _gaussian_allocation_geom(
   """
   if direction == definitions.Direction.ADD:
     return geometric_allocation_pld_base_add(
-        base_distributions_creation=partial(
+        base_distributions_creation=functools.partial(
             _gaussian_add_geom_loss_factor,
             sigma=sigma,
         ),
@@ -628,7 +628,7 @@ def _gaussian_allocation_geom(
     )
   if direction == definitions.Direction.REMOVE:
     return geometric_allocation_pld_base_remove(
-        base_distributions_creation=partial(
+        base_distributions_creation=functools.partial(
             _gaussian_remove_geom_loss_factors,
             sigma=sigma,
         ),

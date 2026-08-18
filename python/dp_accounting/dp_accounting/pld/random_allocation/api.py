@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from functools import partial
+import functools
 
 from dp_accounting.pld import privacy_loss_distribution
 
 from dp_accounting.pld.random_allocation import core
-from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import definitions
+from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import utils
 
 
@@ -36,12 +36,12 @@ def gaussian_allocation_pld(
   utils.validate_allocation_scheme_config(config)
   utils.validate_bound_type(bound_type)
 
-  compute_base_pld_remove = partial(
+  compute_base_pld_remove = functools.partial(
       core.gaussian_allocation_pld_core,
       direction=definitions.Direction.REMOVE,
       sigma=params.sigma,
   )
-  compute_base_pld_add = partial(
+  compute_base_pld_add = functools.partial(
       core.gaussian_allocation_pld_core,
       direction=definitions.Direction.ADD,
       sigma=params.sigma,
@@ -101,16 +101,16 @@ def general_allocation_pld(
   utils.validate_allocation_scheme_config(config)
   utils.validate_bound_type(bound_type)
 
-  compute_base_pld_remove = partial(
+  compute_base_pld_remove = functools.partial(
       core.geometric_allocation_pld_base_remove,
-      base_distributions_creation=partial(
+      base_distributions_creation=functools.partial(
           core.realization_remove_base_distributions,
           realization=remove_realization,
       ),
   )
-  compute_base_pld_add = partial(
+  compute_base_pld_add = functools.partial(
       core.geometric_allocation_pld_base_add,
-      base_distributions_creation=partial(
+      base_distributions_creation=functools.partial(
           core.realization_add_base_distribution,
           realization=add_realization,
       ),

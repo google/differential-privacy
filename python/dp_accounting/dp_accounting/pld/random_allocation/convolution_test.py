@@ -5,8 +5,8 @@ import math
 import numpy as np
 from absl.testing import absltest
 from dp_accounting.pld.random_allocation import convolution
-from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import definitions
+from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import utils
 
 

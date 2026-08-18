@@ -9,8 +9,8 @@ from absl.testing import absltest
 from dp_accounting.pld import privacy_loss_distribution
 
 from dp_accounting.pld.random_allocation import api
-from dp_accounting.pld.random_allocation import distributions
 from dp_accounting.pld.random_allocation import definitions
+from dp_accounting.pld.random_allocation import distributions
 
 
 def _simple_realization() -> distributions.PLDRealization:
@@ -64,7 +64,9 @@ class RandomAllocationApiTest(absltest.TestCase):
   def test_non_pld_exports_are_not_exposed(self):
     import importlib  # pylint: disable=import-outside-toplevel
 
-    package = importlib.import_module("dp_accounting.pld.random_allocation")
+    package = importlib.import_module(
+        "dp_accounting.pld.random_allocation"
+    )
 
     self.assertFalse(hasattr(package, "gaussian_allocation_epsilon_range"))
     self.assertFalse(hasattr(package, "gaussian_distribution"))

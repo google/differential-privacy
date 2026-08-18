@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
+import dataclasses
+import enum
 
 import numpy as np
-from numpy.typing import NDArray
 
 
 # =============================================================================
@@ -14,21 +13,21 @@ from numpy.typing import NDArray
 # =============================================================================
 
 
-class BoundType(Enum):
+class BoundType(enum.Enum):
   """Tie-breaking bound_type for discretization."""
 
   DOMINATES = "DOMINATES"
   IS_DOMINATED = "IS_DOMINATED"
 
 
-class SpacingType(Enum):
+class SpacingType(enum.Enum):
   """Grid spacing_type strategy."""
 
   LINEAR = "linear"
   GEOMETRIC = "geometric"
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class RegularGrid:
   """Regular grid metadata with exact spacing semantics."""
 
@@ -38,7 +37,7 @@ class RegularGrid:
   spacing_type: SpacingType
 
   @property
-  def x_array(self) -> NDArray[np.float64]:
+  def x_array(self) -> np.ndarray:
     """Array of grid coordinates."""
     indices = np.arange(self.size, dtype=np.float64)
     if self.spacing_type == SpacingType.LINEAR:
@@ -48,7 +47,7 @@ class RegularGrid:
     raise ValueError(f"Unknown SpacingType: {self.spacing_type}")
 
 
-class Direction(Enum):
+class Direction(enum.Enum):
   """Enum for direction of privacy analysis."""
 
   ADD = "add"
@@ -61,7 +60,7 @@ DEFAULT_VALUE_DISCRETIZATION_INTERVAL = 1e-4
 DEFAULT_TAIL_TRUNCATION = 1e-12
 
 
-@dataclass
+@dataclasses.dataclass
 class PrivacyParams:
   """Parameters common to all privacy schemes."""
 
@@ -73,7 +72,7 @@ class PrivacyParams:
   delta: float | None = None
 
 
-@dataclass
+@dataclasses.dataclass
 class AllocationSchemeConfig:
   """Configuration for privacy schemes."""
 
@@ -88,7 +87,7 @@ class AllocationSchemeConfig:
 
 
 def validate_discrete_pmf_and_boundaries(
-    prob_arr: NDArray[np.float64],
+    prob_arr: np.ndarray,
     p_min: float,
     p_max: float,
 ) -> None:
