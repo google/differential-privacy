@@ -11,16 +11,20 @@ from dp_accounting.pld.random_allocation import utils
 
 
 def _linear_dist(n: int = 5) -> distributions.DenseDiscreteDist:
-  x = np.linspace(0.0, 1.0, n)
   pmf = np.ones(n, dtype=np.float64) / n
-  return distributions.DenseDiscreteDist.from_x_array(x_array=x, prob_arr=pmf)
+  return distributions.DenseDiscreteDist(
+      x_min=0.0,
+      step=1.0 / (n - 1),
+      prob_arr=pmf,
+  )
 
 
 def _geometric_dist(n: int = 6) -> distributions.DenseDiscreteDist:
-  x = np.geomspace(0.1, 1.0, n)
   pmf = np.ones(n, dtype=np.float64) / n
-  return distributions.DenseDiscreteDist.from_x_array(
-      x_array=x,
+  # Log-ratio of the grid geomspace(0.1, 1.0, n).
+  return distributions.DenseDiscreteDist(
+      x_min=0.1,
+      step=-math.log(0.1) / (n - 1),
       prob_arr=pmf,
       spacing_type=definitions.SpacingType.GEOMETRIC,
       domain=distributions.Domain.POSITIVES,

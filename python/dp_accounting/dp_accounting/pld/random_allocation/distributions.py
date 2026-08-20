@@ -96,55 +96,9 @@ def _zero_mass(
   return values
 
 
-def _compute_bin_log_ratio(x_array: np.typing.NDArray) -> float:
-  """Compute geometric log-ratio spacing for a grid."""
-  if x_array.size < 2:
-    raise ValueError("Cannot compute geometric bin ratio with less than 2 bins")
-  if np.any(x_array <= 0):
-    raise ValueError(
-        "Cannot compute geometric bin ratio for non-positive values"
-    )
-  log_x = np.log(x_array)
-  log_ratio = float((log_x[-1] - log_x[0]) / (x_array.size - 1))
-  diffs = np.diff(log_x)
-  if not np.allclose(log_ratio, diffs, rtol=_SPACING_RTOL, atol=_SPACING_ATOL):
-    max_diff = np.max(np.abs(log_ratio - diffs))
-    raise ValueError(
-        "Distribution has non-uniform bin widths: "
-        f"log_ratio={log_ratio}, max_diff={max_diff}"
-    )
-  return log_ratio
-
-
-def _compute_bin_width(x_array: np.typing.NDArray) -> float:
-  """Compute linear spacing width for a grid."""
-  if x_array.size < 2:
-    raise ValueError("Cannot compute width with less than 2 bins")
-  diffs = np.diff(x_array)
-  median_diff = np.median(diffs)
-  if not np.allclose(
-      median_diff, diffs, rtol=_SPACING_RTOL, atol=_SPACING_ATOL
-  ):
-    max_diff = np.max(np.abs(median_diff - diffs))
-    raise ValueError(
-        "Distribution has non-uniform bin widths: "
-        f"median_diff={median_diff}, max diff={max_diff}"
-    )
-  return float(median_diff)
-
-
 def stable_isclose(*, a: float, b: float) -> bool:
   """Consistent closeness check using shared spacing tolerances."""
   return bool(np.isclose(a, b, rtol=_SPACING_RTOL, atol=_SPACING_ATOL))
-
-
-def stable_array_equal(
-    *, a: np.typing.NDArray, b: np.typing.NDArray
-) -> bool:
-  """Consistent array closeness check using shared spacing tolerances."""
-  return a.shape == b.shape and np.allclose(
-      a, b, rtol=_SPACING_RTOL, atol=_SPACING_ATOL
-  )
 
 
 def _exp_moment_terms(
@@ -510,33 +464,6 @@ class DenseDiscreteDist(DiscreteDistBase):
         raise ValueError("Geometric spacing requires domain=Domain.POSITIVES")
     else:
       raise ValueError(f"Unknown SpacingType: {self.spacing_type}")
-
-  @classmethod
-  def from_x_array(
-      cls,
-      x_array: np.typing.NDArray[np.float64],
-      prob_arr: np.typing.NDArray[np.float64],
-      p_min: float = 0.0,
-      p_max: float = 0.0,
-      spacing_type: definitions.SpacingType = definitions.SpacingType.LINEAR,
-      domain: Domain = Domain.REALS,
-  ) -> "DenseDiscreteDist":
-    """Create DenseDiscreteDist from x_array by extracting x_min and step."""
-    if spacing_type == definitions.SpacingType.LINEAR:
-      step = _compute_bin_width(x_array)
-    elif spacing_type == definitions.SpacingType.GEOMETRIC:
-      step = _compute_bin_log_ratio(x_array)
-    else:
-      raise ValueError(f"Unknown SpacingType: {spacing_type}")
-    return cls(
-        x_min=float(x_array[0]),
-        step=step,
-        prob_arr=prob_arr,
-        p_min=p_min,
-        p_max=p_max,
-        spacing_type=spacing_type,
-        domain=domain,
-    )
 
   @property
   def x_array(self) -> np.typing.NDArray[np.float64]:
@@ -1074,41 +1001,6 @@ def discretize_aligned_grid(
       step=d,
       size=n,
       spacing_type=definitions.SpacingType.GEOMETRIC,
-  )
-
-
-def _continuous_to_grid(
-    *,
-    dist: stats.rv_continuous | rv_frozen,
-    tail_truncation: float,
-    spacing_type: definitions.SpacingType,
-    step: float,
-    align_to_multiples: bool,
-) -> definitions.RegularGrid:
-  """Generate grid covering the quantile range defined by tail_truncation."""
-  # Determine support bounds via quantiles
-  x_min = float(dist.ppf(tail_truncation))
-  x_max = float(dist.isf(tail_truncation))
-  if not np.isfinite(x_min) or not np.isfinite(x_max):
-    raise ValueError(f"Quantiles not finite: x_min={x_min}, x_max={x_max}")
-
-  if spacing_type == definitions.SpacingType.GEOMETRIC:
-    if step <= 0.0:
-      raise ValueError(f"Geometric step must be positive, got {step}")
-    discretization = float(step)
-  elif spacing_type == definitions.SpacingType.LINEAR:
-    if step <= 0.0:
-      raise ValueError(f"Linear step must be positive, got {step}")
-    discretization = float(step)
-  else:
-    raise ValueError(f"Invalid spacing_type: {spacing_type}")
-
-  return discretize_aligned_grid(
-      x_min=x_min,
-      x_max=x_max,
-      spacing_type=spacing_type,
-      align_to_multiples=align_to_multiples,
-      discretization=discretization,
   )
 
 

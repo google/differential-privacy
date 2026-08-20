@@ -171,9 +171,7 @@ class DiscretizeRangeTest(absltest.TestCase):
         discretization=discretization,
     ).x_array
 
-    np.testing.assert_allclose(
-        distributions._compute_bin_width(x), discretization
-    )
+    np.testing.assert_allclose(np.diff(x), discretization)
     np.testing.assert_allclose(x / discretization, np.round(x / discretization))
 
   def test_generated_geometric_grid_preserves_pld_default_step(self):
@@ -196,42 +194,6 @@ class DiscretizeRangeTest(absltest.TestCase):
 
     self.assertEqual(dist.step, 1e-4)
     np.testing.assert_allclose(dist.x_array, x)
-
-
-class ComputeBinWidthTest(absltest.TestCase):
-
-  def test_uniform_grid(self):
-    x = np.array([1.0, 2.0, 3.0, 4.0])
-    width = distributions._compute_bin_width(x)
-    np.testing.assert_allclose(width, 1.0)
-
-  def test_nonuniform_grid_raises(self):
-    x = np.array([1.0, 2.0, 3.5, 6.0])
-    with self.assertRaisesRegex(ValueError, "non-uniform bin widths"):
-      distributions._compute_bin_width(x)
-
-  def test_single_point_raises(self):
-    x = np.array([1.0])
-    with self.assertRaisesRegex(ValueError, "less than 2 bins"):
-      distributions._compute_bin_width(x)
-
-
-class ComputeBinLogRatioTest(absltest.TestCase):
-
-  def test_geometric_grid(self):
-    x = np.array([1.0, 2.0, 4.0, 8.0])
-    step = distributions._compute_bin_log_ratio(x)
-    np.testing.assert_allclose(step, np.log(2.0))
-
-  def test_nonuniform_grid_raises(self):
-    x = np.array([1.0, 3.0, 6.0, 18.0])
-    with self.assertRaisesRegex(ValueError, "non-uniform bin widths"):
-      distributions._compute_bin_log_ratio(x)
-
-  def test_single_point_raises(self):
-    x = np.array([1.0])
-    with self.assertRaisesRegex(ValueError, "less than 2 bins"):
-      distributions._compute_bin_log_ratio(x)
 
 
 class ComputeDiscretePmfTest(absltest.TestCase):
@@ -529,8 +491,9 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
     np.testing.assert_allclose(total, 1.0)
 
   def test_is_dominated_moves_p_max_into_last_finite_cell(self):
-    dist = distributions.DenseDiscreteDist.from_x_array(
-        x_array=np.array([0.0, 1.0, 2.0], dtype=np.float64),
+    dist = distributions.DenseDiscreteDist(
+        x_min=0.0,
+        step=1.0,
         prob_arr=np.array([0.2, 0.3, 0.4], dtype=np.float64),
         p_max=0.1,
     )
@@ -551,8 +514,9 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
     np.testing.assert_allclose(total, 1.0)
 
   def test_dominates_linear_moves_p_min_into_first_finite_cell(self):
-    dist = distributions.DenseDiscreteDist.from_x_array(
-        x_array=np.array([0.0, 1.0, 2.0], dtype=np.float64),
+    dist = distributions.DenseDiscreteDist(
+        x_min=0.0,
+        step=1.0,
         prob_arr=np.array([0.2, 0.3, 0.4], dtype=np.float64),
         p_min=0.1,
     )
@@ -573,8 +537,9 @@ class RediscretizeBoundaryFoldingTest(absltest.TestCase):
     np.testing.assert_allclose(total, 1.0)
 
   def test_dominates_geometric_keeps_zero_atom(self):
-    dist = distributions.DenseDiscreteDist.from_x_array(
-        x_array=np.array([1.0, 2.0, 4.0], dtype=np.float64),
+    dist = distributions.DenseDiscreteDist(
+        x_min=1.0,
+        step=math.log(2.0),
         prob_arr=np.array([0.2, 0.3, 0.4], dtype=np.float64),
         p_min=0.1,
         spacing_type=definitions.SpacingType.GEOMETRIC,
