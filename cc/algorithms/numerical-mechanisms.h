@@ -24,7 +24,6 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
-#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -199,7 +198,7 @@ class LaplaceMechanism : public NumericalMechanism {
     absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override;
 
     std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
-      return absl::make_unique<Builder>(*this);
+      return std::make_unique<Builder>(*this);
     }
 
    protected:
@@ -327,7 +326,7 @@ class GaussianMechanism : public NumericalMechanism {
     absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override;
 
     std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
-      return absl::make_unique<Builder>(*this);
+      return std::make_unique<Builder>(*this);
     }
 
    protected:
@@ -496,7 +495,7 @@ class MinVarianceMechanismBuilder : public NumericalMechanismBuilder {
   }
 
   std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
-    return absl::make_unique<MinVarianceMechanismBuilder>(*this);
+    return std::make_unique<MinVarianceMechanismBuilder>(*this);
   }
 
  private:
