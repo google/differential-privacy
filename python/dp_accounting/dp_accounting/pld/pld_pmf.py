@@ -360,6 +360,17 @@ class PLDPmf(abc.ABC):
     )
     # pylint: enable=protected-access
 
+  @abc.abstractmethod
+  def epsilon_range(self) -> tuple[float, float]:
+    """Returns the minimum and maximum epsilon over which the PMF is defined.
+
+    This ignores the infinity mass. e.g. if a PLD is supported on
+    [0, 0.5, 1, inf] then this returns (0, 1).
+
+    Returns:
+      A tuple of the minimum and maximum epsilon over which the PMF is defined.
+    """
+
 
 class DensePLDPmf(PLDPmf):
   """Class for dense probability mass function.
@@ -491,6 +502,20 @@ class DensePLDPmf(PLDPmf):
 
     return delta
 
+  def epsilon_range(self) -> tuple[float, float]:
+    """Returns the minimum and maximum epsilon over which the PMF is defined.
+
+    This ignores the infinity mass. e.g. if a PLD is supported on
+    [0, 0.5, 1, inf] then this returns (0, 1).
+
+    Returns:
+      A tuple of the minimum and maximum epsilon over which the PMF is defined.
+    """
+    return (
+        self._lower_loss * self._discretization,
+        (self._lower_loss + self.size - 1) * self._discretization,
+    )
+
 
 class SparsePLDPmf(PLDPmf):
   """Class for sparse probability mass function.
@@ -594,6 +619,22 @@ class SparsePLDPmf(PLDPmf):
     lower_loss, probs = common.dictionary_to_list(self._loss_probs)
     return DensePLDPmf(self._discretization, lower_loss, np.array(probs),
                        self._infinity_mass, self._pessimistic_estimate)
+
+  def epsilon_range(self) -> tuple[float, float]:
+    """Returns the minimum and maximum epsilon over which the PMF is defined.
+
+    This ignores the infinity mass. e.g. if a PLD is supported on [0, 1, 2, inf]
+    then this returns (0, 2).
+
+    Returns:
+      A tuple of the minimum and maximum epsilon over which the PMF is defined.
+    """
+    lower_loss = min(self._loss_probs.keys())
+    upper_loss = max(self._loss_probs.keys())
+    return (
+        lower_loss * self._discretization,
+        upper_loss * self._discretization,
+    )
 
 
 def create_pmf(loss_probs: Mapping[int, float], discretization: float,

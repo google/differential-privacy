@@ -326,6 +326,113 @@ class PrivacyLossDistribution:
     )
     # pylint:enable=protected-access
 
+  def apply_poisson_sampling(
+      self,
+      sampling_probability: float,
+      value_discretization_interval: float,
+  ) -> 'PrivacyLossDistribution':
+    """Wraps the PrivacyLossDistribution with Poisson sampling.
+
+    By Theorem 11 of https://arxiv.org/pdf/2106.08567, if (P, Q) is a dominating
+    pair for a mechanism under the remove adjacency, (p * P + (1 - p) * Q, Q) is
+    a dominating pair for the Poisson sampled mechanism. Similarly, if (Q, P) is
+    a dominating pair for a mechanism under the add adjacency, (Q, p * P + (1 -
+    p) * Q) is a dominating pair for the Poisson sampled mechanism.
+
+    This method converts the epsilon-delta function for the unsampled mechanism
+    into an epsilon-delta function for the Poisson sampled mechanism, which is
+    generally more stable than working with the PMF directly. We utilize the
+    following facts about the hockey-stick divergence H_a (where H_{e^epsilon}
+    is equal to pmf.get_delta_for_epsilon(epsilon)) for the conversion:
+
+    If P' = p * P + (1 - p) * Q, then:
+    - If a <= 1 - p, H_a(P', Q) = 1 - a.
+    - If a > 1 - p, H_a(P', Q) = p * H_{1 + (a-1)/p}(P, Q).
+    - If a < 1 / (1 - p), H_a(Q, P') = (1 - a + a * p) *
+      H_{p / (1/a - 1 + p)}(Q, P).
+    - If a >= 1 / (1 - p), H_a(Q, P') = 0.
+
+    See Lemma 1 in the supplementary material for a derivation of these facts.
+
+    Args:
+      sampling_probability: The Poisson sampling probability.
+      value_discretization_interval: The discretization interval of the returned
+        PLD.
+
+    Returns:
+      The PrivacyLossDistribution corresponding to the mechanism that performs
+      Poisson sampling, then runs in the inner mechanism.
+    """
+    if not 0 <= sampling_probability <= 1:
+      raise ValueError(
+          'sampling_probability must be in [0, 1], but got %s'
+          % sampling_probability
+      )
+    if sampling_probability == 0:
+      return identity(value_discretization_interval)
+    if sampling_probability == 1:
+      return self
+
+    # Compute sampled remove PMF
+    min_eps, max_eps = self._pmf_remove.epsilon_range()
+    rounded_epsilon_lower = math.floor(min_eps / value_discretization_interval)
+    rounded_epsilon_upper = math.ceil(max_eps / value_discretization_interval)
+    epsilons = (
+        np.arange(rounded_epsilon_lower, rounded_epsilon_upper + 1)
+        * value_discretization_interval
+    )
+    deltas = np.zeros_like(epsilons)
+    above_threshold = epsilons >= np.log1p(-sampling_probability)
+    below_threshold = np.logical_not(above_threshold)
+    # If a <= 1 - p, H_a(P', Q) = 1 - a.
+    deltas[below_threshold] = -np.expm1(epsilons[below_threshold])
+    # If a > 1 - p, H_a(P', Q) = p * H_{1 + (a-1)/p}(P, Q).
+    query_epsilons = np.log1p(
+        np.expm1(epsilons[above_threshold]) / sampling_probability
+    )
+    deltas[above_threshold] = (
+        sampling_probability
+        * self._pmf_remove.get_delta_for_epsilon(query_epsilons)
+    )
+    sampled_remove_pmf = pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
+        discretization=value_discretization_interval,
+        rounded_epsilon_lower=rounded_epsilon_lower,
+        rounded_epsilon_upper=rounded_epsilon_upper,
+        deltas=deltas,
+    )
+
+    # Compute sampled add PMF
+    min_eps, max_eps = self._pmf_add.epsilon_range()
+    # If max_eps is smaller than -np.log1p(-sampling_probability), we extend
+    # the range to include it so that min(deltas) = 0 and we avoid the need to
+    # handle infinity mass.
+    max_eps = max(max_eps, -np.log1p(-sampling_probability))
+    rounded_epsilon_lower = math.floor(min_eps / value_discretization_interval)
+    rounded_epsilon_upper = math.ceil(max_eps / value_discretization_interval)
+    epsilons = (
+        np.arange(rounded_epsilon_lower, rounded_epsilon_upper + 1)
+        * value_discretization_interval
+    )
+    # If a >= 1 / (1 - p), H_a(Q, P') = 0, same as initialization so no need
+    # to update.
+    deltas = np.zeros_like(epsilons)
+    below_threshold = epsilons < -np.log1p(-sampling_probability)
+    # If a < 1 / (1 - p), H_a(Q, P') = (1 - a + a * p) *
+    # H_{p / (1/a - 1 + p)}(Q, P).
+    query_epsilons = -np.log1p(
+        np.expm1(-epsilons[below_threshold]) / sampling_probability
+    )
+    deltas[below_threshold] = self._pmf_add.get_delta_for_epsilon(
+        query_epsilons
+    ) * -np.expm1(epsilons[below_threshold] + np.log1p(-sampling_probability))
+    sampled_add_pmf = pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
+        discretization=value_discretization_interval,
+        rounded_epsilon_lower=rounded_epsilon_lower,
+        rounded_epsilon_upper=rounded_epsilon_upper,
+        deltas=deltas,
+    )
+    return PrivacyLossDistribution(sampled_remove_pmf, sampled_add_pmf)
+
   def get_true_positive_rates(
       self,
       false_positive_rates: Union[float, np.ndarray],

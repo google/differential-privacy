@@ -2945,6 +2945,115 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
     )
 
 
+class PoissonSampledPrivacyLossDistributionTest(parameterized.TestCase):
+
+  def test_apply_poisson_sampling_zero_probability(self):
+    pld = privacy_loss_distribution.from_gaussian_mechanism(
+        standard_deviation=1.0,
+        value_discretization_interval=1e-3,
+    )
+    sampled_pld = pld.apply_poisson_sampling(
+        sampling_probability=0.0,
+        value_discretization_interval=1e-3,
+    )
+    self.assertEqual(sampled_pld._pmf_remove.get_delta_for_epsilon(0.0), 0.0)
+    self.assertEqual(sampled_pld._pmf_add.get_delta_for_epsilon(0.0), 0.0)
+
+  def test_apply_poisson_sampling_one_probability(self):
+    pld = privacy_loss_distribution.from_gaussian_mechanism(
+        standard_deviation=1.0,
+        value_discretization_interval=1e-3,
+    )
+    sampled_pld = pld.apply_poisson_sampling(
+        sampling_probability=1.0,
+        value_discretization_interval=1e-3,
+    )
+    for epsilon in [0.1, 1.0, 10.0]:
+      self.assertAlmostEqual(
+          sampled_pld._pmf_remove.get_delta_for_epsilon(epsilon),
+          pld._pmf_remove.get_delta_for_epsilon(epsilon),
+      )
+      self.assertAlmostEqual(
+          sampled_pld._pmf_add.get_delta_for_epsilon(epsilon),
+          pld._pmf_add.get_delta_for_epsilon(epsilon),
+      )
+
+  def test_apply_poisson_sampling_matches_gaussian_implementation(self):
+    pld = privacy_loss_distribution.from_gaussian_mechanism(
+        standard_deviation=1.0,
+        value_discretization_interval=1e-3,
+    )
+    sampled_pld = pld.apply_poisson_sampling(
+        sampling_probability=0.1,
+        value_discretization_interval=1e-3,
+    )
+    direct_sampled_pld = privacy_loss_distribution.from_gaussian_mechanism(
+        standard_deviation=1.0,
+        sampling_prob=0.1,
+        value_discretization_interval=1e-3,
+    )
+    for epsilon in [0.1, 1.0, 10.0]:
+      self.assertAlmostEqual(
+          sampled_pld._pmf_remove.get_delta_for_epsilon(epsilon),
+          direct_sampled_pld._pmf_remove.get_delta_for_epsilon(epsilon),
+      )
+      self.assertAlmostEqual(
+          sampled_pld._pmf_add.get_delta_for_epsilon(epsilon),
+          direct_sampled_pld._pmf_add.get_delta_for_epsilon(epsilon),
+      )
+
+  def test_apply_poisson_sampling_matches_laplace_implementation(self):
+    pld = privacy_loss_distribution.from_laplace_mechanism(
+        parameter=1.0,
+        value_discretization_interval=1e-3,
+    )
+    sampled_pld = pld.apply_poisson_sampling(
+        sampling_probability=0.1,
+        value_discretization_interval=1e-3,
+    )
+    direct_sampled_pld = privacy_loss_distribution.from_laplace_mechanism(
+        parameter=1.0,
+        sampling_prob=0.1,
+        value_discretization_interval=1e-3,
+    )
+    for epsilon in [0.1, 1.0, 10.0]:
+      self.assertAlmostEqual(
+          sampled_pld._pmf_remove.get_delta_for_epsilon(epsilon),
+          direct_sampled_pld._pmf_remove.get_delta_for_epsilon(epsilon),
+      )
+      self.assertAlmostEqual(
+          sampled_pld._pmf_add.get_delta_for_epsilon(epsilon),
+          direct_sampled_pld._pmf_add.get_delta_for_epsilon(epsilon),
+      )
+
+  def test_apply_poisson_sampling_composition(self):
+    pld = privacy_loss_distribution.from_gaussian_mechanism(
+        standard_deviation=1.0,
+        value_discretization_interval=1e-3,
+    )
+    p, q = 0.5, 0.2
+    once_sampled_pld = pld.apply_poisson_sampling(
+        sampling_probability=p * q,
+        value_discretization_interval=1e-3,
+    )
+    twice_sampled_pld = pld.apply_poisson_sampling(
+        sampling_probability=p,
+        value_discretization_interval=1e-3,
+    ).apply_poisson_sampling(
+        sampling_probability=q,
+        value_discretization_interval=1e-3,
+    )
+    for epsilon in [0.1, 1.0, 10.0]:
+      self.assertAlmostEqual(
+          once_sampled_pld._pmf_remove.get_delta_for_epsilon(epsilon),
+          twice_sampled_pld._pmf_remove.get_delta_for_epsilon(epsilon),
+      )
+      self.assertAlmostEqual(
+          once_sampled_pld._pmf_add.get_delta_for_epsilon(epsilon),
+          twice_sampled_pld._pmf_add.get_delta_for_epsilon(epsilon),
+      )
+
+
 class IdentityPrivacyLossDistributionTest(parameterized.TestCase):
 
   @parameterized.parameters((True,), (False,))
