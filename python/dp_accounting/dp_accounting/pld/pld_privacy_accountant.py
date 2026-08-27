@@ -265,13 +265,32 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             self._pld = self._pld.compose(subsampled_laplace_pld)
         return None
       else:
-        return CompositionErrorDetails(
-            invalid_event=event,
-            error_message=(
-                'Subevent of `PoissonSampledEvent` must be either '
-                f'`GaussianDpEvent` or `LaplaceDpEvent`. Found {event.event}.'
-            ),
+        if self.neighboring_relation != NeighborRel.ADD_OR_REMOVE_ONE:
+          return CompositionErrorDetails(
+              invalid_event=event,
+              error_message=(
+                  'neighboring_relation must be `ADD_OR_REMOVE_ONE` '
+                  'for `PoissonSampledDpEvent` of a non-Gaussian/Laplace '
+                  f'mechanism. Found {self._neighboring_relation}.'
+              ),
+          )
+        sub_accountant = PLDAccountant(
+            neighboring_relation=self.neighboring_relation,
+            value_discretization_interval=self._value_discretization_interval,
         )
+        # pylint: disable=protected-access
+        sub_accountant._maybe_compose(event.event, count, do_compose=do_compose)
+        if do_compose:
+          if sub_accountant._contains_non_dp_event:
+            self._contains_non_dp_event = True
+            return None
+          sampled_pld = sub_accountant._pld.apply_poisson_sampling(
+              sampling_probability=event.sampling_probability,
+              value_discretization_interval=self._value_discretization_interval,
+          ).self_compose(count)
+          self._pld = self._pld.compose(sampled_pld)
+        # pylint: enable=protected-access
+        return None
     elif isinstance(event, dp_event.TruncatedSubsampledGaussianDpEvent):
       if do_compose:
         if (
