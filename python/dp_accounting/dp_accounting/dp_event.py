@@ -276,9 +276,9 @@ class EpsilonDeltaDpEvent(DpEvent):
 class GaussianDpEvent(DpEvent):
   """Represents an application of the Gaussian mechanism.
 
-  For values v_i and noise z ~ N(0, s^2I), this mechanism returns sum_i v_i + z.
-  If the norms of the values are bounded ||v_i|| <= C, the noise_multiplier is
-  defined as s / C.
+  For values v_i and noise z ~ N(0, σ²I), this mechanism returns sum_i v_i + z.
+  If the L₂ norms of the values are bounded ∥v_i∥₂ ≤ C, the noise_multiplier is
+  defined as σ/C.
   """
   noise_multiplier: float
 
@@ -288,11 +288,11 @@ class LaplaceDpEvent(DpEvent):
   r"""Represents an application of the Laplace mechanism.
 
   For values v_i and noise z sampled coordinate-wise from the Laplace
-  distribution L(0, s), this mechanism returns sum_i v_i + z.
-  The probability density function of the Laplace distribution L(0, s) with
-  parameter s is given as exp(-\|x\|/s) * (0.5/s) at x for any real value x.
-  If the L_1 norm of the values are bounded ||v_i||_1 <= C, the noise_multiplier
-  is defined as s / C.
+  distribution of scale b, this mechanism returns sum_i v_i + z.
+  The probability density function of the Laplace distribution L(0, b) of
+  scale b is given as exp(-\|x\|/b) * (0.5/b) at x for any real value x.
+  If the L₁ norm of the values are bounded ∥v_i∥₁ ≤ C, the noise_multiplier
+  is defined as b/C.
   """
   noise_multiplier: float
 
@@ -305,7 +305,7 @@ class DiscreteLaplaceDpEvent(DpEvent):
   Laplace distribution DLap(a), this mechanism returns sum_i v_i + z.
   The probability mass function of the discrete Laplace distribution DLap(a)
   with noise parameter `a` is given as exp(-a|x|) * tanh(a/2) at x for any
-  integer value x. If the L_1 norm of the values are bounded ||v_i||_1 <= C,
+  integer value x. If the L₁ norm of the values are bounded ∥v_i∥₁ ≤ C,
   the sensitivity is `C`.
   """
   noise_parameter: float
@@ -316,13 +316,12 @@ class DiscreteLaplaceDpEvent(DpEvent):
 class DiscreteGaussianDpEvent(DpEvent):
   """Represents an application of the discrete Gaussian mechanism.
 
-  For an integer-valued function f with sensitivity `sensitivity`, the discrete
+  For an integer-valued function f with L₂ sensitivity `sensitivity`, the discrete
   Gaussian mechanism outputs f(x) + z where z is drawn from the discrete
-  Gaussian distribution with scale parameter `sigma`. The (centered) discrete
-  Gaussian distribution with scale parameter sigma has probability mass
-  function proportional to exp(-z@z / 2 / sigma**2) at z for any integer
-  vector z. This is roughly equivalent to GaussianDpEvent with
-  noise_multiplier = sigma / sensitivity
+  Gaussian distribution with scale parameter σ. The (centered) discrete Gaussian
+  distribution with scale parameter σ has probability mass function proportional to
+  exp(-z@z / 2σ²) at z for any integer vector z. This is roughly equivalent to
+  GaussianDpEvent with noise_multiplier = σ / sensitivity.
 
   Unlike for the continuous Gaussian, the univariate and multivariate cases are
   not equivalent for the discrete Gaussian. The `dimension` parameter specifies
