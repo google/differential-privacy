@@ -57,7 +57,7 @@ TEST(AssignOrReturn, Works) {
     EXPECT_EQ(2, value2);
     ASSIGN_OR_RETURN(const int& value3, ReturnStatusOrValue(3));
     EXPECT_EQ(3, value3);
-    ASSIGN_OR_RETURN(ABSL_ATTRIBUTE_UNUSED int value4,
+    ASSIGN_OR_RETURN([[maybe_unused]] int value4,
                      ReturnStatusOrError("EXPECTED"));
     return ReturnError("ERROR");
   };
