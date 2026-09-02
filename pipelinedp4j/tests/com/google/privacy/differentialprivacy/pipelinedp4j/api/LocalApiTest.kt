@@ -1488,6 +1488,163 @@ class LocalApiTest {
     assertEquals(result, expected)
   }
 
+  @Test
+  fun build_autoNoiseWithVectorSumLInf_doesNotThrow() {
+    val data: Sequence<TestDataRow> = createEmptyInputData()
+    val queryBuilder =
+      LocalQueryBuilder.from(
+          data,
+          { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy({ it.groupKey }, GroupsType.PrivateGroups())
+        .aggregateVector(
+          { listOf(it.value) },
+          vectorSize = 1,
+          VectorAggregationsBuilder().vectorSum(outputColumnName = "vectorSum"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 10.0)
+          ),
+        )
+
+    // Should not throw
+    val unused = queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.AUTO)
+  }
+
+  @Test
+  fun run_autoNoiseWithVectorSumLInf_doesNotThrow() {
+    val data: Sequence<TestDataRow> =
+      sequenceOf(TestDataRow(privacyUnit = "user1", groupKey = "group1", value = 1.0))
+    val queryBuilder =
+      LocalQueryBuilder.from(
+          data,
+          { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy({ it.groupKey }, GroupsType.PublicGroups.create(sequenceOf("group1")))
+        .aggregateVector(
+          { listOf(it.value) },
+          vectorSize = 1,
+          VectorAggregationsBuilder().vectorSum(outputColumnName = "vectorSum"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 10.0)
+          ),
+        )
+
+    val query = queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.AUTO)
+    val result = query.run().toList()
+    assertThat(result).isNotEmpty()
+  }
+
+  @Test
+  fun build_l1VectorNormKindWithAutoNoise_throwsException() {
+    val data: Sequence<TestDataRow> = createEmptyInputData()
+    val queryBuilder =
+      LocalQueryBuilder.from(
+          data,
+          { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy({ it.groupKey }, GroupsType.PrivateGroups())
+        .aggregateVector(
+          { listOf(it.value) },
+          vectorSize = 1,
+          VectorAggregationsBuilder().vectorSum(outputColumnName = "vectorSum"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L1, value = 10.0)
+          ),
+        )
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.AUTO)
+      }
+    assertThat(e)
+      .hasMessageThat()
+      .contains("Norm kind must be L_INF when AUTO mechanism is used. Provided norm kind: L1.")
+  }
+
+  @Test
+  fun build_l2VectorNormKindWithAutoNoise_throwsException() {
+    val data: Sequence<TestDataRow> = createEmptyInputData()
+    val queryBuilder =
+      LocalQueryBuilder.from(
+          data,
+          { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy({ it.groupKey }, GroupsType.PrivateGroups())
+        .aggregateVector(
+          { listOf(it.value) },
+          vectorSize = 1,
+          VectorAggregationsBuilder().vectorSum(outputColumnName = "vectorSum"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L2, value = 10.0)
+          ),
+        )
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.001), NoiseKind.AUTO)
+      }
+    assertThat(e)
+      .hasMessageThat()
+      .contains("Norm kind must be L_INF when AUTO mechanism is used. Provided norm kind: L2.")
+  }
+
+  @Test
+  fun build_autoNoiseWithZeroDeltaInTotalBudget_doesNotThrow() {
+    val data: Sequence<TestDataRow> = createEmptyInputData()
+    val queryBuilder =
+      LocalQueryBuilder.from(
+          data,
+          { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy({ it.groupKey }, GroupsType.PublicGroups.create(sequenceOf("group1")))
+        .count(outputColumnName = "count")
+
+    // Should not throw, unlike Gaussian which requires delta > 0.
+    val unused = queryBuilder.build(TotalBudget(epsilon = 1.1, delta = 0.0), NoiseKind.AUTO)
+  }
+
+  @Test
+  fun build_autoNoiseWithZeroEpsilon_throwsException() {
+    val data: Sequence<TestDataRow> = createEmptyInputData()
+    val queryBuilder =
+      LocalQueryBuilder.from(
+          data,
+          { it.privacyUnit },
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy({ it.groupKey }, GroupsType.PublicGroups.create(sequenceOf("group1")))
+        .count(outputColumnName = "count")
+
+    val e =
+      assertFailsWith<IllegalArgumentException> {
+        queryBuilder.build(TotalBudget(epsilon = 0.0, delta = 0.001), NoiseKind.AUTO)
+      }
+    assertThat(e).hasMessageThat().contains("Epsilon in the total budget must be positive.")
+  }
+
   private fun createEmptyInputData() = createInputData(listOf())
 
   private fun createInputData(data: List<TestDataRow>) = data.asSequence()
