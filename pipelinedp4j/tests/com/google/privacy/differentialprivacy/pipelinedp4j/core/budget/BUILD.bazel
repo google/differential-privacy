@@ -27,6 +27,7 @@ kt_jvm_test(
     test_class = "com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetTests",
     deps = [
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_accountant",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_allocation_details",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_spec",
         "@maven//:com_google_testparameterinjector_test_parameter_injector",
         "@maven//:com_google_truth_truth",
