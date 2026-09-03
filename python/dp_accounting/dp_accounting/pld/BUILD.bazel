@@ -47,6 +47,7 @@ py_library(
         ":privacy_loss_distribution",
         "//dp_accounting:dp_event",
         "//dp_accounting:privacy_accountant",
+        "//dp_accounting/pld/random_allocation",
         "@accounting_py_pip_deps//numpy",
     ],
 )
