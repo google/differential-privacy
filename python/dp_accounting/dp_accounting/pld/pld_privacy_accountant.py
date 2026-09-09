@@ -23,7 +23,8 @@ from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
 from dp_accounting.pld import common
 from dp_accounting.pld import privacy_loss_distribution
-
+from dp_accounting.pld.random_allocation import api as random_allocation_api
+from dp_accounting.pld.random_allocation import definitions as random_allocation_definitions
 
 NeighborRel = privacy_accountant.NeighboringRelation
 CompositionErrorDetails = (
@@ -43,11 +44,13 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
     super().__init__(neighboring_relation)
     self._contains_non_dp_event = False
     self._pld = PLD.identity(
-        value_discretization_interval=value_discretization_interval)
+        value_discretization_interval=value_discretization_interval
+    )
     self._value_discretization_interval = value_discretization_interval
 
-  def _maybe_compose(self, event: dp_event.DpEvent, count: int,
-                     do_compose: bool) -> Optional[CompositionErrorDetails]:
+  def _maybe_compose(
+      self, event: dp_event.DpEvent, count: int, do_compose: bool
+  ) -> Optional[CompositionErrorDetails]:
     if isinstance(event, dp_event.NoOpDpEvent):
       return None
     elif isinstance(event, dp_event.NonPrivateDpEvent):
@@ -74,14 +77,18 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         )
       return None
     elif isinstance(event, dp_event.RandomizedResponseDpEvent):
-      if self.neighboring_relation not in [NeighborRel.REPLACE_ONE,
-                                           NeighborRel.REPLACE_SPECIAL]:
+      if self.neighboring_relation not in [
+          NeighborRel.REPLACE_ONE,
+          NeighborRel.REPLACE_SPECIAL,
+      ]:
         error_msg = (
             'neighboring_relation must be `REPLACE_ONE` or '
             '`REPLACE_SPECIAL` for `RandomizedResponseDpEvent`. Found '
-            f'{self._neighboring_relation}.')
+            f'{self._neighboring_relation}.'
+        )
         return CompositionErrorDetails(
-            invalid_event=event, error_message=error_msg)
+            invalid_event=event, error_message=error_msg
+        )
       if do_compose:
         if event.num_buckets == 1:
           # This is a NoOp event, even when noise_parameter is zero.
@@ -105,12 +112,14 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           gaussian_pld = PLD.from_gaussian_mechanism(
               standard_deviation=event.noise_multiplier / math.sqrt(count),
               value_discretization_interval=self._value_discretization_interval,
-              neighboring_relation=self.neighboring_relation)
+              neighboring_relation=self.neighboring_relation,
+          )
           self._pld = self._pld.compose(gaussian_pld)
       return None
     elif isinstance(event, dp_event.LaplaceDpEvent):
       if self.neighboring_relation not in [
-          NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+          NeighborRel.ADD_OR_REMOVE_ONE,
+          NeighborRel.REPLACE_SPECIAL,
       ]:
         return CompositionErrorDetails(
             invalid_event=event,
@@ -126,13 +135,14 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         else:
           laplace_pld = PLD.from_laplace_mechanism(
               parameter=event.noise_multiplier,
-              value_discretization_interval=self._value_discretization_interval
+              value_discretization_interval=self._value_discretization_interval,
           ).self_compose(count)
           self._pld = self._pld.compose(laplace_pld)
       return None
     elif isinstance(event, dp_event.DiscreteLaplaceDpEvent):
       if self.neighboring_relation not in [
-          NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+          NeighborRel.ADD_OR_REMOVE_ONE,
+          NeighborRel.REPLACE_SPECIAL,
       ]:
         return CompositionErrorDetails(
             invalid_event=event,
@@ -149,13 +159,14 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           discrete_laplace_pld = PLD.from_discrete_laplace_mechanism(
               parameter=event.noise_parameter,
               sensitivity=event.sensitivity,
-              value_discretization_interval=self._value_discretization_interval
+              value_discretization_interval=self._value_discretization_interval,
           ).self_compose(count)
           self._pld = self._pld.compose(discrete_laplace_pld)
       return None
     elif isinstance(event, dp_event.MixtureOfGaussiansDpEvent):
       if self.neighboring_relation not in [
-          NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+          NeighborRel.ADD_OR_REMOVE_ONE,
+          NeighborRel.REPLACE_SPECIAL,
       ]:
         return CompositionErrorDetails(
             invalid_event=event,
@@ -198,7 +209,8 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
       # Neighboring relation restriction follows LaplaceDpEvent, since
       # permute-and-flip delegates to PLD.from_laplace_mechanism.
       if self.neighboring_relation not in [
-          NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+          NeighborRel.ADD_OR_REMOVE_ONE,
+          NeighborRel.REPLACE_SPECIAL,
       ]:
         return CompositionErrorDetails(
             invalid_event=event,
@@ -218,7 +230,7 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           # Laplace mechanism with parameter 1/epsilon.
           pf_pld = PLD.from_laplace_mechanism(
               parameter=1.0 / event.epsilon,
-              value_discretization_interval=self._value_discretization_interval
+              value_discretization_interval=self._value_discretization_interval,
           ).self_compose(count)
           self._pld = self._pld.compose(pf_pld)
       return None
@@ -232,8 +244,7 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           else:
             subsampled_gaussian_pld = PLD.from_gaussian_mechanism(
                 standard_deviation=event.event.noise_multiplier,
-                value_discretization_interval=self
-                ._value_discretization_interval,
+                value_discretization_interval=self._value_discretization_interval,
                 sampling_prob=event.sampling_probability,
                 neighboring_relation=self.neighboring_relation,
             ).self_compose(count)
@@ -241,7 +252,8 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         return None
       elif isinstance(event.event, dp_event.LaplaceDpEvent):
         if self.neighboring_relation not in [
-            NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+            NeighborRel.ADD_OR_REMOVE_ONE,
+            NeighborRel.REPLACE_SPECIAL,
         ]:
           return CompositionErrorDetails(
               invalid_event=event,
@@ -259,9 +271,9 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           else:
             subsampled_laplace_pld = PLD.from_laplace_mechanism(
                 parameter=event.event.noise_multiplier,
-                value_discretization_interval=self
-                ._value_discretization_interval,
-                sampling_prob=event.sampling_probability).self_compose(count)
+                value_discretization_interval=self._value_discretization_interval,
+                sampling_prob=event.sampling_probability,
+            ).self_compose(count)
             self._pld = self._pld.compose(subsampled_laplace_pld)
         return None
       else:
@@ -314,10 +326,39 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           )
           self._pld = self._pld.compose(truncated_subsampled_gaussian_pld)
       return None
+    elif isinstance(event, dp_event.RandomAllocationDpEvent):
+      if not isinstance(event.event, dp_event.GaussianDpEvent):
+        return CompositionErrorDetails(
+            invalid_event=event,
+            error_message=(
+                'Subevent of `RandomAllocationDpEvent` must be '
+                f'`GaussianDpEvent`. Found {event.event}.'
+            ),
+        )
+      if do_compose:
+        if event.num_selected == 0:
+          pass
+        elif event.event.noise_multiplier == 0:
+          self._contains_non_dp_event = True
+        else:
+          params = random_allocation_definitions.PrivacyParams(
+              sigma=event.event.noise_multiplier,
+              num_steps=event.num_steps,
+              num_selected=event.num_selected,
+          )
+          config = random_allocation_definitions.AllocationSchemeConfig(
+              value_discretization_interval=self._value_discretization_interval,
+          )
+          alloc_pld = random_allocation_api.gaussian_allocation_pld(
+              params, config
+          )
+          self._pld = self._pld.compose(alloc_pld.self_compose(count))
+      return None
     else:
       # Unsupported event (including `UnsupportedDpEvent`).
       return CompositionErrorDetails(
-          invalid_event=event, error_message='Unsupported event.')
+          invalid_event=event, error_message='Unsupported event.'
+      )
 
   def get_epsilon(self, target_delta: float) -> float:
     if self._contains_non_dp_event:

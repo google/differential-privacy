@@ -7,3 +7,4 @@ dm-tree~=0.1.8
 mpmath~=1.2
 numpy>=1.21,<3.0
 scipy~=1.7
+typing-extensions~=4.9.0
