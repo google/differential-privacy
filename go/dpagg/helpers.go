@@ -27,10 +27,15 @@ var LargestRepresentableDelta = 1 - math.Pow(2, -53)
 // ClampFloat64 clamps e within lower and upper, such that lower is returned
 // if e < lower, and upper is returned if e > upper. Otherwise, e is returned.
 func ClampFloat64(e, lower, upper float64) (float64, error) {
+	if math.IsNaN(lower) || math.IsNaN(upper) {
+		return 0, fmt.Errorf("bounds must not be NaN, got lower = %v, upper = %v", lower, upper)
+	}
 	if lower > upper {
 		return 0, fmt.Errorf("lower must be less than or equal to upper, got lower = %v, upper = %v", lower, upper)
 	}
-
+	if math.IsNaN(e) || math.IsInf(e, 0) {
+		return lower, nil
+	}
 	if e > upper {
 		return upper, nil
 	}
