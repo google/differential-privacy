@@ -61,6 +61,7 @@ incorrect results, the following should be enforced:
 
 from collections.abc import Mapping, Sequence
 import importlib
+import logging
 import typing
 from typing import List, NamedTuple, Optional, Protocol, Union
 
@@ -71,8 +72,8 @@ import attr
 class DpEventNamedTuple(Protocol):
   _fields: tuple[str, ...]
 
-  module_name: str
-  class_name: str
+  module_name: Union[str, bytes]
+  class_name: Union[str, bytes]
 
 
 @attr.s(frozen=True)
@@ -373,6 +374,14 @@ class PoissonSampledDpEvent(DpEvent):
   """
   sampling_probability: float
   event: DpEvent
+
+  def __attrs_post_init__(self):
+    if isinstance(self.sampling_probability, DpEvent):
+      logging.warning(
+          'DeprecationWarning: PoissonSampledDpEvent was initialized with '
+          'arguments in the wrong order. Please pass sampling_probability '
+          'first, followed by event.'
+      )
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
