@@ -933,9 +933,9 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     return TailPrivacyLossDistribution(
         lower_x_truncation, upper_x_truncation, {  # pyrefly: ignore[bad-argument-type]
             self.privacy_loss(lower_x_truncation):
-                self.mu_upper_cdf(lower_x_truncation),
+                self.mu_upper_cdf(lower_x_truncation),  # pyrefly: ignore[bad-assignment]
             self.privacy_loss(upper_x_truncation):
-                1 - self.mu_upper_cdf(upper_x_truncation)
+                1 - self.mu_upper_cdf(upper_x_truncation)  # pyrefly: ignore[bad-assignment]
         })
 
   def connect_dots_bounds(self) -> ConnectDotsBounds:
@@ -1526,9 +1526,9 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     return TailPrivacyLossDistribution(
         lower_x_truncation, upper_x_truncation, {  # pyrefly: ignore[bad-argument-type]
             self.privacy_loss(lower_x_truncation - 1):
-                self.mu_upper_cdf(lower_x_truncation - 1),
+                self.mu_upper_cdf(lower_x_truncation - 1),  # pyrefly: ignore[bad-assignment]
             self.privacy_loss(upper_x_truncation + 1):
-                1 - self.mu_upper_cdf(upper_x_truncation)
+                1 - self.mu_upper_cdf(upper_x_truncation)  # pyrefly: ignore[bad-assignment]
         })
 
   def connect_dots_bounds(self) -> ConnectDotsBounds:
@@ -1823,7 +1823,7 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
 
     return TailPrivacyLossDistribution(
         lower_x_truncation, upper_x_truncation,
-        {math.inf: self.mu_upper_cdf(lower_x_truncation - 1)})  # pyrefly: ignore[bad-argument-type]
+        {math.inf: self.mu_upper_cdf(lower_x_truncation - 1)})  # pyrefly: ignore[bad-argument-type, bad-assignment]
 
   def connect_dots_bounds(self) -> ConnectDotsBounds:
     """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
