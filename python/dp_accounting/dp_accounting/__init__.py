@@ -39,6 +39,7 @@ from dp_accounting.dp_event import SingleEpochTreeAggregationDpEvent
 from dp_accounting.dp_event import TruncatedSubsampledGaussianDpEvent
 from dp_accounting.dp_event import UnsupportedDpEvent
 from dp_accounting.dp_event import ZCDpEvent
+from dp_accounting.dp_event_builder import canonicalize
 from dp_accounting.dp_event_builder import DpEventBuilder
 from dp_accounting.gaussian_mechanism import get_epsilon_gaussian
 from dp_accounting.gaussian_mechanism import get_sigma_gaussian

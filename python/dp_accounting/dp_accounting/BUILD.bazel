@@ -97,6 +97,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":dp_event",
+        "@accounting_py_pip_deps//attrs",
     ],
 )
 
@@ -108,6 +109,8 @@ py_test(
     deps = [
         ":dp_event",
         ":dp_event_builder",
+        "//dp_accounting/pld:pld_privacy_accountant",
+        "//dp_accounting/rdp:rdp_privacy_accountant",
         "@accounting_py_pip_deps//absl_py",
     ],
 )
