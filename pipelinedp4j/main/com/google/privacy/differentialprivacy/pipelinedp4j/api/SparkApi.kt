@@ -329,8 +329,9 @@ internal constructor(
     noiseKind,
   ) {
   override fun run(testMode: TestMode): SparkDataset<QueryPerGroupResult<GroupKeysT>> {
-    val sparkResult =
-      (runWithDpEngine(testMode) as SparkFrameworkTable<GroupKeysT, DpAggregates>).data
+    val dpEngineResult: DpEngineResult<GroupKeysT> = runWithDpEngine(testMode)
+    val sparkAggregationResults =
+      (dpEngineResult.aggregationResults as SparkFrameworkTable<GroupKeysT, DpAggregates>).data
     @Suppress("UNCHECKED_CAST")
     val queryPerGroupResultEncoder =
       Encoders.kryo(QueryPerGroupResult::class.java) as Encoder<QueryPerGroupResult<GroupKeysT>>
@@ -339,7 +340,7 @@ internal constructor(
         aggregations.outputColumnNamesWithMetricTypes(),
         aggregations.outputColumnNameToFeatureIdMap(),
       )
-    return sparkResult.map(MapFunction(mapToResultFn), queryPerGroupResultEncoder)
+    return sparkAggregationResults.map(MapFunction(mapToResultFn), queryPerGroupResultEncoder)
   }
 
   private fun createConvertDpAggregatesToQueryPerGroupResultFn(
