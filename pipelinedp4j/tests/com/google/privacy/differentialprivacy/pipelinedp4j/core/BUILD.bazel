@@ -17,6 +17,7 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
 kt_jvm_test(
     name = "core_tests",
     srcs = [
+        "AutoNoiseTest.kt",
         "CompoundCombinerTest.kt",
         "CoreTests.kt",
         "CountCombinerTest.kt",
@@ -50,6 +51,7 @@ kt_jvm_test(
     test_class = "com.google.privacy.differentialprivacy.pipelinedp4j.core.CoreTests",
     deps = [
         ":test_data_types",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:auto_noise",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:contribution_sampler",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:core_types",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:data_extractors",

@@ -262,6 +262,10 @@ protected constructor(
           require(normKind in listOf(NormKind.L_INF, NormKind.L2)) {
             "Norm kind must be L_INF or L2 when Gaussian mechanism is used. Provided norm kind: $normKind."
           }
+        NoiseKind.AUTO ->
+          require(normKind == NormKind.L_INF) {
+            "Norm kind must be L_INF when AUTO mechanism is used. Provided norm kind: $normKind."
+          }
       }
     }
   }
@@ -277,8 +281,9 @@ protected constructor(
   private fun requireDistinctValueExtractors(aggregationsPerValue: List<ValueAggregations<*>>) {
     val valueExtractorCounts = aggregationsPerValue.groupingBy { it.valueExtractor }.eachCount()
     val duplicates = valueExtractorCounts.filter { it.value > 1 }.keys
-    val valueAggregationsWithDuplicates =
-      aggregationsPerValue.filter { it.valueExtractor in duplicates }
+    val valueAggregationsWithDuplicates = aggregationsPerValue.filter {
+      it.valueExtractor in duplicates
+    }
     require(duplicates.isEmpty()) {
       "There are the same (object reference equality) value extractors used in different aggregateValue() calls. Please merge them into one call." +
         "\nValue aggregations with duplicate value extractors:\n${
@@ -290,8 +295,9 @@ protected constructor(
   private fun requireDistinctVectorExtractors(aggregationsPerVector: List<VectorAggregations<*>>) {
     val vectorExtractorCounts = aggregationsPerVector.groupingBy { it.vectorExtractor }.eachCount()
     val duplicates = vectorExtractorCounts.filter { it.value > 1 }.keys
-    val vectorAggregationsWithDuplicates =
-      aggregationsPerVector.filter { it.vectorExtractor in duplicates }
+    val vectorAggregationsWithDuplicates = aggregationsPerVector.filter {
+      it.vectorExtractor in duplicates
+    }
     require(duplicates.isEmpty()) {
       "There are the same (object reference equality) vector extractors used in different aggregateVector() calls. Please merge them into one call." +
         "\nVector aggregations with duplicate vector extractors:\n${
@@ -373,8 +379,11 @@ protected constructor(
           }
         }
       }
+      // TODO: Implement AUTO noise kind. For now we do nothing.
+      NoiseKind.AUTO -> {}
       null -> {}
     }
+
     // Check correctness of the budget for private group selection.
     if (groupsType is GroupsType.PrivateGroups) {
       if (groupsType.budget is AbsoluteBudgetPerOpSpec) {
