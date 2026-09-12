@@ -291,7 +291,9 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             value_discretization_interval=self._value_discretization_interval,
         )
         # pylint: disable=protected-access
-        sub_accountant._maybe_compose(event.event, count, do_compose=do_compose)
+        sub_accountant._maybe_compose(
+            event.event, count=1, do_compose=do_compose
+        )
         if do_compose:
           if sub_accountant._contains_non_dp_event:
             self._contains_non_dp_event = True

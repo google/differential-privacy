@@ -55,7 +55,9 @@ py_library(
 
 py_test(
     name = "pld_privacy_accountant_test",
+    size = "large",
     srcs = ["pld_privacy_accountant_test.py"],
+    shard_count = 10,
     deps = [
         ":pld_privacy_accountant",
         "//dp_accounting:dp_event",

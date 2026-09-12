@@ -465,6 +465,57 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertAlmostEqual(accountant.get_delta(0.0), expected_delta)
     self.assertAlmostEqual(accountant.get_epsilon(0.1), expected_epsilon)
 
+  def test_poisson_subsampled_events_composition_count(self):
+    subsampled_event = dp_event.PoissonSampledDpEvent(
+        0.2, dp_event.DiscreteLaplaceDpEvent(noise_parameter=0.5, sensitivity=1)
+    )
+    accountant_batch = pld_privacy_accountant.PLDAccountant(
+        value_discretization_interval=1e-2
+    )
+    accountant_batch.compose(subsampled_event, count=3)
+
+    accountant_individual = pld_privacy_accountant.PLDAccountant(
+        value_discretization_interval=1e-2
+    )
+    for _ in range(3):
+      accountant_individual.compose(subsampled_event, count=1)
+
+    self.assertAlmostEqual(
+        accountant_batch.get_delta(1.0),
+        accountant_individual.get_delta(1.0),
+        delta=1e-6,
+    )
+    self.assertAlmostEqual(
+        accountant_batch.get_epsilon(1e-3),
+        accountant_individual.get_epsilon(1e-3),
+        delta=1e-6,
+    )
+
+    subsampled_ed_event = dp_event.PoissonSampledDpEvent(
+        0.2, dp_event.EpsilonDeltaDpEvent(epsilon=0.5, delta=1e-4)
+    )
+    accountant_ed_batch = pld_privacy_accountant.PLDAccountant(
+        value_discretization_interval=1e-2
+    )
+    accountant_ed_batch.compose(subsampled_ed_event, count=3)
+
+    accountant_ed_individual = pld_privacy_accountant.PLDAccountant(
+        value_discretization_interval=1e-2
+    )
+    for _ in range(3):
+      accountant_ed_individual.compose(subsampled_ed_event, count=1)
+
+    self.assertAlmostEqual(
+        accountant_ed_batch.get_delta(1.0),
+        accountant_ed_individual.get_delta(1.0),
+        delta=1e-6,
+    )
+    self.assertAlmostEqual(
+        accountant_ed_batch.get_epsilon(1e-3),
+        accountant_ed_individual.get_epsilon(1e-3),
+        delta=1e-6,
+    )
+
   def test_contains_non_dp_event(self):
     accountant = pld_privacy_accountant.PLDAccountant()
     accountant.compose(dp_event.NonPrivateDpEvent())
