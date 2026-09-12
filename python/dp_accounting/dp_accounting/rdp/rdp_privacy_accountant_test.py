@@ -251,6 +251,30 @@ class RdpPrivacyAccountantTest(
     accountant.compose(event)
     self.assertAlmostEqual(accountant._rdp[0], alpha / (2 * sigma**2))
 
+  def test_compute_rdp_gaussian_replace_one(self):
+    alpha = 3.14159
+    sigma = 2.71828
+    event = dp_event.GaussianDpEvent(sigma)
+    accountant = rdp_privacy_accountant.RdpAccountant(
+        orders=[alpha],
+        neighboring_relation=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+    )
+    accountant.compose(event)
+    self.assertAlmostEqual(accountant._rdp[0], 2 * alpha / sigma**2)
+
+  def test_compute_rdp_full_sample_without_replacement_gaussian(self):
+    alpha = 3.14159
+    sigma = 2.71828
+    event = dp_event.SampledWithoutReplacementDpEvent(
+        100, 100, dp_event.GaussianDpEvent(sigma)
+    )
+    accountant = rdp_privacy_accountant.RdpAccountant(
+        orders=[alpha],
+        neighboring_relation=privacy_accountant.NeighboringRelation.REPLACE_ONE,
+    )
+    accountant.compose(event)
+    self.assertAlmostEqual(accountant._rdp[0], 2 * alpha / sigma**2)
+
   def test_compute_rdp_multi_gaussian(self):
     alpha = 3.14159
     sigma1, sigma2 = 2.71828, 6.28319

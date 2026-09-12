@@ -1042,8 +1042,13 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       return None
     elif isinstance(event, dp_event.GaussianDpEvent):
       if do_compose:
+        noise_multiplier = event.noise_multiplier
+        if self._neighboring_relation is NeighborRel.REPLACE_ONE:
+          # GaussianDpEvent normalizes noise by the per-record norm bound C.
+          # Under replace-one adjacency, the sensitivity of the sum is 2C.
+          noise_multiplier /= 2
         self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
-            q=1.0, noise_multiplier=event.noise_multiplier, orders=self._orders  # pyrefly: ignore[bad-argument-type]
+            q=1.0, noise_multiplier=noise_multiplier, orders=self._orders  # pyrefly: ignore[bad-argument-type]
         )
       return None
     elif isinstance(event, dp_event.ZCDpEvent):
@@ -1139,9 +1144,11 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
             ),
         )
       if do_compose:
+        # Fixed-size sampling uses replace-one adjacency. GaussianDpEvent
+        # normalizes by C, while the sampled sum has sensitivity 2C.
         self._rdp += count * _compute_rdp_sample_wor_gaussian(
             q=event.sample_size / event.source_dataset_size,
-            noise_multiplier=sigma_or_bad_event,
+            noise_multiplier=sigma_or_bad_event / 2,
             orders=self._orders,  # pyrefly: ignore[bad-argument-type]
         )
       return None
