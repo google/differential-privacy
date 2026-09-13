@@ -264,7 +264,7 @@ func (bq *BoundedQuantiles) Result(rank float64) (float64, error) {
 
 		// Determine the child node whose subtree contains the quantile.
 		partialCount := 0.0
-		for i := leftmostChildIndex; true; i++ {
+		for i := leftmostChildIndex; i <= rightmostChildIndex; i++ {
 			count, err := bq.getNoisedCount(i)
 			if err != nil {
 				return 0, fmt.Errorf("couldn't get noised count for node %d: %w", i, err)
