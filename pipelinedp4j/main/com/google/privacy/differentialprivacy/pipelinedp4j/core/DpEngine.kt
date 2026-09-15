@@ -24,6 +24,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.QUANT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.SUM
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VARIANCE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.VECTOR_SUM
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.AUTO
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.LAPLACE
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AccountedMechanism.GAUSSIAN_NOISE
@@ -68,6 +69,7 @@ open class DpEngine
 internal constructor(
   private val encoderFactory: EncoderFactory,
   private val budgetAccountant: BudgetAccountant,
+  private val totalBudget: TotalBudget,
   private val defaultNoiseFactory: (NoiseKind) -> Noise = NoiseFactory(),
   private val computationalGraphFactory: ComputationalGraphFactory = ComputationalGraphFactory(),
   private val executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
@@ -81,6 +83,7 @@ internal constructor(
       DpEngine(
         encoderFactory,
         BudgetAccountantFactory.forStrategy(budgetSpec.accountingStrategy, budgetSpec.budget),
+        budgetSpec.budget,
         NoiseFactory(),
         ComputationalGraphFactory(),
         executionMode,
@@ -494,6 +497,7 @@ internal constructor(
     when (noiseKind) {
       LAPLACE -> LAPLACE_NOISE
       GAUSSIAN -> GAUSSIAN_NOISE
+      AUTO -> if (totalBudget.delta > 0.0) GAUSSIAN_NOISE else LAPLACE_NOISE
     }
 }
 

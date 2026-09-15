@@ -150,7 +150,11 @@ class SumCombinerTest {
   }
 
   @Test
-  @TestParameters("{noiseKind: LAPLACE, delta: 0.0}", "{noiseKind: GAUSSIAN, delta: 1e-5}")
+  @TestParameters(
+    "{noiseKind: LAPLACE, delta: 0.0}",
+    "{noiseKind: GAUSSIAN, delta: 1e-5}",
+    "{noiseKind: AUTO, delta: 1e-5}",
+  )
   fun computeMetrics_addsNoise(noiseKind: NoiseKind, delta: Double) {
     val allocatedBudget = AllocatedBudget()
     allocatedBudget.initialize(1.1, delta)
@@ -239,5 +243,31 @@ class SumCombinerTest {
     val result = combiner.computeMetrics(combiner.emptyAccumulator())
 
     assertThat(result).isEqualTo(0.0)
+  }
+
+  @Test
+  fun sumCombiner_autoNoise_returnsNoisySum() {
+    val params =
+      AggregationParams(
+        metrics = ImmutableList.of(MetricDefinition(SUM)),
+        noiseKind = NoiseKind.AUTO,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+        minTotalValue = 0.0,
+        maxTotalValue = 10.0,
+      )
+    val allocatedBudget = AllocatedBudget()
+    allocatedBudget.initialize(1.0, 1e-5)
+    val combiner = SumCombiner(params, allocatedBudget, NoiseFactory(), ExecutionMode.PRODUCTION)
+    val accumulator = sumAccumulator { sum = 50.0 }
+
+    val result = combiner.computeMetrics(accumulator)
+
+    // L_inf sensitivity is 10.
+    // Laplace scale 10 / 1 = 10.
+    // Gaussian sigma approx 5 * 10 = 50.
+    // AutoNoise picks Laplace.
+    // Error roughly +/- 50-100.
+    assertThat(result).isWithin(200.0).of(50.0)
   }
 }

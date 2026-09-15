@@ -30,6 +30,7 @@ internal fun DpEngine.Factory.createForTesting(
   DpEngine(
     encoderFactory,
     BudgetAccountantFactory.forStrategy(budgetSpec.accountingStrategy, budgetSpec.budget),
+    budgetSpec.budget,
     noiseFactory,
     computationalGraphFactory,
     executionMode = executionMode,
