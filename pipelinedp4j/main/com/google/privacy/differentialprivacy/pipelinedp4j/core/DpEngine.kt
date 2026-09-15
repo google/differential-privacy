@@ -16,6 +16,7 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
+import com.google.errorprone.annotations.CanIgnoreReturnValue
 import com.google.privacy.differentialprivacy.Noise
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.COUNT
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType.MEAN
@@ -35,6 +36,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetAcc
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetAccountantFactory
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetAccountingStrategy
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetAccountingStrategy.NAIVE
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetAllocationDetails
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetPerOpSpec
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetRequest
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.RelativeBudgetPerOpSpec
@@ -204,13 +206,26 @@ internal constructor(
   }
 
   /**
-   * Allocates privacy budgets to the metrics whose computation has been requested by calling
-   * [aggregate]. This method must be called once per [DpEngine] instance.
+   * Allocates privacy budgets to privacy-preserving operations in [aggregate] and
+   * [selectPartitions] calls.
+   *
+   * Privacy-preserving operations are various aggregation metrics, like COUNT or SUM, and partition
+   * selection. There might be multiple privacy-preserving operations in a single [DpEngine]
+   * instance.
+   *
+   * This method must be called once per [DpEngine] instance.
+   *
+   * @return a list of [BudgetAllocationDetails] for each privacy-preserving operation. This reports
+   *   the actual budgets used during computation, which may include budgets for operations that
+   *   were not directly requested (e.g., for a MEAN aggregation, budget details for both SUM and
+   *   COUNT will be returned).
+   * @throws IllegalStateException if [done] has already been called on this instance.
    */
-  fun done() {
+  @CanIgnoreReturnValue
+  fun done(): List<BudgetAllocationDetails> {
     throwIfDoneWasCalled()
     doneCalled = true
-    budgetAccountant.allocateBudgets()
+    return budgetAccountant.allocateBudgets()
   }
 
   private fun throwIfDoneWasCalled() {
