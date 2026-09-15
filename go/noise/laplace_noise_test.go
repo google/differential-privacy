@@ -873,3 +873,22 @@ func TestGeometricStatistics(t *testing.T) {
 		}
 	}
 }
+
+func TestAddNoiseFloat64RejectsL1Overflow(t *testing.T) {
+	l := Laplace()
+	// lInfSensitivity=1e308 is valid (finite, positive) and l0Sensitivity=2
+	// is valid, but their product overflows to +Inf.
+	_, err := l.AddNoiseFloat64(0, 2, 1e308, 1.0, 0)
+	if err == nil {
+		t.Error("AddNoiseFloat64: expected error for L1 sensitivity overflow, got nil")
+	}
+}
+
+func TestAddNoiseInt64RejectsL1Overflow(t *testing.T) {
+	l := Laplace()
+	// Both values are valid individually but their product overflows int64.
+	_, err := l.AddNoiseInt64(0, math.MaxInt64, 2, 1.0, 0)
+	if err == nil {
+		t.Error("AddNoiseInt64: expected error for L1 sensitivity overflow, got nil")
+	}
+}
