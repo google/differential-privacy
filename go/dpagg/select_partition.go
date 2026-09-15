@@ -439,6 +439,15 @@ func (s *PreAggSelectPartition) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode PreAggSelectPartition from bytes")
 	}
+	if err := checks.CheckEpsilonVeryStrict(enc.Epsilon); err != nil {
+		return fmt.Errorf("couldn't decode PreAggSelectPartition: %v", err)
+	}
+	if err := checks.CheckDelta(enc.Delta); err != nil {
+		return fmt.Errorf("couldn't decode PreAggSelectPartition: %v", err)
+	}
+	if err := checks.CheckL0Sensitivity(enc.L0Sensitivity); err != nil {
+		return fmt.Errorf("couldn't decode PreAggSelectPartition: %v", err)
+	}
 	*s = PreAggSelectPartition{
 		epsilon:       enc.Epsilon,
 		delta:         enc.Delta,

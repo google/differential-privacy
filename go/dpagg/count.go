@@ -305,13 +305,17 @@ func (c *Count) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode Count from bytes")
 	}
+	nObj, err := validateDecodedAggregation(enc.Epsilon, enc.Delta, float64(enc.LInfSensitivity), enc.L0Sensitivity, enc.NoiseKind)
+	if err != nil {
+		return fmt.Errorf("couldn't decode Count: %v", err)
+	}
 	*c = Count{
 		epsilon:         enc.Epsilon,
 		delta:           enc.Delta,
 		l0Sensitivity:   enc.L0Sensitivity,
 		lInfSensitivity: enc.LInfSensitivity,
 		noiseKind:       enc.NoiseKind,
-		Noise:           noise.ToNoise(enc.NoiseKind),
+		Noise:           nObj,
 		count:           enc.Count,
 		state:           defaultState,
 	}
