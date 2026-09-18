@@ -464,10 +464,13 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
       // BoundsProvider returning powers of two.
       //
       // TODO: Find a better solution for this quick fix.
-      if (std::round(bounds.lower_bound) == -1 ||
-          std::round(bounds.lower_bound) == 0) {
-        bounds.upper_bound += 1;
-      } else if (std::round(bounds.upper_bound) == 1) {
+      const T min_pos_bin =
+          static_cast<T>(clamped_calculation_->GetScaleForTesting());
+      if (bounds.lower_bound == 0) {
+        bounds.upper_bound = 1;
+      } else if (bounds.lower_bound == -min_pos_bin) {
+        bounds.upper_bound = 0;
+      } else if (bounds.upper_bound == min_pos_bin) {
         bounds.lower_bound = 0;
       } else if (bounds.lower_bound < 0) {
         bounds.upper_bound = bounds.lower_bound / 2;
