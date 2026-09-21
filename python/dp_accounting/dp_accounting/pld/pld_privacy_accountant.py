@@ -290,8 +290,18 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             neighboring_relation=self.neighboring_relation,
             value_discretization_interval=self._value_discretization_interval,
         )
+        # The sub-accountant is only used to obtain the PLD of a *single*
+        # application of the base mechanism, hence `count=1`. Subsampling is
+        # applied to that single-application PLD below, and only the resulting
+        # subsampled PLD is self-composed `count` times. Passing `count` here
+        # would compose the base mechanism `count` times *before* subsampling
+        # and `count` times again after, over-counting the privacy loss.
+        # `_maybe_compose` leaves `sub_accountant` untouched when `do_compose`
+        # is False, so the composition below is guarded by the same flag.
         # pylint: disable=protected-access
-        sub_accountant._maybe_compose(event.event, count, do_compose=do_compose)
+        sub_accountant._maybe_compose(
+            event.event, count=1, do_compose=do_compose
+        )
         if do_compose:
           if sub_accountant._contains_non_dp_event:
             self._contains_non_dp_event = True

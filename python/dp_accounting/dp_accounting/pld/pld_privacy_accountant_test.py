@@ -465,6 +465,66 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     self.assertAlmostEqual(accountant.get_delta(0.0), expected_delta)
     self.assertAlmostEqual(accountant.get_epsilon(0.1), expected_epsilon)
 
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='discrete_laplace_batch_3_in_steps_of_1',
+          sub_event=dp_event.DiscreteLaplaceDpEvent(
+              noise_parameter=0.5, sensitivity=1
+          ),
+          batch_count=3,
+          step_count=1,
+      ),
+      dict(
+          testcase_name='discrete_laplace_batch_6_in_steps_of_2',
+          sub_event=dp_event.DiscreteLaplaceDpEvent(
+              noise_parameter=0.5, sensitivity=1
+          ),
+          batch_count=6,
+          step_count=2,
+      ),
+      dict(
+          testcase_name='epsilon_delta_batch_3_in_steps_of_1',
+          sub_event=dp_event.EpsilonDeltaDpEvent(epsilon=0.5, delta=1e-4),
+          batch_count=3,
+          step_count=1,
+      ),
+      dict(
+          testcase_name='epsilon_delta_batch_4_in_steps_of_2',
+          sub_event=dp_event.EpsilonDeltaDpEvent(epsilon=0.5, delta=1e-4),
+          batch_count=4,
+          step_count=2,
+      ),
+  )
+  def test_poisson_subsampled_composition_count_matches_repeated_composition(
+      self, sub_event, batch_count, step_count
+  ):
+    """Composing once with `count=n` equals `n/k` composes with `count=k`."""
+    subsampled_event = dp_event.PoissonSampledDpEvent(
+        sampling_probability=0.2, event=sub_event
+    )
+
+    batch_accountant = pld_privacy_accountant.PLDAccountant(
+        value_discretization_interval=1e-2
+    )
+    batch_accountant.compose(subsampled_event, count=batch_count)
+
+    stepwise_accountant = pld_privacy_accountant.PLDAccountant(
+        value_discretization_interval=1e-2
+    )
+    for _ in range(batch_count // step_count):
+      stepwise_accountant.compose(subsampled_event, count=step_count)
+
+    self.assertAlmostEqual(
+        batch_accountant.get_delta(1.0),
+        stepwise_accountant.get_delta(1.0),
+        delta=1e-6,
+    )
+    self.assertAlmostEqual(
+        batch_accountant.get_epsilon(1e-3),
+        stepwise_accountant.get_epsilon(1e-3),
+        delta=1e-6,
+    )
+
   def test_contains_non_dp_event(self):
     accountant = pld_privacy_accountant.PLDAccountant()
     accountant.compose(dp_event.NonPrivateDpEvent())
