@@ -2122,11 +2122,11 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     non_zero_indices = np.asarray(sampling_probs) != 0.0
     sensitivities = np.asarray(sensitivities)[non_zero_indices]
     sampling_probs = np.asarray(sampling_probs)[non_zero_indices]
-    if np.any(sensitivities < 0):
+    if np.any(sensitivities < 0):  # pyrefly: ignore[unsupported-operation]
       raise ValueError(
           f'Sensitivities contains a negative number: {sensitivities}.'
       )
-    if sensitivities.max() == 0.0:
+    if sensitivities.max() == 0.0:  # pyrefly: ignore[missing-attribute]
       raise ValueError('Must have at least one positive sensitivity.')
     if not math.isclose(sum(sampling_probs), 1):
       raise ValueError(
@@ -2148,9 +2148,9 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
 
     # Constant properties.
     self._log_sampling_probs = np.log(self.sampling_probs)
-    self._pos_sampling_probs = self.sampling_probs[self.sensitivities > 0.0]
-    self._sampling_prob = np.clip(self._pos_sampling_probs.sum(), 0, 1)
-    nonzero_sens = self.sensitivities[self.sensitivities > 0.0]
+    self._pos_sampling_probs = self.sampling_probs[self.sensitivities > 0.0]  # pyrefly: ignore[unsupported-operation]
+    self._sampling_prob = np.clip(self._pos_sampling_probs.sum(), 0, 1)  # pyrefly: ignore[missing-attribute]
+    nonzero_sens = self.sensitivities[self.sensitivities > 0.0]  # pyrefly: ignore[unsupported-operation]
     self._min_sens = np.min(nonzero_sens)
     self._max_sens = np.max(nonzero_sens)
     self._gaussian_random_variable = stats.norm(scale=standard_deviation)
@@ -2177,7 +2177,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
       return self.noise_cdf(x)
     elif self.adjacency_type == AdjacencyType.REMOVE:
       points_per_sens = np.add.outer(np.atleast_1d(x), self.sensitivities)  # pyrefly: ignore[no-matching-overload]
-      output = (self.noise_cdf(points_per_sens) * self.sampling_probs).sum(
+      output = (self.noise_cdf(points_per_sens) * self.sampling_probs).sum(  # pyrefly: ignore[missing-attribute, unsupported-operation]
           axis=1
       )
       if isinstance(x, numbers.Number):
@@ -2208,7 +2208,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
       x.
     """
     if self.adjacency_type == AdjacencyType.ADD:
-      points_per_sens = np.add.outer(np.atleast_1d(x), -self.sensitivities)  # pyrefly: ignore[no-matching-overload]
+      points_per_sens = np.add.outer(np.atleast_1d(x), -self.sensitivities)  # pyrefly: ignore[no-matching-overload, unsupported-operation]
       logcdf_per_sens = self.noise_log_cdf(points_per_sens)
       output = scipy.special.logsumexp(
           logcdf_per_sens, axis=1, b=self.sampling_probs
@@ -2354,7 +2354,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
   def _precompute_privacy_loss_constants(self) -> np.ndarray:
     """(Pre-)computes the constants in the expression for the privacy loss."""
     sens_loss = self.privacy_loss_for_single_gaussian(
-        np.repeat(0, len(self.sensitivities)), self.sensitivities
+        np.repeat(0, len(self.sensitivities)), self.sensitivities  # pyrefly: ignore[bad-argument-type]
     )
     if self.adjacency_type == AdjacencyType.ADD:
       return self._log_sampling_probs - sens_loss
@@ -2378,7 +2378,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     #   return -np.logaddexp.reduce(summands)
     #
     # and similarly for .REMOVE.
-    x_loss = self.sensitivities * x / (self._variance)
+    x_loss = self.sensitivities * x / (self._variance)  # pyrefly: ignore[unsupported-operation]
     if self.adjacency_type == AdjacencyType.ADD:
       summands = self._precompute_privacy_loss_constants + x_loss
       return -np.logaddexp.reduce(summands)
