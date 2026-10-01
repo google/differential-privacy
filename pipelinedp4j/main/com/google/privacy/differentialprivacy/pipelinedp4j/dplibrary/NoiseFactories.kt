@@ -20,7 +20,9 @@ import com.google.privacy.differentialprivacy.GaussianNoise
 import com.google.privacy.differentialprivacy.LaplaceNoise
 import com.google.privacy.differentialprivacy.Noise
 import com.google.privacy.differentialprivacy.ZeroNoise
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.AutoNoise
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.AUTO
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.LAPLACE
 import java.io.Serializable
@@ -31,6 +33,7 @@ class NoiseFactory : (NoiseKind) -> Noise, Serializable {
     when (noiseKind) {
       LAPLACE -> LaplaceNoise()
       GAUSSIAN -> GaussianNoise()
+      AUTO -> AutoNoise()
     }
 }
 
