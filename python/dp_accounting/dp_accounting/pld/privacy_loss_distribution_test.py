@@ -932,7 +932,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         neighboring_relation=neighbor_rel)
 
     test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                             pld._pmf_add._loss_probs)  # pytype: disable=attribute-error
+                                             pld._pmf_add._loss_probs)  # pyrefly: ignore[missing-attribute]
     test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
                                           pld._pmf_add._infinity_mass)
     if expected_rounded_pmf_remove is None:
@@ -940,7 +940,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
     else:
       test_util.assert_dictionary_almost_equal(self,
                                                expected_rounded_pmf_remove,
-                                               pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
+                                               pld._pmf_remove._loss_probs)  # pyrefly: ignore[missing-attribute]
       test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
                                             pld._pmf_remove._infinity_mass)
       self.assertFalse(pld._symmetric)
@@ -1141,7 +1141,7 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
                                           pld._pmf_remove._infinity_mass)
     test_util.assert_dictionary_almost_equal(
         self, expected_rounded_pmf,
-        pld._pmf_remove._loss_probs)  # pytype: disable=attribute-error
+        pld._pmf_remove._loss_probs)  # pyrefly: ignore[missing-attribute]
 
   @parameterized.parameters((0.5, 0.056696236, {
       3: 0.178515818,
@@ -1960,13 +1960,13 @@ class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
     )
 
     test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_pmf_add, pld._pmf_add._loss_probs  # pytype: disable=attribute-error
+        self, expected_rounded_pmf_add, pld._pmf_add._loss_probs  # pyrefly: ignore[missing-attribute]
     )
     test_util.assert_almost_greater_equal(
         self, stats.norm.cdf(-0.9), pld._pmf_add._infinity_mass
     )
     test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_pmf_remove, pld._pmf_remove._loss_probs  # pytype: disable=attribute-error
+        self, expected_rounded_pmf_remove, pld._pmf_remove._loss_probs  # pyrefly: ignore[missing-attribute]
     )
     test_util.assert_almost_greater_equal(
         self, stats.norm.cdf(-0.9), pld._pmf_remove._infinity_mass
@@ -2092,13 +2092,13 @@ class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
     )
 
     test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_pmf_add, pld._pmf_add._loss_probs  # pytype: disable=attribute-error
+        self, expected_rounded_pmf_add, pld._pmf_add._loss_probs  # pyrefly: ignore[missing-attribute]
     )
     test_util.assert_almost_greater_equal(
         self, stats.norm.cdf(-0.9), pld._pmf_add._infinity_mass
     )
     test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_pmf_remove, pld._pmf_remove._loss_probs  # pytype: disable=attribute-error
+        self, expected_rounded_pmf_remove, pld._pmf_remove._loss_probs  # pyrefly: ignore[missing-attribute]
     )
     test_util.assert_almost_greater_equal(
         self, stats.norm.cdf(-0.9), pld._pmf_remove._infinity_mass
@@ -2171,10 +2171,10 @@ class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
         self, stats.norm.cdf(-0.9), pld._pmf_remove._infinity_mass
     )
     test_util.assert_dictionary_almost_equal(
-        self, expected_add_pmf, pld._pmf_add._loss_probs  # pytype: disable=attribute-error
+        self, expected_add_pmf, pld._pmf_add._loss_probs  # pyrefly: ignore[missing-attribute]
     )
     test_util.assert_dictionary_almost_equal(
-        self, expected_remove_pmf, pld._pmf_remove._loss_probs  # pytype: disable=attribute-error
+        self, expected_remove_pmf, pld._pmf_remove._loss_probs  # pyrefly: ignore[missing-attribute]
     )
 
   @parameterized.named_parameters(
@@ -2253,10 +2253,10 @@ class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
         expected_remove_infinity_mass, pld._pmf_remove._infinity_mass
     )
     test_util.assert_dictionary_almost_equal(
-        self, expected_add_pmf, pld._pmf_add._loss_probs  # pytype: disable=attribute-error
+        self, expected_add_pmf, pld._pmf_add._loss_probs  # pyrefly: ignore[missing-attribute]
     )
     test_util.assert_dictionary_almost_equal(
-        self, expected_remove_pmf, pld._pmf_remove._loss_probs  # pytype: disable=attribute-error
+        self, expected_remove_pmf, pld._pmf_remove._loss_probs  # pyrefly: ignore[missing-attribute]
     )
 
   @parameterized.named_parameters(

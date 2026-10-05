@@ -374,7 +374,7 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
   def get_delta(self, target_epsilon: float) -> float:
     if self._contains_non_dp_event:
       return 1
-    return self._pld.get_delta_for_epsilon(target_epsilon)  # pytype: disable=bad-return-type
+    return self._pld.get_delta_for_epsilon(target_epsilon)  # pyrefly: ignore[bad-return]
 
   def get_true_positive_rates(
       self,
