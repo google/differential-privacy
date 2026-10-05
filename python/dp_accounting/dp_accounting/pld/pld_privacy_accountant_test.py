@@ -129,19 +129,23 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
 
   @parameterized.parameters(
       (pld_privacy_accountant.NeighborRel.REPLACE_ONE,
-       4 / (3 + math.exp(1)), 4, 1.0),
+       4 / (3 + math.exp(1)), 4, 1, 1.0),
       (pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL,
-       (4 - math.exp(1)) / 3, 4, 1.0),
+       (4 - math.exp(1)) / 3, 4, 1, 1.0),
       (pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL,
-       math.exp(-1), 2, 1.0),
+       math.exp(-1), 2, 1, 1.0),
+      (pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL,
+       math.exp(-1), 2, 2, 2.0),
   )
   def test_randomized_response(
       self, neighboring_relation,
-      noise_parameter, num_buckets, expected_epsilon):
+      noise_parameter, num_buckets, count, expected_epsilon):
     accountant = pld_privacy_accountant.PLDAccountant(neighboring_relation)
     accountant.compose(
-        dp_event.RandomizedResponseDpEvent(noise_parameter, num_buckets))
+        dp_event.RandomizedResponseDpEvent(noise_parameter, num_buckets), count
+    )
     self.assertAlmostEqual(accountant.get_delta(expected_epsilon), 0.0)
+    self.assertGreater(accountant.get_delta(expected_epsilon * 0.99), 0.0)
 
   @parameterized.product(
       event=[

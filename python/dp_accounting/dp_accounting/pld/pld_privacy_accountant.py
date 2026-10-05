@@ -101,7 +101,7 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
               num_buckets=event.num_buckets,
               value_discretization_interval=self._value_discretization_interval,
               neighboring_relation=self._neighboring_relation,
-          )
+          ).self_compose(count)
           self._pld = self._pld.compose(rr_pld)
       return None
     elif isinstance(event, dp_event.GaussianDpEvent):
