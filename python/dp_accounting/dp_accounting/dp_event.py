@@ -62,6 +62,7 @@ incorrect results, the following should be enforced:
 from collections.abc import Mapping, Sequence
 import importlib
 import logging
+import math
 import typing
 from typing import List, NamedTuple, Optional, Protocol, Union
 
@@ -260,6 +261,14 @@ class RandomizedResponseDpEvent(DpEvent):
   noise_parameter: float
   num_buckets: int
 
+  def __attrs_post_init__(self):
+    if not 0 <= self.noise_parameter <= 1:
+      raise ValueError(
+          f'noise_parameter must be in [0, 1]. Got {self.noise_parameter}.'
+      )
+    if not self.num_buckets >= 1:
+      raise ValueError(f'num_buckets must be >= 1. Got {self.num_buckets}.')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class EpsilonDeltaDpEvent(DpEvent):
@@ -272,6 +281,12 @@ class EpsilonDeltaDpEvent(DpEvent):
   epsilon: float
   delta: float
 
+  def __attrs_post_init__(self):
+    if not self.epsilon >= 0:
+      raise ValueError(f'epsilon must be non-negative. Got {self.epsilon}.')
+    if not 0 <= self.delta <= 1:
+      raise ValueError(f'delta must be in [0, 1]. Got {self.delta}.')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class GaussianDpEvent(DpEvent):
@@ -282,6 +297,12 @@ class GaussianDpEvent(DpEvent):
   defined as σ/C.
   """
   noise_multiplier: float
+
+  def __attrs_post_init__(self):
+    if not self.noise_multiplier >= 0:
+      raise ValueError(
+          f'Noise multiplier must be non-negative. Got {self.noise_multiplier}.'
+      )
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -297,6 +318,12 @@ class LaplaceDpEvent(DpEvent):
   """
   noise_multiplier: float
 
+  def __attrs_post_init__(self):
+    if not self.noise_multiplier >= 0:
+      raise ValueError(
+          f'Noise multiplier must be non-negative. Got {self.noise_multiplier}.'
+      )
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class DiscreteLaplaceDpEvent(DpEvent):
@@ -311,6 +338,16 @@ class DiscreteLaplaceDpEvent(DpEvent):
   """
   noise_parameter: float
   sensitivity: int
+
+  def __attrs_post_init__(self):
+    if not self.noise_parameter >= 0:
+      raise ValueError(
+          f'noise_parameter must be non-negative. Got {self.noise_parameter}.'
+      )
+    if not self.sensitivity >= 0:
+      raise ValueError(
+          f'sensitivity must be non-negative. Got {self.sensitivity}.'
+      )
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -339,6 +376,16 @@ class DiscreteGaussianDpEvent(DpEvent):
   sensitivity: float = 1.0
   dimension: Optional[int] = None
 
+  def __attrs_post_init__(self):
+    if not self.sigma >= 0:
+      raise ValueError(f'sigma must be non-negative. Got {self.sigma}.')
+    if not self.sensitivity >= 0:
+      raise ValueError(
+          f'sensitivity must be non-negative. Got {self.sensitivity}.'
+      )
+    if self.dimension is not None and not self.dimension >= 1:
+      raise ValueError(f'dimension must be >= 1. Got {self.dimension}.')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class SelfComposedDpEvent(DpEvent):
@@ -352,6 +399,10 @@ class SelfComposedDpEvent(DpEvent):
   """
   event: DpEvent
   count: int
+
+  def __attrs_post_init__(self):
+    if not self.count >= 1:
+      raise ValueError(f'count must be >= 1. Got {self.count}.')
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -382,6 +433,10 @@ class PoissonSampledDpEvent(DpEvent):
           'arguments in the wrong order. Please pass sampling_probability '
           'first, followed by event.'
       )
+    if not 0 <= self.sampling_probability <= 1:
+      raise ValueError(
+          f'Sampling rate must be in [0, 1]. Found {self.sampling_probability}.'
+      )
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -397,6 +452,16 @@ class SampledWithReplacementDpEvent(DpEvent):
   sample_size: int
   event: DpEvent
 
+  def __attrs_post_init__(self):
+    if not self.source_dataset_size >= 1:
+      raise ValueError(
+          f'source_dataset_size must be >= 1. Got {self.source_dataset_size}.'
+      )
+    if not self.sample_size >= 0:
+      raise ValueError(
+          f'sample_size must be non-negative. Got {self.sample_size}.'
+      )
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class SampledWithoutReplacementDpEvent(DpEvent):
@@ -409,6 +474,18 @@ class SampledWithoutReplacementDpEvent(DpEvent):
   source_dataset_size: int
   sample_size: int
   event: DpEvent
+
+  def __attrs_post_init__(self):
+    if not self.source_dataset_size >= 1:
+      raise ValueError(
+          f'source_dataset_size must be >= 1. Got {self.source_dataset_size}.'
+      )
+    if not 0 <= self.sample_size <= self.source_dataset_size:
+      raise ValueError(
+          'sample_size must be in [0, source_dataset_size]. Got '
+          f'sample_size={self.sample_size}, '
+          f'source_dataset_size={self.source_dataset_size}.'
+      )
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -432,6 +509,23 @@ class SingleEpochTreeAggregationDpEvent(DpEvent):
   noise_multiplier: float
   step_counts: Union[int, List[int]]
 
+  def __attrs_post_init__(self):
+    if not self.noise_multiplier >= 0:
+      raise ValueError(
+          f'noise_multiplier must be non-negative. Got {self.noise_multiplier}.'
+      )
+    step_counts = (
+        self.step_counts
+        if isinstance(self.step_counts, Sequence)
+        else [self.step_counts]
+    )
+    if not step_counts:
+      raise ValueError('step_counts must be non-empty.')
+    if any(not steps >= 0 for steps in step_counts):
+      raise ValueError(
+          f'step_counts must be non-negative. Got {self.step_counts}.'
+      )
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class RepeatAndSelectDpEvent(DpEvent):
@@ -451,6 +545,16 @@ class RepeatAndSelectDpEvent(DpEvent):
   event: DpEvent
   mean: float
   shape: float
+
+  def __attrs_post_init__(self):
+    if not self.mean >= 1:
+      raise ValueError(
+          f'Mean of number of repetitions must be >=1. Got {self.mean}.'
+      )
+    if not self.shape >= 0:
+      raise ValueError(
+          f'Distribution of repetitions must be >=0. Got {self.shape}.'
+      )
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -474,6 +578,33 @@ class MixtureOfGaussiansDpEvent(DpEvent):
   sensitivities: Sequence[float]
   sampling_probs: Sequence[float]
 
+  def __attrs_post_init__(self):
+    if not self.standard_deviation >= 0:
+      raise ValueError(
+          'standard_deviation must be non-negative. Got '
+          f'{self.standard_deviation}.'
+      )
+    if len(self.sensitivities) != len(self.sampling_probs):
+      raise ValueError(
+          'sensitivities and sampling_probs must have the same length. Got '
+          f'len(sensitivities)={len(self.sensitivities)}, '
+          f'len(sampling_probs)={len(self.sampling_probs)}.'
+      )
+    if not self.sensitivities:
+      raise ValueError('sensitivities and sampling_probs must be non-empty.')
+    if any(not s >= 0 for s in self.sensitivities):
+      raise ValueError(
+          f'sensitivities must be non-negative. Got {self.sensitivities}.'
+      )
+    if any(not 0 <= p <= 1 for p in self.sampling_probs):
+      raise ValueError(
+          f'sampling_probs must be in [0, 1]. Got {self.sampling_probs}.'
+      )
+    if not math.isclose(sum(self.sampling_probs), 1.0):
+      raise ValueError(
+          f'sampling_probs must sum to 1. Got sum={sum(self.sampling_probs)}.'
+      )
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class ZCDpEvent(DpEvent):
@@ -491,6 +622,12 @@ class ZCDpEvent(DpEvent):
   rho: float
   xi: float = 0.0
 
+  def __attrs_post_init__(self):
+    if not self.rho >= 0:
+      raise ValueError(f'rho must be >= 0. Got {self.rho}.')
+    if not self.xi >= 0:
+      raise ValueError(f'xi must be >= 0. Got {self.xi}.')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class ExponentialMechanismDpEvent(DpEvent):
@@ -506,6 +643,10 @@ class ExponentialMechanismDpEvent(DpEvent):
   """
 
   epsilon: float
+
+  def __attrs_post_init__(self):
+    if not self.epsilon >= 0:
+      raise ValueError(f'epsilon must be >= 0. Got {self.epsilon}.')
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -528,6 +669,10 @@ class PermuteAndFlipDpEvent(DpEvent):
   """
 
   epsilon: float
+
+  def __attrs_post_init__(self):
+    if not self.epsilon >= 0:
+      raise ValueError(f'epsilon must be >= 0. Got {self.epsilon}.')
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -553,6 +698,26 @@ class TruncatedSubsampledGaussianDpEvent(DpEvent):
   truncated_batch_size: int
   noise_multiplier: float
 
+  def __attrs_post_init__(self):
+    if not self.dataset_size >= 0:
+      raise ValueError(
+          f'dataset_size must be non-negative. Got {self.dataset_size}.'
+      )
+    if not 0 <= self.sampling_probability <= 1:
+      raise ValueError(
+          'sampling_probability must be in [0, 1]. Got '
+          f'{self.sampling_probability}.'
+      )
+    if not self.truncated_batch_size >= 0:
+      raise ValueError(
+          'truncated_batch_size must be non-negative. Got '
+          f'{self.truncated_batch_size}.'
+      )
+    if not self.noise_multiplier >= 0:
+      raise ValueError(
+          f'noise_multiplier must be non-negative. Got {self.noise_multiplier}.'
+      )
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class RandomAllocationDpEvent(DpEvent):
@@ -575,3 +740,12 @@ class RandomAllocationDpEvent(DpEvent):
   event: DpEvent
   num_selected: int
   num_steps: int
+
+  def __attrs_post_init__(self):
+    if not self.num_steps >= 1:
+      raise ValueError(f'num_steps must be >= 1. Got {self.num_steps}.')
+    if not 0 <= self.num_selected <= self.num_steps:
+      raise ValueError(
+          'num_selected must be in [0, num_steps]. Got '
+          f'num_selected={self.num_selected}, num_steps={self.num_steps}.'
+      )

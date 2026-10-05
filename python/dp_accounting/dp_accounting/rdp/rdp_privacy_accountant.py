@@ -383,7 +383,7 @@ def _compute_rdp_poisson_subsampled_gaussian(
     )
 
   def compute_one_order(q, alpha):
-    if q == 0:
+    if q == 0 or np.isinf(noise_multiplier):
       return 0
 
     if np.isinf(alpha) or noise_multiplier == 0:
@@ -443,14 +443,14 @@ def _compute_rdp_sample_wor_gaussian_scalar(
 
   assert (q <= 1) and (q >= 0) and (alpha >= 1)
 
-  if q == 0:
+  if q == 0 or np.isinf(sigma):
     return 0
+
+  if np.isinf(alpha) or sigma == 0:
+    return np.inf
 
   if q == 1.0:
     return alpha / (2 * sigma**2)
-
-  if np.isinf(alpha):
-    return np.inf
 
   if float(alpha).is_integer():
     return _compute_rdp_sample_wor_gaussian_int(q, sigma, int(alpha)) / (
@@ -566,29 +566,37 @@ def _effective_gaussian_noise_multiplier(
     out in `dp_event.GaussianDpEvent`s, returns offending subevent.
   """
   if isinstance(event, dp_event.GaussianDpEvent):
-    return event.noise_multiplier
+    return float(event.noise_multiplier)
   elif accept_zcdp and isinstance(event, dp_event.ZCDpEvent) and event.xi == 0:
     # If xi>0 the zCDP guarantee does not correspond to a Gaussian mechanism.
-    return 1 / np.sqrt(2 * event.rho)  # rho = 1/2/noise_multiplier^2
+    if event.rho == 0:
+      return np.inf
+    return float(1 / np.sqrt(2 * event.rho))  # rho = 1/2/noise_multiplier^2
   elif accept_zcdp and isinstance(event, dp_event.DiscreteGaussianDpEvent):
     # Discrete Gaussian satisfies rho-zCDP with rho = sens^2 / (2*sigma^2),
     # equivalent to GaussianDpEvent(noise_multiplier=sigma/sensitivity).
-    return event.sigma / event.sensitivity
+    if event.sensitivity == 0:
+      return np.inf
+    return float(event.sigma / event.sensitivity)
   elif isinstance(event, dp_event.ComposedDpEvent):
-    sum_sigma_inv_sq = 0
+    sum_sigma_inv_sq = 0.0
     for e in event.events:
       sigma = _effective_gaussian_noise_multiplier(e, accept_zcdp=accept_zcdp)
       if not isinstance(sigma, float):
         return sigma
+      if sigma == 0:
+        return 0.0
       sum_sigma_inv_sq += sigma**-2
-    return sum_sigma_inv_sq**-0.5
+    if sum_sigma_inv_sq == 0:
+      return np.inf
+    return float(sum_sigma_inv_sq**-0.5)
   elif isinstance(event, dp_event.SelfComposedDpEvent):
     sigma = _effective_gaussian_noise_multiplier(
         event.event, accept_zcdp=accept_zcdp
     )
     if not isinstance(sigma, float):
       return sigma
-    return sigma * event.count**-0.5
+    return float(sigma * event.count**-0.5)
   else:
     return event
 
@@ -620,13 +628,12 @@ def _compute_rdp_single_epoch_tree_aggregation(
     raise ValueError(
         f'noise_multiplier must be non-negative. Got {noise_multiplier}.'
     )
-  if noise_multiplier == 0:
-    return np.inf
+  if np.isscalar(step_counts):
+    step_counts = [step_counts]  # pyrefly: ignore[bad-assignment]
 
   if not step_counts:
     raise ValueError(
-        'steps_list must be a non-empty list, or a non-zero scalar. Got '
-        f'{step_counts}.'
+        f'steps_list must be a non-empty list, or a scalar. Got {step_counts}.'
     )
 
   if np.isscalar(step_counts):
@@ -637,6 +644,10 @@ def _compute_rdp_single_epoch_tree_aggregation(
       raise ValueError(f'Steps must be non-negative. Got {step_counts}')
 
   max_depth = math.ceil(math.log2(max(step_counts) + 1))  # pyrefly: ignore[bad-argument-type]
+  if max_depth == 0:
+    return np.zeros_like(orders, dtype=np.float64)
+  if noise_multiplier == 0:
+    return np.inf
   return np.array([a * max_depth / (2 * noise_multiplier**2) for a in orders])
 
 
@@ -1058,29 +1069,34 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       # Discrete Gaussian satisfies rho-zCDP with rho = sens^2 / (2 * sigma^2).
       # See https://arxiv.org/abs/2004.00010, Proposition 5.
       if do_compose:
-        rho = event.sensitivity**2 / (2.0 * event.sigma**2)
-        self._rdp += count * rho * self._orders
+        if event.sensitivity == 0:
+          pass
+        elif event.sigma == 0:
+          self._rdp += np.inf
+        else:
+          rho = event.sensitivity**2 / (2.0 * event.sigma**2)
+          self._rdp += count * rho * self._orders
       return None
     elif isinstance(event, dp_event.ExponentialMechanismDpEvent):
       if do_compose:
-        if event.epsilon < 0:
-          raise ValueError(f'epsilon must be >= 0. Got {event.epsilon}')
         eps = event.epsilon  # Alias for brevity.
-        # zCDP bound from Section 3 of https://arxiv.org/pdf/2004.07223, plus
-        # epsilon-DP implies all orders are at most epsilon.
-        xi = eps / np.expm1(eps) - 1 - np.log(eps / np.expm1(eps)) - eps**2 / 8
-        self._rdp += np.minimum(xi + (eps**2 / 8) * self._orders, eps)
+        if eps > 0:
+          # zCDP bound from Section 3 of https://arxiv.org/pdf/2004.07223, plus
+          # epsilon-DP implies all orders are at most epsilon.
+          xi = (
+              eps / np.expm1(eps) - 1 - np.log(eps / np.expm1(eps)) - eps**2 / 8
+          )
+          self._rdp += np.minimum(xi + (eps**2 / 8) * self._orders, eps)
       return None
     elif isinstance(event, dp_event.PermuteAndFlipDpEvent):
       if do_compose:
-        if event.epsilon < 0:
-          raise ValueError(f'epsilon must be >= 0. Got {event.epsilon}')
-        # Permute-and-flip satisfies standard epsilon-DP. Its privacy loss
-        # distribution is identical to the Laplace mechanism with parameter
-        # 1/epsilon, so we use the tight Laplace RDP formula.
-        self._rdp += count * np.array(
-            [_laplace_rdp(event.epsilon, order) for order in self._orders]
-        )
+        if event.epsilon > 0:
+          # Permute-and-flip satisfies standard epsilon-DP. Its privacy loss
+          # distribution is identical to the Laplace mechanism with parameter
+          # 1/epsilon, so we use the tight Laplace RDP formula.
+          self._rdp += count * np.array(
+              [_laplace_rdp(event.epsilon, order) for order in self._orders]
+          )
       return None
     elif isinstance(event, dp_event.PoissonSampledDpEvent):
       if self._neighboring_relation not in [
@@ -1162,10 +1178,13 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       return None
     elif isinstance(event, dp_event.LaplaceDpEvent):
       if do_compose:
-        eps = 1 / event.noise_multiplier
-        self._rdp += count * np.array(
-            [_laplace_rdp(eps, order) for order in self._orders]
-        )
+        if event.noise_multiplier == 0:
+          self._rdp += np.inf
+        else:
+          eps = 1 / event.noise_multiplier
+          self._rdp += count * np.array(
+              [_laplace_rdp(eps, order) for order in self._orders]
+          )
       return None
     elif isinstance(event, dp_event.RepeatAndSelectDpEvent):
       save_rdp = self._rdp
