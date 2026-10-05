@@ -87,6 +87,13 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
           pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL,
           'neighboring_relation must be `ADD_OR_REMOVE_ONE`',
       ),
+      (
+          dp_event.RandomAllocationDpEvent(
+              dp_event.GaussianDpEvent(2.0), 10, 100
+          ),
+          pld_privacy_accountant.NeighborRel.REPLACE_ONE,
+          _REPLACE_ONE_NOT_ALLOWED_MESSAGE,
+      )
   )
   def test_composition_errors_for_neighboring_relation(
       self, event, neighboring_relation, error_msg):

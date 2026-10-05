@@ -333,6 +333,15 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           self._pld = self._pld.compose(truncated_subsampled_gaussian_pld)
       return None
     elif isinstance(event, dp_event.RandomAllocationDpEvent):
+      if self.neighboring_relation is NeighborRel.REPLACE_ONE:
+        return CompositionErrorDetails(
+            invalid_event=event,
+            error_message=(
+                'neighboring_relation must be `ADD_OR_REMOVE_ONE` or '
+                '`REPLACE_SPECIAL` for `RandomAllocationDpEvent`. Found '
+                f'{self._neighboring_relation}.'
+            ),
+        )
       if not isinstance(event.event, dp_event.GaussianDpEvent):
         return CompositionErrorDetails(
             invalid_event=event,
