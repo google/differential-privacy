@@ -21,13 +21,13 @@ bazel_dep(name = "rules_python", version = "1.2.0")
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
     ignore_root_user_error = True,
-    python_version = "3.9",
+    python_version = "3.10",
 )
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     hub_name = "accounting_py_pip_deps",
-    python_version = "3.9",
+    python_version = "3.10",
     requirements_lock = "//:requirements_lock.txt",
 )
 use_repo(pip, "accounting_py_pip_deps")
