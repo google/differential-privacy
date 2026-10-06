@@ -1278,6 +1278,42 @@ class RdpPrivacyAccountantTest(
     expected_delta = 1 - (1 - 0.001) ** 10
     self.assertAlmostEqual(accountant._extra_delta, expected_delta, places=10)
 
+  @parameterized.named_parameters(
+      (
+          'direct',
+          dp_event.EpsilonDeltaDpEvent(epsilon=1.0, delta=1e-5),
+      ),
+      (
+          'composed',
+          dp_event.ComposedDpEvent([
+              dp_event.GaussianDpEvent(1.0),
+              dp_event.EpsilonDeltaDpEvent(epsilon=1.0, delta=1e-5),
+          ]),
+      ),
+      (
+          'self_composed',
+          dp_event.SelfComposedDpEvent(
+              dp_event.EpsilonDeltaDpEvent(epsilon=1.0, delta=1e-5), 2
+          ),
+      ),
+  )
+  def test_repeat_and_select_with_extra_delta_unsupported(self, inner_event):
+    event = dp_event.RepeatAndSelectDpEvent(inner_event, mean=10, shape=1)
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    self.assertFalse(accountant.supports(event))
+    with self.assertRaises(privacy_accountant.UnsupportedEventError):
+      accountant.compose(event)
+
+  def test_repeat_and_select_with_zero_extra_delta_supported(self):
+    accountant = rdp_privacy_accountant.RdpAccountant()
+    accountant.compose(dp_event.EpsilonDeltaDpEvent(epsilon=0.5, delta=1e-5))
+    event = dp_event.RepeatAndSelectDpEvent(
+        dp_event.EpsilonDeltaDpEvent(epsilon=1.0, delta=0.0), mean=10, shape=1
+    )
+    self.assertTrue(accountant.supports(event))
+    accountant.compose(event)
+    self.assertAlmostEqual(accountant._extra_delta, 1e-5)
+
 
 if __name__ == '__main__':
   absltest.main()

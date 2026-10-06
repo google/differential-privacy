@@ -1168,23 +1168,34 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         )
       return None
     elif isinstance(event, dp_event.RepeatAndSelectDpEvent):
-      save_rdp = self._rdp
+      sub_accountant = RdpAccountant(
+          orders=self._orders,  # pyrefly: ignore[bad-argument-type]
+          neighboring_relation=self._neighboring_relation,
+      )
+      # pylint: disable=protected-access
+      composition_error = sub_accountant._maybe_compose(
+          event.event, 1, do_compose=False
+      )
+      if composition_error is not None:
+        return composition_error
+      sub_accountant._maybe_compose(event.event, 1, do_compose=True)
+      if sub_accountant._extra_delta > 0:
+        return CompositionErrorDetails(
+            invalid_event=event,
+            error_message=(
+                'Cannot compose `RepeatAndSelectDpEvent` when composing its'
+                ' subevent causes `_extra_delta` > 0.'
+            ),
+        )
       if do_compose:
-        # Save the RDP values from already composed DPEvents. These will
-        # be added back after we process this RepeatAndSelectDpEvent.
-        # Zero out self._rdp before computing the RDP of the underlying
-        # DP event.
-        self._rdp = np.zeros_like(self._orders, dtype=np.float64)
-      composition_error = self._maybe_compose(event.event, 1, do_compose)
-      if composition_error is None and do_compose:
-        self._rdp = (
+        self._rdp += (
             count  # pyrefly: ignore[unsupported-operation]
             * _compute_rdp_repeat_and_select(
-                self._orders, self._rdp, event.mean, event.shape  # pyrefly: ignore[bad-argument-type]
+                self._orders, sub_accountant._rdp, event.mean, event.shape  # pyrefly: ignore[bad-argument-type]
             )
-            + save_rdp
         )
-      return composition_error
+      # pylint: enable=protected-access
+      return None
     elif isinstance(event, dp_event.RandomizedResponseDpEvent):
       if self._neighboring_relation not in [
           NeighborRel.REPLACE_SPECIAL,
