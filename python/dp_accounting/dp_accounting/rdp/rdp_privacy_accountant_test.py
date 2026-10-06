@@ -1278,6 +1278,48 @@ class RdpPrivacyAccountantTest(
     expected_delta = 1 - (1 - 0.001) ** 10
     self.assertAlmostEqual(accountant._extra_delta, expected_delta, places=10)
 
+  @parameterized.named_parameters(
+      ('dgaussian_zero_sens', dp_event.DiscreteGaussianDpEvent(1.0, 0.0)),
+      ('dgaussian_zero_both', dp_event.DiscreteGaussianDpEvent(0.0, 0.0)),
+      (
+          'poisson_dgaussian_zero_sens',
+          dp_event.PoissonSampledDpEvent(
+              0.5, dp_event.DiscreteGaussianDpEvent(1.0, 0.0)
+          ),
+      ),
+      (
+          'poisson_dgaussian_zero_both',
+          dp_event.PoissonSampledDpEvent(
+              0.5, dp_event.DiscreteGaussianDpEvent(0.0, 0.0)
+          ),
+      ),
+      ('zcdp_zeros', dp_event.ZCDpEvent(0.0, 0.0)),
+      (
+          'poisson_zcdp_zeros',
+          dp_event.PoissonSampledDpEvent(0.5, dp_event.ZCDpEvent(0.0, 0.0)),
+      ),
+      ('exp_mech_zero', dp_event.ExponentialMechanismDpEvent(0.0)),
+      ('permute_and_flip_zero', dp_event.PermuteAndFlipDpEvent(0.0)),
+  )
+  def test_zero_privacy_loss_events(self, event):
+    accountant = rdp_privacy_accountant.RdpAccountant([2.0, np.inf])
+    accountant.compose(event)
+    self.assertEqual(accountant.get_epsilon(1e-10), 0)
+    self.assertEqual(accountant.get_delta(1e-10), 0)
+
+  @parameterized.named_parameters(
+      ('scalar_zero', 1.0, 0),
+      ('scalar_zero_zero_noise', 0.0, 0),
+      ('list_zero', 1.0, [0]),
+      ('list_zeros_zero_noise', 0.0, [0, 0]),
+  )
+  def test_tree_aggregation_zero_steps(self, noise_multiplier, step_counts):
+    accountant = _compose_trees_single_epoch(
+        noise_multiplier, step_counts, orders=[2.0]
+    )
+    self.assertEqual(accountant.get_epsilon(1e-10), 0)
+    self.assertEqual(accountant.get_delta(1e-10), 0)
+
 
 if __name__ == '__main__':
   absltest.main()

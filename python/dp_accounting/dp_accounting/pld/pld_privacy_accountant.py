@@ -153,7 +153,9 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             ),
         )
       if do_compose:
-        if event.noise_parameter == 0:
+        if event.sensitivity == 0:
+          pass
+        elif event.noise_parameter == 0:
           self._contains_non_dp_event = True
         else:
           discrete_laplace_pld = PLD.from_discrete_laplace_mechanism(
@@ -177,7 +179,11 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             ),
         )
       if do_compose:
-        if len(event.sensitivities) == 1 and event.sensitivities[0] == 0.0:
+        if all(
+            s == 0.0
+            for s, p in zip(event.sensitivities, event.sampling_probs)
+            if p > 0
+        ):
           pass
         elif event.standard_deviation == 0:
           self._contains_non_dp_event = True
@@ -191,9 +197,6 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
           self._pld = self._pld.compose(mog_pld)
       return None
     elif isinstance(event, dp_event.ExponentialMechanismDpEvent):
-      if do_compose:
-        if event.epsilon < 0:
-          raise ValueError(f'epsilon must be >= 0. Got {event.epsilon}')
       if do_compose:
         # We use a worst-case PLD for any epsilon-DP mechanism, which is a
         # (loose) upper bound for the PLD of the exponental mechanism.
@@ -221,8 +224,6 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             ),
         )
       if do_compose:
-        if event.epsilon < 0:
-          raise ValueError(f'epsilon must be >= 0. Got {event.epsilon}')
         if event.epsilon == 0:
           pass  # NoOp: zero epsilon means infinite noise.
         else:

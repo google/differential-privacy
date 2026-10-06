@@ -226,6 +226,8 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       dp_event.PoissonSampledDpEvent(0, dp_event.LaplaceDpEvent(1)),
       dp_event.PoissonSampledDpEvent(0, dp_event.GaussianDpEvent(0)),
       dp_event.PoissonSampledDpEvent(0, dp_event.LaplaceDpEvent(0)),
+      dp_event.DiscreteLaplaceDpEvent(1, 0),
+      dp_event.DiscreteLaplaceDpEvent(0, 0),
       dp_event.MixtureOfGaussiansDpEvent(1, [0], [1.0]),
       dp_event.MixtureOfGaussiansDpEvent(0, [0], [1.0]),
   )
