@@ -483,9 +483,9 @@ class RdpPrivacyAccountantTest(
   def test_compute_rdp_exponential_mechanism(self):
     alphas = [1.0, 1000.0]
     accountant = rdp_privacy_accountant.RdpAccountant(orders=alphas)
-    accountant.compose(dp_event.ExponentialMechanismDpEvent(1.0))
-    self.assertAlmostEqual(accountant._rdp[0], 0.123301561)
-    self.assertAlmostEqual(accountant._rdp[1], 1.0)
+    accountant.compose(dp_event.ExponentialMechanismDpEvent(1.0), 2)
+    self.assertAlmostEqual(accountant._rdp[0], 0.246603122)
+    self.assertAlmostEqual(accountant._rdp[1], 2.0)
 
   def test_permute_and_flip_matches_laplace(self):
     eps = 1.0

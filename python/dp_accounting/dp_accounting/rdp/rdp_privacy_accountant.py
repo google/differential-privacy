@@ -1069,7 +1069,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         # zCDP bound from Section 3 of https://arxiv.org/pdf/2004.07223, plus
         # epsilon-DP implies all orders are at most epsilon.
         xi = eps / np.expm1(eps) - 1 - np.log(eps / np.expm1(eps)) - eps**2 / 8
-        self._rdp += np.minimum(xi + (eps**2 / 8) * self._orders, eps)
+        self._rdp += np.minimum(xi + (eps**2 / 8) * self._orders, eps) * count
       return None
     elif isinstance(event, dp_event.PermuteAndFlipDpEvent):
       if do_compose:
