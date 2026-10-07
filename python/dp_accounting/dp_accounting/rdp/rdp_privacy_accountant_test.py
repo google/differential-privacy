@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for rdp_privacy_accountant."""
-
+from collections.abc import Sequence
 import math
 import sys
 
@@ -27,14 +26,30 @@ from dp_accounting import privacy_accountant
 from dp_accounting import privacy_accountant_test
 from dp_accounting.rdp import rdp_privacy_accountant
 
+_LAPLACE_EVENT = dp_event.LaplaceDpEvent(1.0)
 
-def _get_test_rdp(event, count=1):
+# Cases for comparing _compute_log_a against a multi-precision computation.
+_LOG_A_PARAMS = (
+    {'q': 1e-7, 'sigma': 0.1, 'order': 1.01},
+    {'q': 1e-6, 'sigma': 0.1, 'order': 256},
+    {'q': 1e-5, 'sigma': 0.1, 'order': 256.1},
+    {'q': 1e-6, 'sigma': 1, 'order': 27},
+    {'q': 1e-4, 'sigma': 1.0, 'order': 1.5},
+    {'q': 1e-3, 'sigma': 1.0, 'order': 2},
+    {'q': 0.01, 'sigma': 10, 'order': 20},
+    {'q': 0.1, 'sigma': 100, 'order': 20.5},
+    {'q': 0.99, 'sigma': 0.1, 'order': 256},
+    {'q': 0.999, 'sigma': 100, 'order': 256.1},
+)
+
+
+def _get_test_rdp(event: dp_event.DpEvent, count: int = 1) -> float:
   accountant = rdp_privacy_accountant.RdpAccountant(orders=[2.71828])
   accountant.compose(event, count)
   return accountant._rdp[0]
 
 
-def _log_float_mp(x):
+def _log_float_mp(x: mpmath.mpf) -> float:
   # Convert multi-precision input to float log space.
   if x >= sys.float_info.min:
     return float(mpmath.log(x))
@@ -42,24 +57,26 @@ def _log_float_mp(x):
     return -np.inf
 
 
-def _compute_a_mp(sigma, q, alpha):
+def _compute_a_mp(sigma: float, q: float, alpha: float) -> mpmath.mpf:
   """Compute A_alpha for arbitrary alpha by numerical integration."""
 
   def mu0(x):
     return mpmath.npdf(x, mu=0, sigma=sigma)
 
-  def _mu_over_mu0(x, q, sigma):
+  def mu_over_mu0(x):
     return (1 - q) + q * mpmath.exp((2 * x - 1) / (2 * sigma**2))
 
   def a_alpha_fn(z):
-    return mu0(z) * _mu_over_mu0(z, q, sigma) ** alpha
+    return mu0(z) * mu_over_mu0(z) ** alpha
 
   bounds = (-mpmath.inf, mpmath.inf)
   a_alpha, _ = mpmath.quad(a_alpha_fn, bounds, error=True, maxdegree=8)
   return a_alpha
 
 
-def _compose_trees(noise_multiplier, step_counts, orders):
+def _compose_trees(
+    noise_multiplier: float, step_counts: Sequence[int], orders: Sequence[float]
+) -> rdp_privacy_accountant.RdpAccountant:
   accountant = rdp_privacy_accountant.RdpAccountant(
       orders, privacy_accountant.NeighboringRelation.REPLACE_SPECIAL
   )
@@ -74,7 +91,11 @@ def _compose_trees(noise_multiplier, step_counts, orders):
   return accountant
 
 
-def _compose_trees_single_epoch(noise_multiplier, step_counts, orders):
+def _compose_trees_single_epoch(
+    noise_multiplier: float,
+    step_counts: int | list[int],
+    orders: Sequence[float],
+) -> rdp_privacy_accountant.RdpAccountant:
   accountant = rdp_privacy_accountant.RdpAccountant(
       orders, privacy_accountant.NeighboringRelation.REPLACE_SPECIAL
   )
@@ -280,8 +301,7 @@ class RdpPrivacyAccountantTest(
     self.assertEqual(sigma_out, sigma)
 
   def test_effective_gaussian_noise_multiplier_composed(self):
-    np.random.seed(0xBAD5EED)
-    sigmas = np.random.uniform(size=(4,))
+    sigmas = np.random.default_rng(0xBAD5EED).uniform(size=4)
 
     event = dp_event.ComposedDpEvent([
         dp_event.GaussianDpEvent(sigmas[0]),
@@ -483,8 +503,6 @@ class RdpPrivacyAccountantTest(
     accountant = rdp_privacy_accountant.RdpAccountant(orders=[2.0])
     self.assertFalse(accountant.supports(event))
 
-  _LAPLACE_EVENT = dp_event.LaplaceDpEvent(1.0)
-
   def test_compute_rdp_exponential_mechanism(self):
     alphas = [1.0, 1000.0]
     accountant = rdp_privacy_accountant.RdpAccountant(orders=alphas)
@@ -508,7 +526,7 @@ class RdpPrivacyAccountantTest(
   )
   def test_effective_gaussian_noise_multiplier_invalid_event(self, event):
     result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
-    self.assertEqual(result, self._LAPLACE_EVENT)
+    self.assertEqual(result, _LAPLACE_EVENT)
 
   def test_compute_rdp_poisson_sampled_gaussian(self):
     orders = [1.5, 2.5, 5, 50, 100, np.inf]
@@ -523,19 +541,17 @@ class RdpPrivacyAccountantTest(
     )
     accountant = rdp_privacy_accountant.RdpAccountant(orders=orders)
     accountant.compose(event)
-    self.assertTrue(
-        np.allclose(
-            accountant._rdp,
-            [
-                6.70579741e-04,
-                1.08548710e-03,
-                2.18075656e-03,
-                2.38460375e-02,
-                1.67416308e02,
-                np.inf,
-            ],
-            rtol=1e-4,
-        )
+    np.testing.assert_allclose(
+        accountant._rdp,
+        [
+            6.70579741e-04,
+            1.08548710e-03,
+            2.18075656e-03,
+            2.38460375e-02,
+            1.67416308e02,
+            np.inf,
+        ],
+        rtol=1e-4,
     )
 
   @parameterized.named_parameters(
@@ -589,13 +605,7 @@ class RdpPrivacyAccountantTest(
         privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
     )
     accountant.compose(event)
-    self.assertTrue(
-        np.allclose(
-            accountant._rdp,
-            expected_rdps,
-            rtol=1e-4,
-        )
-    )
+    np.testing.assert_allclose(accountant._rdp, expected_rdps, rtol=1e-4)
 
   @parameterized.named_parameters(
       (
@@ -648,13 +658,7 @@ class RdpPrivacyAccountantTest(
         privacy_accountant.NeighboringRelation.REPLACE_ONE,
     )
     accountant.compose(event)
-    self.assertTrue(
-        np.allclose(
-            accountant._rdp,
-            expected_rdps,
-            rtol=1e-4,
-        )
-    )
+    np.testing.assert_allclose(accountant._rdp, expected_rdps, rtol=1e-4)
 
   @parameterized.named_parameters(
       ('noise_param_1', 1, 2, [1.1, 1.2], [0, 0]),
@@ -670,7 +674,7 @@ class RdpPrivacyAccountantTest(
     ]:
       self.assertSequenceAlmostEqual(
           rdp_privacy_accountant._compute_randomized_response_rdp(
-              noise_param, num_buckets, alphas, rel
+              noise_param, num_buckets, np.array(alphas), rel
           ),
           expected_rdps,
       )
@@ -690,7 +694,7 @@ class RdpPrivacyAccountantTest(
   def test_compute_rdp_randomized_response_inf_order(self, rel, expected_rdp):
     noise_param = 0.1
     num_buckets = 10
-    orders = [np.inf]
+    orders = np.array([np.inf])
     self.assertSequenceAlmostEqual(
         rdp_privacy_accountant._compute_randomized_response_rdp(
             noise_param, num_buckets, orders, rel
@@ -699,27 +703,28 @@ class RdpPrivacyAccountantTest(
     )
 
   def test_compute_rdp_randomized_response_raises(self):
+    orders = np.array([1.1, 1.2])
     for rel in [
         privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
         privacy_accountant.NeighboringRelation.REPLACE_ONE,
     ]:
       with self.assertRaisesRegex(ValueError, 'noise_parameter must be in'):
         rdp_privacy_accountant._compute_randomized_response_rdp(
-            -1, 10, [1.1, 1.2], rel
+            -1, 10, orders, rel
         )
       with self.assertRaisesRegex(ValueError, 'noise_parameter must be in'):
         rdp_privacy_accountant._compute_randomized_response_rdp(
-            2, 10, [1.1, 1.2], rel
+            2, 10, orders, rel
         )
       with self.assertRaisesRegex(ValueError, 'num_buckets must be >= 1'):
         rdp_privacy_accountant._compute_randomized_response_rdp(
-            0.1, 0, [1.1, 1.2], rel
+            0.1, 0, orders, rel
         )
       with self.assertRaisesRegex(
           ValueError, 'Renyi divergence order alpha must be > 1'
       ):
         rdp_privacy_accountant._compute_randomized_response_rdp(
-            0.1, 10, [1, 1.2], rel
+            0.1, 10, np.array([1, 1.2]), rel
         )
 
   def test_compute_epsilon_delta_pure_dp(self):
@@ -740,7 +745,7 @@ class RdpPrivacyAccountantTest(
     self.assertEqual(optimal_order, 32)
 
   def test_compute_epsilon_delta_gaussian(self):
-    orders = [0.001 * i for i in range(1000, 100000)]
+    orders = np.arange(1000, 100000) * 0.001
 
     # noise multiplier is chosen to obtain exactly (1,1e-6)-DP.
     rdp = rdp_privacy_accountant._compute_rdp_poisson_subsampled_gaussian(
@@ -753,21 +758,7 @@ class RdpPrivacyAccountantTest(
     delta = rdp_privacy_accountant.compute_delta(orders, rdp, epsilon=1)[0]
     self.assertAlmostEqual(delta, 1e-6)
 
-  params = (
-      {'q': 1e-7, 'sigma': 0.1, 'order': 1.01},
-      {'q': 1e-6, 'sigma': 0.1, 'order': 256},
-      {'q': 1e-5, 'sigma': 0.1, 'order': 256.1},
-      {'q': 1e-6, 'sigma': 1, 'order': 27},
-      {'q': 1e-4, 'sigma': 1.0, 'order': 1.5},
-      {'q': 1e-3, 'sigma': 1.0, 'order': 2},
-      {'q': 0.01, 'sigma': 10, 'order': 20},
-      {'q': 0.1, 'sigma': 100, 'order': 20.5},
-      {'q': 0.99, 'sigma': 0.1, 'order': 256},
-      {'q': 0.999, 'sigma': 100, 'order': 256.1},
-  )
-
-  # pylint:disable=undefined-variable
-  @parameterized.parameters(p for p in params)
+  @parameterized.parameters(*_LOG_A_PARAMS)
   def test_compute_log_a_equals_mp(self, q, sigma, order):
     # Compare the cheap computation of log(A) with an expensive, multi-precision
     # computation.
@@ -778,7 +769,7 @@ class RdpPrivacyAccountantTest(
   def test_delta_bounds_gaussian(self):
     # Compare the optimal bound for Gaussian with the one derived from RDP.
     # Also compare the RDP upper bound with the "standard" upper bound.
-    orders = [0.1 * x for x in range(10, 505)]
+    orders = np.arange(10, 505) * 0.1
     eps_vec = [0.1 * x for x in range(500)]
     rdp = rdp_privacy_accountant._compute_rdp_poisson_subsampled_gaussian(
         1, 1, orders
@@ -858,7 +849,7 @@ class RdpPrivacyAccountantTest(
 
     rdp_summed = sum(get_rdp(step_count) for step_count in step_counts)
     rdp_composed = _compose_trees(noise_multiplier, step_counts, orders)._rdp[0]
-    self.assertTrue(np.allclose(rdp_composed, rdp_summed, rtol=1e-12))
+    np.testing.assert_allclose(rdp_composed, rdp_summed, rtol=1e-12)
 
   def test_single_epoch_multi_tree_rdp(self):
     noise_multiplier, orders = 0.1, [1]
@@ -914,7 +905,7 @@ class RdpPrivacyAccountantTest(
     )
     accountant.compose(event)
     base_rdp = accountant._rdp
-    self.assertTrue(np.allclose(tree_rdp, base_rdp, rtol=1e-12))
+    np.testing.assert_allclose(tree_rdp, base_rdp, rtol=1e-12)
 
   @parameterized.named_parameters(
       ('small_eps', 0.01, 1),
@@ -1087,9 +1078,9 @@ class RdpPrivacyAccountantTest(
     event2 = dp_event.RepeatAndSelectDpEvent(event1, 1, shape)
     accountant2 = rdp_privacy_accountant.RdpAccountant(orders=orders)
     accountant2.compose(event2)
-    for i in range(len(accountant1._orders)):
-      if orders[i] > 1:  # Otherwise our formula doesn't work.
-        self.assertAlmostEqual(accountant1._rdp[i], accountant2._rdp[i])
+    for order, rdp1, rdp2 in zip(orders, accountant1._rdp, accountant2._rdp):
+      if order > 1:  # Otherwise our formula doesn't work.
+        self.assertAlmostEqual(rdp1, rdp2)
 
   @parameterized.named_parameters(
       ('small0', 0.01, 0.01, 0),
@@ -1130,9 +1121,7 @@ class RdpPrivacyAccountantTest(
     event = dp_event.RepeatAndSelectDpEvent(event, mean, shape)
     accountant = rdp_privacy_accountant.RdpAccountant(orders=orders)
     accountant.compose(event)
-    for i in range(len(orders)):
-      order = accountant._orders[i]
-      rdp = accountant._rdp[i]
+    for order, rdp in zip(accountant._orders, accountant._rdp):
       if order <= 1 + math.sqrt(math.log(mean) / rho):
         eps = (
             2 * math.sqrt(rho * math.log(mean))
@@ -1217,7 +1206,7 @@ class RdpPrivacyAccountantTest(
           order * 0.5 / (sigma**2) + mean * delta + math.log(mean) / (order - 1)
       )
     for order, accountant_rdp in zip(orders, accountant._rdp):
-      lb = min(rdp[j] for j in range(len(orders)) if orders[j] >= order)
+      lb = min(r for o, r in zip(orders, rdp) if o >= order)
       self.assertLessEqual(lb, accountant_rdp)
 
   def test_log_a_frac_positive(self):
@@ -1233,7 +1222,7 @@ class RdpPrivacyAccountantTest(
     accountant = rdp_privacy_accountant.RdpAccountant()
     with self.assertLogs(level='WARNING') as log:
       accountant.compose(event)
-    self.assertNotEmpty([l for l in log.output if 'failed to converge' in l])
+    self.assertTrue(any('failed to converge' in line for line in log.output))
     self.assertIn(np.inf, accountant._rdp)
 
   def test_epsilon_delta_dp_event(self):
@@ -1263,7 +1252,7 @@ class RdpPrivacyAccountantTest(
     self.assertAlmostEqual(accountant.get_delta(1.0), expected_delta, places=6)
 
     # If extra delta exceeds target_delta, epsilon should be inf.
-    self.assertEqual(accountant.get_epsilon(0.005), float('inf'))
+    self.assertEqual(accountant.get_epsilon(0.005), np.inf)
 
   def test_epsilon_delta_dp_event_with_epsilon(self):
     """EpsilonDeltaDpEvent with nonzero epsilon adds RDP via zCDP."""
