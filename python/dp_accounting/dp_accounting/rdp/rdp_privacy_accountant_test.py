@@ -297,54 +297,59 @@ class RdpPrivacyAccountantTest(
     expected = sum(s**-2 for s in multi_sigmas) ** -0.5
     self.assertAlmostEqual(sigma, expected)
 
+  @parameterized.named_parameters(
+      (
+          'composed',
+          dp_event.ComposedDpEvent([dp_event.GaussianDpEvent(1)] * 2),
+      ),
+      (
+          'self_composed',
+          dp_event.SelfComposedDpEvent(dp_event.GaussianDpEvent(1), 2),
+      ),
+  )
+  def test_effective_gaussian_noise_multiplier_int_sigma_nested(self, event):
+    # Regression test: an int noise multiplier used to be mistaken for an
+    # offending subevent and returned as sigma, under-reporting privacy loss.
+    sigma = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
+    self.assertAlmostEqual(sigma, 2**-0.5)
+
+    int_accountant = rdp_privacy_accountant.RdpAccountant().compose(
+        dp_event.PoissonSampledDpEvent(0.1, event)
+    )
+    float_accountant = rdp_privacy_accountant.RdpAccountant().compose(
+        dp_event.PoissonSampledDpEvent(
+            0.1, dp_event.GaussianDpEvent(float(sigma))
+        )
+    )
+    self.assertAlmostEqual(
+        int_accountant.get_epsilon(1e-5), float_accountant.get_epsilon(1e-5)
+    )
+
   def test_effective_gaussian_noise_multiplier_zcdp_basic(self):
     sigma = 3.14159
-    rho = 0.5 / sigma**2
-    event = dp_event.ZCDpEvent(rho)
-    # Without accept_zcdp, should return the event itself (not a float).
+    event = dp_event.ZCDpEvent(0.5 / sigma**2)
     result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
-    self.assertIsInstance(result, dp_event.DpEvent)
-    # With accept_zcdp, should return equivalent sigma.
-    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(
-        event, accept_zcdp=True
-    )
     self.assertAlmostEqual(result, sigma)
 
   def test_effective_gaussian_noise_multiplier_zcdp_composed(self):
     sigma = 3.14159
-    rho = 0.5 / sigma**2
     event = dp_event.ComposedDpEvent([
-        dp_event.ZCDpEvent(rho),
+        dp_event.ZCDpEvent(0.5 / sigma**2),
         dp_event.GaussianDpEvent(sigma),
     ])
-    # Without accept_zcdp, should return the event itself (not a float).
     result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
-    self.assertIsInstance(result, dp_event.DpEvent)
-    # With accept_zcdp, should return equivalent sigma.
-    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(
-        event, accept_zcdp=True
-    )
     self.assertAlmostEqual(result, sigma / np.sqrt(2))
 
   def test_effective_gaussian_noise_multiplier_zcdp_self_composed(self):
     sigma = 3.14159
-    rho = 0.5 / sigma**2
-    event = dp_event.SelfComposedDpEvent(dp_event.ZCDpEvent(rho), 2)
-    # Without accept_zcdp, should return the event itself (not a float).
+    event = dp_event.SelfComposedDpEvent(dp_event.ZCDpEvent(0.5 / sigma**2), 2)
     result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
-    self.assertIsInstance(result, dp_event.DpEvent)
-    # With accept_zcdp, should return equivalent sigma.
-    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(
-        event, accept_zcdp=True
-    )
     self.assertAlmostEqual(result, sigma / np.sqrt(2))
 
   def test_effective_gaussian_noise_multiplier_zcdp_xi_positive(self):
-    # ZCDpEvent with xi > 0 should NOT be accepted even with accept_zcdp=True.
+    # ZCDpEvent with xi > 0 does not correspond to a Gaussian mechanism.
     event = dp_event.ZCDpEvent(1.0, xi=0.5)
-    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(
-        event, accept_zcdp=True
-    )
+    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
     self.assertIsInstance(result, dp_event.DpEvent)
 
   def test_compute_rdp_multi_zcdp(self):
