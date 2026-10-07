@@ -14,11 +14,12 @@
 # ==============================================================================
 """Privacy accountant that uses Renyi differential privacy."""
 
+from collections.abc import Callable
 import math
-from typing import Callable, Optional, Sequence, Tuple, Union
 
 from absl import logging
 import numpy as np
+import numpy.typing as npt
 from scipy import special
 
 from dp_accounting import dp_event
@@ -39,7 +40,7 @@ def _log_add(logx: float, logy: float) -> float:
   return math.log1p(math.exp(a - b)) + b  # log1p(x) = log(x + 1)
 
 
-def _log_sub_sign(logx: float, logy: float) -> Tuple[bool, float]:
+def _log_sub_sign(logx: float, logy: float) -> tuple[bool, float]:
   """Returns log(exp(logx)-exp(logy)) and its sign."""
   if logx > logy:
     s = True
@@ -136,32 +137,12 @@ def _compute_log_a_frac(q: float, sigma: float, alpha: float) -> float:
 
 def _log_erfc(x: float) -> float:
   """Computes log(erfc(x)) with high accuracy for large x."""
-  try:
-    return math.log(2) + special.log_ndtr(-x * 2**0.5)
-  except NameError:
-    # If log_ndtr is not available, approximate as follows:
-    r = special.erfc(x)
-    if r == 0.0:
-      # Using the Laurent series at infinity for the tail of the erfc function:
-      #     erfc(x) ~ exp(-x^2-.5/x^2+.625/x^4)/(x*pi^.5)
-      # To verify in Mathematica:
-      #     Series[Log[Erfc[x]] + Log[x] + Log[Pi]/2 + x^2, {x, Infinity, 6}]
-      return (
-          -math.log(math.pi) / 2
-          - math.log(x)
-          - x**2
-          - 0.5 * x**-2
-          + 0.625 * x**-4
-          - 37.0 / 24.0 * x**-6
-          + 353.0 / 64.0 * x**-8
-      )
-    else:
-      return math.log(r)
+  return math.log(2) + special.log_ndtr(-x * 2**0.5)
 
 
 def compute_delta(
-    orders: Sequence[float], rdp: Sequence[float], epsilon: float
-) -> Tuple[float, float]:
+    orders: npt.ArrayLike, rdp: npt.ArrayLike, epsilon: float
+) -> tuple[float, float]:
   """Computes delta given a list of RDP values and target epsilon.
 
   Args:
@@ -177,6 +158,7 @@ def compute_delta(
   """
   if epsilon < 0:
     raise ValueError(f'Epsilon cannot be negative. Found {epsilon}.')
+  orders, rdp = np.asarray(orders), np.asarray(rdp)
   if len(orders) != len(rdp):
     raise ValueError('Input lists must have the same length.')
 
@@ -211,13 +193,14 @@ def compute_delta(
 
     logdeltas.append(logdelta)
 
-  optimal_index = np.argmin(logdeltas)
-  return min(math.exp(logdeltas[optimal_index]), 1.0), orders[optimal_index]  # pyrefly: ignore[bad-index]
+  optimal_index = int(np.argmin(logdeltas))
+  delta = min(math.exp(logdeltas[optimal_index]), 1.0)
+  return delta, float(orders[optimal_index])
 
 
 def compute_epsilon(
-    orders: Sequence[float], rdp: Sequence[float], delta: float
-) -> Tuple[float, float]:
+    orders: npt.ArrayLike, rdp: npt.ArrayLike, delta: float
+) -> tuple[float, float]:
   """Computes epsilon given a list of RDP values and target delta.
 
   Args:
@@ -233,9 +216,10 @@ def compute_epsilon(
   """
   if delta < 0:
     raise ValueError(f'Delta cannot be negative. Found {delta}.')
+  orders, rdp = np.asarray(orders), np.asarray(rdp)
 
   if delta == 0:
-    if all(r == 0 for r in rdp):
+    if np.all(rdp == 0):
       return 0, 0
     else:
       return np.inf, 0
@@ -273,12 +257,12 @@ def compute_epsilon(
       epsilon = np.inf
     eps.append(epsilon)
 
-  optimal_index = np.argmin(eps)
-  return max(0, eps[optimal_index]), orders[optimal_index]  # pyrefly: ignore[bad-index]
+  optimal_index = int(np.argmin(eps))
+  return max(0, eps[optimal_index]), float(orders[optimal_index])
 
 
 def _stable_inplace_diff_in_log(
-    vec: np.ndarray, signs: np.ndarray, n: Optional[int] = None
+    vec: np.ndarray, signs: np.ndarray, n: int | None = None
 ):
   """Replaces the first n-1 dims of vec with the log of abs difference operator.
 
@@ -304,8 +288,8 @@ def _stable_inplace_diff_in_log(
     raise ValueError('signs must be of type bool')
   if n is None:
     n = np.max(vec.shape) - 1
-  else:
-    assert np.max(vec.shape) >= n + 1
+  elif np.max(vec.shape) < n + 1:
+    raise ValueError(f'vec must have size > n. Got {vec.shape} and n={n}.')
   for j in range(0, n, 1):
     if signs[j] == signs[j + 1]:  # When the signs are the same
       # if the signs are both positive, then we can just use the standard one
@@ -320,7 +304,7 @@ def _stable_inplace_diff_in_log(
 
 def _get_forward_diffs(
     fun: Callable[[float], float], n: int
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
   """Computes up to nth order forward difference evaluated at 0.
 
   See Theorem 27 of https://arxiv.org/pdf/1808.00087.pdf
@@ -348,9 +332,7 @@ def _get_forward_diffs(
   return deltas, signs_deltas
 
 
-def _compute_log_a(
-    q: float, noise_multiplier: float, alpha: Union[int, float]
-) -> float:
+def _compute_log_a(q: float, noise_multiplier: float, alpha: float) -> float:
   if float(alpha).is_integer():
     return _compute_log_a_int(q, noise_multiplier, int(alpha))
   else:
@@ -358,8 +340,8 @@ def _compute_log_a(
 
 
 def _compute_rdp_poisson_subsampled_gaussian(
-    q: float, noise_multiplier: float, orders: Sequence[float]
-) -> Union[float, np.ndarray]:
+    q: float, noise_multiplier: float, orders: np.ndarray
+) -> np.ndarray:
   """Computes RDP of the Poisson sampled Gaussian mechanism.
 
   Args:
@@ -398,8 +380,8 @@ def _compute_rdp_poisson_subsampled_gaussian(
 
 
 def _compute_rdp_sample_wor_gaussian(
-    q: float, noise_multiplier: float, orders: Sequence[float]
-) -> Union[float, np.ndarray]:
+    q: float, noise_multiplier: float, orders: np.ndarray
+) -> np.ndarray:
   """Computes RDP of Gaussian mechanism using sampling without replacement.
 
   This function applies to the following schemes:
@@ -428,7 +410,7 @@ def _compute_rdp_sample_wor_gaussian(
 
 
 def _compute_rdp_sample_wor_gaussian_scalar(
-    q: float, sigma: float, alpha: Union[float, int]
+    q: float, sigma: float, alpha: float
 ) -> float:
   """Computes RDP of the Sampled Gaussian mechanism at order alpha.
 
@@ -441,7 +423,12 @@ def _compute_rdp_sample_wor_gaussian_scalar(
     RDP at alpha, can be np.inf.
   """
 
-  assert (q <= 1) and (q >= 0) and (alpha >= 1)
+  if not 0 <= q <= 1:
+    raise ValueError(f'Sampling proportion must be in [0, 1]. Found {q}.')
+  if alpha < 1:
+    raise ValueError(
+        f'Renyi divergence order must be at least 1. Found {alpha}.'
+    )
 
   if q == 0:
     return 0
@@ -543,7 +530,7 @@ def _compute_rdp_sample_wor_gaussian_int(
 
 def _effective_gaussian_noise_multiplier(
     event: dp_event.DpEvent,
-) -> Union[float, dp_event.DpEvent]:
+) -> float | dp_event.DpEvent:
   """Determines the effective noise multiplier of nested structure of Gaussians.
 
   A series of Gaussian queries on the same data can be reexpressed as a single
@@ -591,9 +578,9 @@ def _effective_gaussian_noise_multiplier(
 
 def _compute_rdp_single_epoch_tree_aggregation(
     noise_multiplier: float,
-    step_counts: Union[int, Sequence[int]],
-    orders: Sequence[float],
-) -> Union[float, np.ndarray]:
+    step_counts: int | list[int],
+    orders: np.ndarray,
+) -> np.ndarray:
   """Computes RDP of the Tree Aggregation Protocol for Gaussian Mechanism.
 
   This function implements the accounting when the tree is periodically
@@ -617,7 +604,7 @@ def _compute_rdp_single_epoch_tree_aggregation(
         f'noise_multiplier must be non-negative. Got {noise_multiplier}.'
     )
   if noise_multiplier == 0:
-    return np.inf
+    return np.full(orders.shape, np.inf)
 
   if not step_counts:
     raise ValueError(
@@ -625,15 +612,12 @@ def _compute_rdp_single_epoch_tree_aggregation(
         f'{step_counts}.'
     )
 
-  if np.isscalar(step_counts):
-    step_counts = [step_counts]  # pyrefly: ignore[bad-assignment]
+  counts = np.atleast_1d(step_counts)
+  if np.any(counts < 0):
+    raise ValueError(f'Steps must be non-negative. Got {step_counts}')
 
-  for steps in step_counts:  # pyrefly: ignore[not-iterable]
-    if steps < 0:
-      raise ValueError(f'Steps must be non-negative. Got {step_counts}')
-
-  max_depth = math.ceil(math.log2(max(step_counts) + 1))  # pyrefly: ignore[bad-argument-type]
-  return np.array([a * max_depth / (2 * noise_multiplier**2) for a in orders])
+  max_depth = math.ceil(math.log2(counts.max() + 1))
+  return orders * max_depth / (2 * noise_multiplier**2)
 
 
 def _expm1_over_x(x: float) -> float:
@@ -754,8 +738,8 @@ def _gamma_truncated_negative_binomial(
 
 
 def _compute_rdp_repeat_and_select(
-    orders: Sequence[float], rdp: Sequence[float], mean: float, shape: float
-) -> Sequence[float]:
+    orders: np.ndarray, rdp: np.ndarray, mean: float, shape: float
+) -> np.ndarray:
   # pyformat: disable
   """Computes RDP of repeating and selecting best run.
 
@@ -792,9 +776,7 @@ def _compute_rdp_repeat_and_select(
         f'orders and rdp must be same length, got {len(orders)} & {len(rdp)}.'
     )
 
-  orders = np.asarray(orders)  # pyrefly: ignore[bad-assignment]
-  rdp_out = np.zeros_like(orders, dtype=np.float64)  # This will be the output.
-  rdp_out += np.inf  # Initialize to infinity.
+  rdp_out = np.full(orders.shape, np.inf)  # This will be the output.
 
   if shape == np.inf:  # Poisson Distribution
     for i in range(len(orders)):
@@ -814,7 +796,7 @@ def _compute_rdp_repeat_and_select(
     # orders[i] = lambda, rdp[i] = epsilon,
     # orders[j] = lambdahat, rdp[j] = epsilonhat
     # First compute constant term
-    c = (1 + shape) * np.min((1 - 1 / orders) * rdp - math.log(gamma) / orders)  # pyrefly: ignore[unsupported-operation]
+    c = (1 + shape) * np.min((1 - 1 / orders) * rdp - math.log(gamma) / orders)
     for i in range(len(orders)):
       if orders[i] > 1:  # Otherwise our formula is invalid.
         rdp_out[i] = rdp[i] + math.log(mean) / (orders[i] - 1) + c
@@ -826,7 +808,7 @@ def _compute_rdp_repeat_and_select(
       rdp_out[i] = min(
           rdp_out[j] for j in range(len(orders)) if orders[i] <= orders[j]
       )
-  return rdp_out  # pyrefly: ignore[bad-return]
+  return rdp_out
 
 
 def _laplace_rdp(eps: float, order: float) -> float:
@@ -946,10 +928,12 @@ def _randomized_response_rdp_replace_one(
 def _compute_randomized_response_rdp(
     noise_parameter: float,
     num_buckets: int,
-    alphas: Sequence[float],
+    alphas: np.ndarray,
     neighboring_relation: NeighborRel,
-) -> Union[float, np.ndarray]:
-  """Computes RDP of Randomized Response with REPLACE_SPECIAL or REPLACE_ONE neighboring relation for an array of orders.
+) -> np.ndarray:
+  """Computes RDP of Randomized Response for an array of orders.
+
+  Supports the REPLACE_SPECIAL and REPLACE_ONE neighboring relations.
 
   Args:
     noise_parameter: The noise parameter as defined in
@@ -990,7 +974,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
 
   def __init__(
       self,
-      orders: Optional[Sequence[float]] = None,
+      orders: npt.ArrayLike | None = None,
       neighboring_relation: NeighborRel = NeighborRel.ADD_OR_REMOVE_ONE,
   ):
     """Initializes the RDP accountant.
@@ -1003,12 +987,12 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     if orders is None:
       orders = DEFAULT_RDP_ORDERS
     self._orders = np.array(orders)
-    self._rdp = np.zeros_like(orders, dtype=np.float64)
+    self._rdp = np.zeros_like(self._orders, dtype=np.float64)
     self._extra_delta = 0.0
 
   def _maybe_compose(
       self, event: dp_event.DpEvent, count: int, do_compose: bool
-  ) -> Optional[CompositionErrorDetails]:
+  ) -> CompositionErrorDetails | None:
     """Traverses `event` and performs composition if `do_compose` is True."""
 
     if isinstance(event, dp_event.NoOpDpEvent):
@@ -1039,7 +1023,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     elif isinstance(event, dp_event.GaussianDpEvent):
       if do_compose:
         self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
-            q=1.0, noise_multiplier=event.noise_multiplier, orders=self._orders  # pyrefly: ignore[bad-argument-type]
+            q=1.0, noise_multiplier=event.noise_multiplier, orders=self._orders
         )
       return None
     elif isinstance(event, dp_event.ZCDpEvent):
@@ -1106,7 +1090,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
             q=event.sampling_probability,
             noise_multiplier=sigma_or_bad_event,
-            orders=self._orders,  # pyrefly: ignore[bad-argument-type]
+            orders=self._orders,
         )
       return None
     elif isinstance(event, dp_event.SampledWithoutReplacementDpEvent):
@@ -1134,7 +1118,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         self._rdp += count * _compute_rdp_sample_wor_gaussian(
             q=event.sample_size / event.source_dataset_size,
             noise_multiplier=sigma_or_bad_event,
-            orders=self._orders,  # pyrefly: ignore[bad-argument-type]
+            orders=self._orders,
         )
       return None
     elif isinstance(event, dp_event.SingleEpochTreeAggregationDpEvent):
@@ -1149,7 +1133,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         )
       if do_compose:
         self._rdp += count * _compute_rdp_single_epoch_tree_aggregation(
-            event.noise_multiplier, event.step_counts, self._orders  # pyrefly: ignore[bad-argument-type]
+            event.noise_multiplier, event.step_counts, self._orders
         )
       return None
     elif isinstance(event, dp_event.LaplaceDpEvent):
@@ -1161,7 +1145,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       return None
     elif isinstance(event, dp_event.RepeatAndSelectDpEvent):
       sub_accountant = RdpAccountant(
-          orders=self._orders,  # pyrefly: ignore[bad-argument-type]
+          orders=self._orders,
           neighboring_relation=self._neighboring_relation,
       )
       # pylint: disable=protected-access
@@ -1180,11 +1164,8 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
             ),
         )
       if do_compose:
-        self._rdp += (
-            count  # pyrefly: ignore[unsupported-operation]
-            * _compute_rdp_repeat_and_select(
-                self._orders, sub_accountant._rdp, event.mean, event.shape  # pyrefly: ignore[bad-argument-type]
-            )
+        self._rdp += count * _compute_rdp_repeat_and_select(
+            self._orders, sub_accountant._rdp, event.mean, event.shape
         )
       # pylint: enable=protected-access
       return None
@@ -1205,7 +1186,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         self._rdp += count * _compute_randomized_response_rdp(
             event.noise_parameter,
             event.num_buckets,
-            self._orders,  # pyrefly: ignore[bad-argument-type]
+            self._orders,
             self._neighboring_relation,
         )
       return None
@@ -1217,7 +1198,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
 
   def get_epsilon_and_optimal_order(
       self, target_delta: float
-  ) -> Tuple[float, float]:
+  ) -> tuple[float, float]:
     r"""Returns the current epsilon and the optimal RDP order.
 
     Args:
@@ -1232,7 +1213,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     effective_delta = -np.expm1(log_term)
     if effective_delta < 0:
       return float('inf'), 0
-    return compute_epsilon(self._orders, self._rdp, effective_delta)  # pyrefly: ignore[bad-argument-type]
+    return compute_epsilon(self._orders, self._rdp, effective_delta)
 
   def get_epsilon(self, target_delta: float) -> float:
     r"""Returns the current epsilon.
@@ -1247,7 +1228,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
 
   def get_delta_and_optimal_order(
       self, target_epsilon: float
-  ) -> Tuple[float, float]:
+  ) -> tuple[float, float]:
     r"""Returns the current delta and the optimal RDP order.
 
     Args:
@@ -1257,7 +1238,7 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
       A tuple containing the current delta, accounting for all composed
       `DpEvent`\ s, and the optimal order.
     """
-    delta, order = compute_delta(self._orders, self._rdp, target_epsilon)  # pyrefly: ignore[bad-argument-type]
+    delta, order = compute_delta(self._orders, self._rdp, target_epsilon)
     final_delta = delta + self._extra_delta - delta * self._extra_delta
     return final_delta, order
 
