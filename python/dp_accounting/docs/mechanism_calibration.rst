@@ -40,6 +40,23 @@ Functions
 
 .. autofunction:: calibrate_dp_mechanism
 
+Analytical Gaussian Mechanism
+-----------------------------
+
+.. currentmodule:: dp_accounting.gaussian_mechanism
+
+For a single Gaussian mechanism (or a composition of Gaussian mechanisms merged
+via :func:`~dp_accounting.dp_event_builder.canonicalize`), these functions
+compute exact analytical conversions between ``epsilon``, ``delta``, and
+``sigma`` faster and with higher accuracy than general-purpose accountant
+calibration.
+
+.. autofunction:: get_sigma_gaussian
+
+.. autofunction:: get_epsilon_gaussian
+
+.. currentmodule:: dp_accounting.mechanism_calibration
+
 Classes
 -------
 

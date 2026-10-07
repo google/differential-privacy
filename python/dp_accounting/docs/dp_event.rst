@@ -139,8 +139,42 @@ the subsampled Gaussian mechanism used in a single iteration).
    :undoc-members:
    :show-inheritance:
 
+.. autoclass:: RandomAllocationDpEvent
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Building and Simplifying Events
+===============================
+
+.. currentmodule:: dp_accounting.dp_event_builder
+
+When constructing complex composite mechanisms, :func:`canonicalize` can be used
+to rewrite a ``DpEvent`` tree into a canonical form: flattening nested
+compositions, stripping ``NoOpDpEvent``\ s, grouping identical events across the
+composition into ``SelfComposedDpEvent``\ s, and optionally merging composed
+``GaussianDpEvent``\ s into a single equivalent ``GaussianDpEvent`` for faster
+accounting.
+
+:class:`DpEventBuilder` is meant for incrementally building a *representation*
+of a composed mechanism: it simply produces a record of which mechanisms were
+applied, in which order. It does not perform accounting, and does not record
+whether the mechanism parameters were chosen adaptively. Note also that
+:meth:`DpEventBuilder.compose` only collapses consecutively repeated identical
+events into ``SelfComposedDpEvent``\ s, so the output of
+:meth:`DpEventBuilder.build` is not necessarily in canonical form (pass the
+result to :func:`canonicalize` if full compaction is desired).
+
+.. autofunction:: canonicalize
+
+.. autoclass:: DpEventBuilder
+   :members:
+   :undoc-members:
+
 Non-Standard Events
 ===================
+
+.. currentmodule:: dp_accounting.dp_event
 
 These represent extreme mechanisms, or unsupported mechanisms, provided mostly
 for completeness of the API or for testing purposes. Most users will not need to

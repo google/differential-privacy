@@ -24,6 +24,19 @@ A `PrivacyAccountant` allows for converting a `DpEvent` or sequence of
 `get_delta` to get the privacy parameters for the mechanism captured by all
 `DpEvent`\ s composed so far.
 
+`PrivacyAccountant`\ s provide tight accounting for **non-adaptive** and
+standard **adaptive** composition, where the queries applied at each step may
+depend on the outputs of prior mechanisms, provided the sequence of `DpEvent`\ s
+(i.e., the mechanism privacy parameters and number of steps) is fixed in advance
+rather than chosen adaptively based on prior differentially private outputs. The
+library does not provide built-in utilities for **fully adaptive** composition
+(where privacy parameters or stopping rules depend on prior outputs and privacy
+filters or odometers are required; see
+`Rogers et al., 2016 <https://arxiv.org/abs/1605.08294>`_,
+`Whitehouse et al., 2022 <https://arxiv.org/abs/2203.05481>`_,
+`Tran et al., 2026 <https://arxiv.org/abs/2602.06756>`_, and
+`Regehr et al., 2026 <https://arxiv.org/abs/2602.15815>`_).
+
 `dp_accounting` currently supports two types of `PrivacyAccountant`\ s.
 :class:`~dp_accounting.pld.PLDAccountant` uses privacy loss distribution (PLD)
 accounting, which is generally

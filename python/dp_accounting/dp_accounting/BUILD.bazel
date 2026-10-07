@@ -35,7 +35,9 @@ py_library(
         ":mechanism_calibration",
         ":privacy_accountant",
         "//dp_accounting/pld",
+        "//dp_accounting/pld:pld_privacy_accountant",
         "//dp_accounting/rdp",
+        "//dp_accounting/rdp:rdp_privacy_accountant",
     ],
 )
 
