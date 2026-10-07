@@ -80,7 +80,7 @@ class RenyiModel(tf.keras.Model):
       self, data: tuple[np.ndarray, np.ndarray]
   ) -> Dict[str, tf.Tensor]:
     with tf.GradientTape() as tape:
-      divergence = self(data, training=True)  # pyrefly: ignore[not-callable]
+      divergence = self(data, training=True)
       loss = -divergence
 
     trainable_vars = self.nn_model.trainable_variables
@@ -88,7 +88,7 @@ class RenyiModel(tf.keras.Model):
     self.optimizer.apply_gradients(zip(d_loss, trainable_vars))
     return {'divergence': divergence}
 
-  def call(  # pytype: disable=annotation-type-mismatch
+  def call(  # pyrefly: ignore[bad-override]
       self, data: tuple[np.ndarray, np.ndarray], training: bool = None  # pyrefly: ignore[bad-function-definition]
   ) -> tf.Tensor:
     """Estimate renyi divergence from samples and current nn_model.
@@ -229,7 +229,7 @@ class RenyiPropertyTester(divergence_tester.DivergencePropertyTester):
       samples2_test: np.ndarray,
       failure_probability: float,
   ) -> float:
-    divergence_test = model((samples1_test, samples2_test))  # pyrefly: ignore[not-callable]
+    divergence_test = model((samples1_test, samples2_test))
 
     # Calculate lower end of confidence interval.
     num_samples = min(samples1_test.shape[0], samples2_test.shape[0])
