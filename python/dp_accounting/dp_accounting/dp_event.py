@@ -59,25 +59,44 @@ incorrect results, the following should be enforced:
    is `False` when processing unknown mechanisms.
 """
 
-from collections.abc import Mapping, Sequence
+import collections
+from collections.abc import Callable, Sequence
 import importlib
 import logging
-import typing
-from typing import List, NamedTuple, Optional, Protocol, Union
+from typing import Any, ClassVar, Protocol, runtime_checkable
 
 import attr
 
 
-@typing.runtime_checkable
+@runtime_checkable
 class DpEventNamedTuple(Protocol):
-  _fields: tuple[str, ...]
+  _fields: ClassVar[tuple[str, ...]]
 
-  module_name: Union[str, bytes]
-  class_name: Union[str, bytes]
+  module_name: str | bytes
+  class_name: str | bytes
+
+
+def _map_elements(
+    value: Any, is_leaf: Callable[[Any], bool], leaf_fn: Callable[[Any], Any]
+) -> Any:
+  """Applies `leaf_fn` to elements in `value`, preserving container types."""
+
+  def _apply(x: Any) -> Any:
+    return leaf_fn(x) if is_leaf(x) else x
+
+  if is_leaf(value):
+    return leaf_fn(value)
+  if isinstance(value, dict):
+    return type(value)((k, _apply(v)) for k, v in value.items())
+  if isinstance(value, list):
+    return type(value)(_apply(x) for x in value)
+  if isinstance(value, tuple):
+    return type(value)(_apply(x) for x in value)
+  return value
 
 
 @attr.s(frozen=True)
-class DpEvent(object):
+class DpEvent:
   r"""Represents application of a private mechanism.
 
   A `DpEvent` describes a differentially private mechanism sufficiently for
@@ -102,31 +121,20 @@ class DpEvent(object):
     cls = type(self)
     _check_attrs_cls_for_known_errors(cls)
 
-    fields = [('module_name', str), ('class_name', str)]
-    fields.extend([(x.name, x.type) for x in attr.fields(cls)])
-    named_tuple_wrapper_name = f'_{cls.__name__}NamedTupleWrapper'
-    _NamedTupleWrapper = NamedTuple(named_tuple_wrapper_name, fields)  # pylint: disable=invalid-name  # pyrefly: ignore[bad-class-definition]
+    def _is_attrs(value: Any) -> bool:
+      return attr.has(type(value))
 
-    def _to_named_tuple(value):
-      if attr.has(type(value)):
-        value = value.to_named_tuple()
-      return value
+    def _to_named_tuple(value: Any) -> DpEventNamedTuple:
+      return value.to_named_tuple()
 
     values = {'module_name': cls.__module__, 'class_name': cls.__name__}
     for key, value in attr.asdict(self, recurse=False).items():
-      if attr.has(type(value)):
-        value = _to_named_tuple(value)
-      elif isinstance(value, Mapping):
-        elements = [(k, _to_named_tuple(v)) for k, v in value.items()]
-        mapping_type = type(value)
-        value = mapping_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
-      elif isinstance(value, Sequence):
-        elements = [_to_named_tuple(x) for x in value]
-        sequence_type = type(value)
-        value = sequence_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
-      values[key] = value
+      values[key] = _map_elements(value, _is_attrs, _to_named_tuple)
 
-    return _NamedTupleWrapper(**values)  # pyrefly: ignore[bad-return, unexpected-keyword]
+    named_tuple_cls = collections.namedtuple(  # pyrefly: ignore[bad-class-definition]
+        f'_{cls.__name__}NamedTupleWrapper', values.keys()
+    )
+    return named_tuple_cls(**values)
 
   @classmethod
   def from_named_tuple(cls, obj: DpEventNamedTuple) -> 'DpEvent':
@@ -147,26 +155,16 @@ class DpEvent(object):
         field with init = False.
     """
 
-    def _from_named_tuple(value):
-      if isinstance(value, DpEventNamedTuple):
-        value = DpEvent.from_named_tuple(value)
-      return value
+    def _is_named_tuple(value: Any) -> bool:
+      return isinstance(value, DpEventNamedTuple)
 
-    fields = set(obj._fields) - set(['module_name', 'class_name'])
-    values = {}
-    for field in fields:
-      value = getattr(obj, field)
-      if isinstance(value, DpEventNamedTuple):
-        value = _from_named_tuple(value)
-      elif isinstance(value, Mapping):
-        elements = [(k, _from_named_tuple(v)) for k, v in value.items()]
-        mapping_type = type(value)
-        value = mapping_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
-      elif isinstance(value, Sequence):
-        elements = [_from_named_tuple(x) for x in value]
-        sequence_type = type(value)
-        value = sequence_type(elements)  # pyrefly: ignore[bad-argument-count, bad-instantiation]
-      values[field] = value
+    fields = set(obj._fields) - {'module_name', 'class_name'}
+    values = {
+        field: _map_elements(
+            getattr(obj, field), _is_named_tuple, DpEvent.from_named_tuple
+        )
+        for field in fields
+    }
 
     module_name = obj.module_name
     if isinstance(module_name, bytes):
@@ -179,9 +177,9 @@ class DpEvent(object):
 
     try:
       return subcls(**values)
-    except Exception as e:
+    except Exception:
       _check_attrs_cls_for_known_errors(subcls)
-      raise e
+      raise
 
 
 def _check_attrs_cls_for_known_errors(cls: type[DpEvent]) -> None:
@@ -257,6 +255,7 @@ class RandomizedResponseDpEvent(DpEvent):
   corresponding to the case where the mechanism outputs a bucket drawn
   uniformly at random from the k buckets regardless of the input bucket.
   """
+
   noise_parameter: float
   num_buckets: int
 
@@ -269,6 +268,7 @@ class EpsilonDeltaDpEvent(DpEvent):
   characterize the privacy loss. If a more specific DpEvent that characterizes
   a mechanism is available, it should be preferred over this one.
   """
+
   epsilon: float
   delta: float
 
@@ -281,6 +281,7 @@ class GaussianDpEvent(DpEvent):
   If the L₂ norms of the values are bounded ∥v_i∥₂ ≤ C, the noise_multiplier is
   defined as σ/C.
   """
+
   noise_multiplier: float
 
 
@@ -295,6 +296,7 @@ class LaplaceDpEvent(DpEvent):
   If the L₁ norm of the values are bounded ∥v_i∥₁ ≤ C, the noise_multiplier
   is defined as b/C.
   """
+
   noise_multiplier: float
 
 
@@ -309,6 +311,7 @@ class DiscreteLaplaceDpEvent(DpEvent):
   integer value x. If the L₁ norm of the values are bounded ∥v_i∥₁ ≤ C,
   the sensitivity is `C`.
   """
+
   noise_parameter: float
   sensitivity: int
 
@@ -317,12 +320,12 @@ class DiscreteLaplaceDpEvent(DpEvent):
 class DiscreteGaussianDpEvent(DpEvent):
   """Represents an application of the discrete Gaussian mechanism.
 
-  For an integer-valued function f with L₂ sensitivity `sensitivity`, the discrete
-  Gaussian mechanism outputs f(x) + z where z is drawn from the discrete
-  Gaussian distribution with scale parameter σ. The (centered) discrete Gaussian
-  distribution with scale parameter σ has probability mass function proportional to
-  exp(-z@z / 2σ²) at z for any integer vector z. This is roughly equivalent to
-  GaussianDpEvent with noise_multiplier = σ / sensitivity.
+  For an integer-valued function f with L₂ sensitivity `sensitivity`, the
+  discrete Gaussian mechanism outputs f(x) + z where z is drawn from the
+  discrete Gaussian distribution with scale parameter σ. The (centered) discrete
+  Gaussian distribution with scale parameter σ has probability mass function
+  proportional to exp(-z@z / 2σ²) at z for any integer vector z. This is roughly
+  equivalent to GaussianDpEvent with noise_multiplier = σ / sensitivity.
 
   Unlike for the continuous Gaussian, the univariate and multivariate cases are
   not equivalent for the discrete Gaussian. The `dimension` parameter specifies
@@ -337,7 +340,7 @@ class DiscreteGaussianDpEvent(DpEvent):
 
   sigma: float
   sensitivity: float = 1.0
-  dimension: Optional[int] = None
+  dimension: int | None = None
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -350,6 +353,7 @@ class SelfComposedDpEvent(DpEvent):
   This is equivalent to `ComposedDpEvent` that contains a list of length `count`
   of identical copies of `event`.
   """
+
   event: DpEvent
   count: int
 
@@ -361,7 +365,8 @@ class ComposedDpEvent(DpEvent):
   The composition may be adaptive, where the query producing each event depends
   on the results of prior queries.
   """
-  events: List[DpEvent]
+
+  events: list[DpEvent]
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -372,10 +377,11 @@ class PoissonSampledDpEvent(DpEvent):
   probability `sampling_probability`. Then the `DpEvent` `event` is applied
   to the sample of records.
   """
+
   sampling_probability: float
   event: DpEvent
 
-  def __attrs_post_init__(self):
+  def __attrs_post_init__(self) -> None:
     if isinstance(self.sampling_probability, DpEvent):
       logging.warning(
           'DeprecationWarning: PoissonSampledDpEvent was initialized with '
@@ -393,6 +399,7 @@ class SampledWithReplacementDpEvent(DpEvent):
   `source_dataset_size`. Then the `DpEvent` `event` is applied to the sample of
   records.
   """
+
   source_dataset_size: int
   sample_size: int
   event: DpEvent
@@ -406,6 +413,7 @@ class SampledWithoutReplacementDpEvent(DpEvent):
   set of possible samples of a source dataset of size `source_dataset_size`.
   Then the `DpEvent` `event` is applied to the sample of records.
   """
+
   source_dataset_size: int
   sample_size: int
   event: DpEvent
@@ -429,8 +437,9 @@ class SingleEpochTreeAggregationDpEvent(DpEvent):
     step_counts: The number of steps in each tree. May be a scalar for a single
       tree.
   """
+
   noise_multiplier: float
-  step_counts: Union[int, List[int]]
+  step_counts: int | list[int]
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -448,6 +457,7 @@ class RepeatAndSelectDpEvent(DpEvent):
     mean: The mean number of repetitions.
     shape: The shape of the distribution of the number of repetitions.
   """
+
   event: DpEvent
   mean: float
   shape: float

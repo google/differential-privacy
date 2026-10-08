@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Any
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -20,26 +21,33 @@ import tree
 from dp_accounting import dp_event
 
 
-def assert_not_contains_attrs(structure):
-  def _fn(structure):
+@attrs.frozen
+class ContainerDpEvent(dp_event.DpEvent):
+  """Event with `str`, non-`list` sequence and mapping fields, for testing."""
+
+  name: str
+  events: tuple[dp_event.DpEvent, ...]
+  table: dict[str, dp_event.DpEvent]
+
+
+def assert_not_contains_attrs(structure: Any) -> None:
+  def _fn(structure: Any) -> None:
     if attrs.has(type(structure)):
       raise AssertionError(
           'Expected structure to not contain `attrs` decorated classes, '
           f'found {structure}.'
       )
-    return None
 
   tree.traverse(_fn, structure)
 
 
-def assert_not_contains_named_tuples(structure):
-  def _fn(structure):
+def assert_not_contains_named_tuples(structure: Any) -> None:
+  def _fn(structure: Any) -> None:
     if isinstance(structure, dp_event.DpEventNamedTuple):
       raise AssertionError(
           'Expected structure to not contain `dp_event.DpEventNamedTuple`s, '
           f'found {structure}.'
       )
-    return None
 
   tree.traverse(_fn, structure)
 
@@ -142,8 +150,16 @@ class DpEventTest(parameterized.TestCase):
               num_steps=100,
           ),
       ),
+      (
+          'containers',
+          ContainerDpEvent(
+              name='containers',
+              events=(dp_event.GaussianDpEvent(1.0), dp_event.NoOpDpEvent()),
+              table={'laplace': dp_event.LaplaceDpEvent(1.0)},
+          ),
+      ),
   )
-  def test_to_from_named_tuple(self, event):
+  def test_to_from_named_tuple(self, event: dp_event.DpEvent):
     named_tuple = event.to_named_tuple()
     self.assertIsInstance(named_tuple, tuple)
     self.assertIsInstance(named_tuple, dp_event.DpEventNamedTuple)
@@ -152,6 +168,19 @@ class DpEventTest(parameterized.TestCase):
     reconstructed = dp_event.DpEvent.from_named_tuple(named_tuple)
     assert_not_contains_named_tuples(reconstructed)
     self.assertEqual(event, reconstructed)
+
+  def test_to_named_tuple_preserves_container_types(self):
+    event = ContainerDpEvent(
+        name='containers',
+        events=(dp_event.GaussianDpEvent(1.0),),
+        table={'laplace': dp_event.LaplaceDpEvent(1.0)},
+    )
+    named_tuple = event.to_named_tuple()
+    self.assertEqual(named_tuple.name, 'containers')
+    self.assertIsInstance(named_tuple.events, tuple)
+    self.assertIsInstance(named_tuple.table, dict)
+    self.assertEqual(named_tuple.events[0].class_name, 'GaussianDpEvent')
+    self.assertEqual(named_tuple.table['laplace'].class_name, 'LaplaceDpEvent')
 
 
 if __name__ == '__main__':
