@@ -17,7 +17,8 @@ Algorithms to optimize some quantity while remaining within a specified privacy
 budget.
 """
 
-from typing import Callable, Optional, Union
+from collections.abc import Callable
+from typing import Any
 
 import attr
 import numpy as np
@@ -27,17 +28,17 @@ from dp_accounting import dp_event
 from dp_accounting import privacy_accountant
 
 
-class BracketInterval(object):
-  pass
+class BracketInterval:
+  """Base class for ways of specifying the search interval."""
 
 
-@attr.define(frozen=True)
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class ExplicitBracketInterval(BracketInterval):
   endpoint_1: float
   endpoint_2: float
 
 
-@attr.define(frozen=True)
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class LowerEndpointAndGuess(BracketInterval):
   lower_endpoint: float
   initial_guess: float
@@ -53,7 +54,8 @@ class NonEmptyAccountantError(Exception):
 
 def _search_for_explicit_bracket_interval(
     bracket_interval: LowerEndpointAndGuess,
-    epsilon_gap: Callable[[float], float]) -> ExplicitBracketInterval:
+    epsilon_gap: Callable[[float], float],
+) -> ExplicitBracketInterval:
   """Explores exponentially sized intervals to find an explicit bracket.
 
   Args:
@@ -91,7 +93,7 @@ def _search_for_explicit_bracket_interval(
   while search_up or search_down:
     # Try searching in whichever direction we haven't exhausted. If both are
     # unexhausted, prefer the direction with the smaller gap.
-    up_better = (np.abs(next_upper_value) <= np.abs(next_lower_value))
+    up_better = np.abs(next_upper_value) <= np.abs(next_lower_value)
     if search_up and (up_better or not search_down):
       up_power += 1
       next_upper = endpoint + scale * (2**up_power)
@@ -102,7 +104,7 @@ def _search_for_explicit_bracket_interval(
         if np.isnan(next_upper_value):
           raise ValueError('Got NaN for epsilon gap.')
         elif np.sign(next_upper_value) != orig_sign:
-          return ExplicitBracketInterval(upper, next_upper)  # pyrefly: ignore[bad-argument-count]
+          return ExplicitBracketInterval(upper, next_upper)
         upper = next_upper
       except Exception:  # pylint: disable=broad-except
         search_up = False
@@ -116,7 +118,7 @@ def _search_for_explicit_bracket_interval(
         if np.isnan(next_lower_value):
           raise ValueError('Got NaN for epsilon gap.')
         elif np.sign(next_lower_value) != orig_sign:
-          return ExplicitBracketInterval(next_lower, lower)  # pyrefly: ignore[bad-argument-count]
+          return ExplicitBracketInterval(next_lower, lower)
         lower = next_lower
       except Exception:  # pylint: disable=broad-except
         search_down = False
@@ -132,8 +134,8 @@ def _bisect(
     lower: float,
     upper: float,
     tol: float,
-    lower_value: Optional[float] = None,
-    upper_value: Optional[float] = None,
+    lower_value: float | None = None,
+    upper_value: float | None = None,
 ) -> float:
   """Bisection search to find approximate root with non-positive value.
 
@@ -182,13 +184,13 @@ def _bisect(
 
 def calibrate_dp_mechanism(
     make_fresh_accountant: Callable[[], privacy_accountant.PrivacyAccountant],
-    make_event_from_param: Union[Callable[[float], dp_event.DpEvent],
-                                 Callable[[int], dp_event.DpEvent]],
+    make_event_from_param: Callable[[Any], dp_event.DpEvent],
     target_epsilon: float,
     target_delta: float,
-    bracket_interval: Optional[BracketInterval] = None,
+    bracket_interval: BracketInterval | None = None,
     discrete: bool = False,
-    tol: Optional[float] = None) -> Union[float, int]:
+    tol: float | None = None,
+) -> float | int:
   r"""Searches for optimal mechanism parameter value within privacy budget.
 
   The procedure searches over the space of parameters by creating, for each
@@ -204,9 +206,9 @@ def calibrate_dp_mechanism(
       multiple calls are assumed to be initialized identically. It is an error
       for the initialized accountant's `ledger` property to return anything
       besides `NoOpDpEvent`.
-    make_event_from_param: A callable that takes a parameter value as an
-      argument and creates a `DpEvent` representing the mechanism defined using
-      that value.
+    make_event_from_param: A callable that takes a parameter value (a float, or
+      an int if `discrete` is True) as an argument and creates a `DpEvent`
+      representing the mechanism defined using that value.
     target_epsilon: The target epsilon value.
     target_delta: The target delta value.
     bracket_interval: A BracketInterval used to determine the upper and lower
@@ -236,49 +238,57 @@ def calibrate_dp_mechanism(
       nonempty ledger.
   """
   if not callable(make_fresh_accountant):
-    raise TypeError(f'make_fresh_accountant must be callable. '
-                    f'found {type(make_fresh_accountant)}.')
+    raise TypeError(
+        'make_fresh_accountant must be callable. '
+        f'found {type(make_fresh_accountant)}.'
+    )
 
   if not callable(make_event_from_param):
-    raise TypeError(f'make_event_from_param must be callable. '
-                    f'found {type(make_event_from_param)}.')
+    raise TypeError(
+        'make_event_from_param must be callable. '
+        f'found {type(make_event_from_param)}.'
+    )
 
   if target_epsilon < 0:
-    raise ValueError(f'target_epsilon must be nonnegative. Found '
-                     f'{target_epsilon}.')
+    raise ValueError(
+        f'target_epsilon must be nonnegative. Found {target_epsilon}.'
+    )
 
   if not 0 <= target_delta <= 1:
-    raise ValueError(f'target_delta must be in range [0, 1]. Found '
-                     f'{target_delta}.')
+    raise ValueError(
+        f'target_delta must be in range [0, 1]. Found {target_delta}.'
+    )
 
   if bracket_interval is None:
-    bracket_interval = LowerEndpointAndGuess(0, 1)  # pyrefly: ignore[bad-argument-count]
+    bracket_interval = LowerEndpointAndGuess(0, 1)
 
   def epsilon_gap(x: float) -> float:
     if discrete:
       x = round(x)
-    event = make_event_from_param(x)  # pyrefly: ignore[bad-argument-type]
+    event = make_event_from_param(x)
     accountant = make_fresh_accountant()
     if not isinstance(accountant.ledger, dp_event.NoOpDpEvent):
       raise NonEmptyAccountantError()
     return accountant.compose(event).get_epsilon(target_delta) - target_epsilon
 
   if isinstance(bracket_interval, LowerEndpointAndGuess):
-    bracket_interval = _search_for_explicit_bracket_interval(
-        bracket_interval, epsilon_gap)
+    interval = _search_for_explicit_bracket_interval(
+        bracket_interval, epsilon_gap
+    )
   elif isinstance(bracket_interval, ExplicitBracketInterval):
-    if bracket_interval.endpoint_1 >= bracket_interval.endpoint_2:
+    interval = bracket_interval
+    if interval.endpoint_1 >= interval.endpoint_2:
       raise ValueError(
-          f'bracket_interval.endpoint_1 ({bracket_interval.endpoint_1}) must be'
-          ' less than bracket_interval.endpoint_2'
-          f' ({bracket_interval.endpoint_2}).'
+          f'bracket_interval.endpoint_1 ({interval.endpoint_1}) must be less'
+          f' than bracket_interval.endpoint_2 ({interval.endpoint_2}).'
       )
   else:
-    raise TypeError(f'Unrecognized bracket_interval type: '
-                    f'{type(bracket_interval)}')
+    raise TypeError(
+        f'Unrecognized bracket_interval type: {type(bracket_interval)}'
+    )
 
   if tol is None:
-    interval_width = bracket_interval.endpoint_2 - bracket_interval.endpoint_1
+    interval_width = interval.endpoint_2 - interval.endpoint_1
     tol = 1.0 if discrete else 1e-6 * interval_width
   elif discrete:
     tol = max(tol, 1.0)
@@ -288,14 +298,16 @@ def calibrate_dp_mechanism(
   try:
     root, result = optimize.brentq(
         epsilon_gap,
-        bracket_interval.endpoint_1,
-        bracket_interval.endpoint_2,
+        interval.endpoint_1,
+        interval.endpoint_2,
         xtol=tol,
-        full_output=True)
+        full_output=True,
+    )
   except ValueError as err:
     raise ValueError(
         '`brentq` raised ValueError. This often means the supplied bracket '
-        f'interval {bracket_interval} did not bracket a solution.') from err
+        f'interval {interval} did not bracket a solution.'
+    ) from err
 
   if not result.converged:
     root = None
@@ -315,12 +327,7 @@ def calibrate_dp_mechanism(
 
   if root is None:
     # Fallback to custom bisection that guarantees root with non-positive value.
-    root = _bisect(
-        epsilon_gap,
-        bracket_interval.endpoint_1,
-        bracket_interval.endpoint_2,
-        tol,
-    )
+    root = _bisect(epsilon_gap, interval.endpoint_1, interval.endpoint_2, tol)
 
   if discrete:
     root = round(root)

@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from collections.abc import Callable
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import attr
@@ -21,21 +23,25 @@ from dp_accounting import mechanism_calibration
 from dp_accounting import privacy_accountant
 
 
-@attr.define
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class FakeEvent(dp_event.DpEvent):
   param: float
 
 
 class FakeAccountant(privacy_accountant.PrivacyAccountant):
 
-  def __init__(self, value_to_epsilon):
-    super().__init__(
-        privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE)
+  def __init__(self, value_to_epsilon: Callable[[float], float]):
+    super().__init__(privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE)
     self._value = 0.0
     self._value_to_epsilon = value_to_epsilon
 
-  def _maybe_compose(self, event: dp_event.DpEvent, count: int,
-                     do_compose: bool):
+  def _maybe_compose(
+      self, event: dp_event.DpEvent, count: int, do_compose: bool
+  ) -> privacy_accountant.PrivacyAccountant.CompositionErrorDetails | None:
+    if not isinstance(event, FakeEvent):
+      return self.CompositionErrorDetails(
+          invalid_event=event, error_message='Expected FakeEvent.'
+      )
     self._value = event.param
 
   def get_epsilon(self, target_delta: float) -> float:
@@ -131,7 +137,7 @@ class MechanismCalibrationTest(parameterized.TestCase):
       ('exp_minus_2', lambda x: np.exp(x) - 2, 0, 0.1),
       ('1_minus_sqrt_x', lambda x: 1 - np.sqrt(x), 0, 0.1),
       ('log_minus_20', lambda x: np.log(x) - 20, 0, 1),
-      ('log_plus_20', lambda x: np.log(x) + 20, 0, 1)
+      ('log_plus_20', lambda x: np.log(x) + 20, 0, 1),
   )
   def test_search_for_explicit_bracket_interval(
       self, epsilon_gap, lower, guess
@@ -188,11 +194,9 @@ class MechanismCalibrationTest(parameterized.TestCase):
     repetitions = 20
     generator = np.random.default_rng(seed=0xBAD5EED)
     for target in generator.uniform(size=repetitions):
-      # pylint: disable=cell-var-from-loop
       root = mechanism_calibration._bisect(
-          lambda x: function(x) - target, 0, 1, 1e-12
+          lambda x, target=target: function(x) - target, 0, 1, 1e-12
       )
-      # pylint: enable=cell-var-from-loop
       expected = inv_function(target)
       self.assertAlmostEqual(root, expected)
       self.assertLessEqual(function(root), target)
