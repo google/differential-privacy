@@ -26,6 +26,7 @@ kt_jvm_library(
     name = "noise_factories",
     srcs = ["NoiseFactories.kt"],
     deps = [
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:auto_noise",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:dp_functions_params",
         "@maven//:com_google_privacy_differentialprivacy_differentialprivacy",
     ],
