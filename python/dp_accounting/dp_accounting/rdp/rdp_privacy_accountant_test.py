@@ -331,15 +331,14 @@ class RdpPrivacyAccountantTest(
     # Regression test: an int noise multiplier used to be mistaken for an
     # offending subevent and returned as sigma, under-reporting privacy loss.
     sigma = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
+    self.assertIsInstance(sigma, float)
     self.assertAlmostEqual(sigma, 2**-0.5)
 
     int_accountant = rdp_privacy_accountant.RdpAccountant().compose(
         dp_event.PoissonSampledDpEvent(0.1, event)
     )
     float_accountant = rdp_privacy_accountant.RdpAccountant().compose(
-        dp_event.PoissonSampledDpEvent(
-            0.1, dp_event.GaussianDpEvent(float(sigma))
-        )
+        dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(sigma))
     )
     self.assertAlmostEqual(
         int_accountant.get_epsilon(1e-5), float_accountant.get_epsilon(1e-5)
@@ -349,6 +348,7 @@ class RdpPrivacyAccountantTest(
     sigma = 3.14159
     event = dp_event.ZCDpEvent(0.5 / sigma**2)
     result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
+    self.assertIsInstance(result, float)
     self.assertAlmostEqual(result, sigma)
 
   def test_effective_gaussian_noise_multiplier_zcdp_composed(self):

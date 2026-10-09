@@ -175,7 +175,7 @@ class DpEventTest(parameterized.TestCase):
         events=(dp_event.GaussianDpEvent(1.0),),
         table={'laplace': dp_event.LaplaceDpEvent(1.0)},
     )
-    named_tuple = event.to_named_tuple()
+    named_tuple: Any = event.to_named_tuple()
     self.assertEqual(named_tuple.name, 'containers')
     self.assertIsInstance(named_tuple.events, tuple)
     self.assertIsInstance(named_tuple.table, dict)

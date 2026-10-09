@@ -214,7 +214,7 @@ class MechanismCalibrationTest(parameterized.TestCase):
         TypeError, 'make_fresh_accountant must be callable'
     ):
       mechanism_calibration.calibrate_dp_mechanism(
-          make_fresh_accountant='not a callable',
+          make_fresh_accountant='not a callable',  # pyrefly: ignore[bad-argument-type]
           make_event_from_param=FakeEvent,
           target_epsilon=1.0,
           target_delta=0,
@@ -227,7 +227,7 @@ class MechanismCalibrationTest(parameterized.TestCase):
     ):
       mechanism_calibration.calibrate_dp_mechanism(
           make_fresh_accountant=lambda: FakeAccountant(lambda x: x),
-          make_event_from_param='not a callable',
+          make_event_from_param='not a callable',  # pyrefly: ignore[bad-argument-type]
           target_epsilon=1.0,
           target_delta=0,
           bracket_interval=mechanism_calibration.ExplicitBracketInterval(0, 5),
