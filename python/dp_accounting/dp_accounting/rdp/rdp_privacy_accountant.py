@@ -576,6 +576,32 @@ def _effective_gaussian_noise_multiplier(
     return event
 
 
+def _gaussian_subevent_sigma(
+    event: (
+        dp_event.PoissonSampledDpEvent
+        | dp_event.SampledWithoutReplacementDpEvent
+    ),
+) -> float | CompositionErrorDetails:
+  """Returns effective Gaussian sigma of `event.event`, or an error."""
+  sigma_or_bad_event = _effective_gaussian_noise_multiplier(event.event)
+  if isinstance(sigma_or_bad_event, dp_event.DpEvent):
+    return CompositionErrorDetails(
+        invalid_event=event,
+        error_message=(
+            f'Subevent of `{type(event).__name__}` must be a `GaussianDpEvent`'
+            ' or a nested structure of `ComposedDpEvent` and/or'
+            ' `SelfComposedDpEvent` bottoming out in `GaussianDpEvent`s. Found'
+            f' subevent {sigma_or_bad_event}.'
+        ),
+    )
+  return sigma_or_bad_event
+
+
+def _check_nonnegative(name: str, value: float) -> None:
+  if value < 0:
+    raise ValueError(f'{name} must be >= 0. Got {value}')
+
+
 def _compute_rdp_single_epoch_tree_aggregation(
     noise_multiplier: float,
     step_counts: int | list[int],
@@ -990,211 +1016,174 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
     self._rdp = np.zeros_like(self._orders, dtype=np.float64)
     self._extra_delta = 0.0
 
+  def _check_neighboring_relation(
+      self, event: dp_event.DpEvent, *allowed: NeighborRel
+  ) -> CompositionErrorDetails | None:
+    """Returns an error unless `self._neighboring_relation` is in `allowed`."""
+    if self._neighboring_relation in allowed:
+      return None
+    allowed_names = ' or '.join(f'`{rel.name}`' for rel in allowed)
+    return CompositionErrorDetails(
+        invalid_event=event,
+        error_message=(
+            f'neighboring_relation must be {allowed_names} for'
+            f' `{type(event).__name__}`. Found {self._neighboring_relation}.'
+        ),
+    )
+
   def _maybe_compose(
       self, event: dp_event.DpEvent, count: int, do_compose: bool
   ) -> CompositionErrorDetails | None:
     """Traverses `event` and performs composition if `do_compose` is True."""
-
-    if isinstance(event, dp_event.NoOpDpEvent):
-      return None
-    elif isinstance(event, dp_event.NonPrivateDpEvent):
-      if do_compose:
-        self._rdp += np.inf
-      return None
-    elif isinstance(event, dp_event.SelfComposedDpEvent):
-      return self._maybe_compose(event.event, event.count * count, do_compose)
-    elif isinstance(event, dp_event.ComposedDpEvent):
-      for e in event.events:
-        result = self._maybe_compose(e, count, do_compose)
-        if result is not None:
-          return result
-      return None
-    elif isinstance(event, dp_event.EpsilonDeltaDpEvent):
-      if do_compose:
-        # numerically stable version of 1 - (1-delta_old)(1-delta_new)^count.
-        log_term = np.log1p(-self._extra_delta) + count * np.log1p(-event.delta)
-        self._extra_delta = -np.expm1(log_term)
-        # RDP of Randomized Response, see https://arxiv.org/pdf/1702.07476.
-        term1 = event.epsilon * self._orders
-        term2 = np.logaddexp(0, event.epsilon * (1 - 2 * self._orders))
-        term3 = np.logaddexp(0, event.epsilon)
-        self._rdp += count * (term1 + term2 - term3) / (self._orders - 1)
-      return None
-    elif isinstance(event, dp_event.GaussianDpEvent):
-      if do_compose:
-        self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
-            q=1.0, noise_multiplier=event.noise_multiplier, orders=self._orders
-        )
-      return None
-    elif isinstance(event, dp_event.ZCDpEvent):
-      if do_compose:
-        if event.xi < 0:
-          raise ValueError(f'xi must be >= 0. Got {event.xi}')
-        if event.rho < 0:
-          raise ValueError(f'rho must be >= 0. Got {event.rho}')
-        self._rdp += count * (event.xi + event.rho * self._orders)
-      return None
-    elif isinstance(event, dp_event.DiscreteGaussianDpEvent):
-      # Discrete Gaussian satisfies rho-zCDP with rho = sens^2 / (2 * sigma^2).
-      # See https://arxiv.org/abs/2004.00010, Proposition 5.
-      if do_compose:
-        rho = event.sensitivity**2 / (2.0 * event.sigma**2)
-        self._rdp += count * rho * self._orders
-      return None
-    elif isinstance(event, dp_event.ExponentialMechanismDpEvent):
-      if do_compose:
-        if event.epsilon < 0:
-          raise ValueError(f'epsilon must be >= 0. Got {event.epsilon}')
-        eps = event.epsilon  # Alias for brevity.
-        # zCDP bound from Section 3 of https://arxiv.org/pdf/2004.07223, plus
-        # epsilon-DP implies all orders are at most epsilon.
-        xi = eps / np.expm1(eps) - 1 - np.log(eps / np.expm1(eps)) - eps**2 / 8
-        self._rdp += np.minimum(xi + (eps**2 / 8) * self._orders, eps) * count
-      return None
-    elif isinstance(event, dp_event.PermuteAndFlipDpEvent):
-      if do_compose:
-        if event.epsilon < 0:
-          raise ValueError(f'epsilon must be >= 0. Got {event.epsilon}')
-        # Permute-and-flip satisfies standard epsilon-DP. Its privacy loss
-        # distribution is identical to the Laplace mechanism with parameter
-        # 1/epsilon, so we use the tight Laplace RDP formula.
-        self._rdp += count * np.array(
-            [_laplace_rdp(event.epsilon, order) for order in self._orders]
-        )
-      return None
-    elif isinstance(event, dp_event.PoissonSampledDpEvent):
-      if self._neighboring_relation not in [
-          NeighborRel.ADD_OR_REMOVE_ONE,
-          NeighborRel.REPLACE_SPECIAL,
-      ]:
-        error_msg = (
-            'neighboring_relation must be `ADD_OR_REMOVE_ONE` or'
-            ' `REPLACE_SPECIAL` for `PoissonSampledDpEvent`. Found'
-            f' {self._neighboring_relation}.'
-        )
+    orders = self._orders
+    match event:
+      case dp_event.NoOpDpEvent():
+        return None
+      case dp_event.NonPrivateDpEvent():
+        if do_compose:
+          self._rdp += np.inf
+        return None
+      case dp_event.SelfComposedDpEvent(event=subevent, count=subcount):
+        return self._maybe_compose(subevent, subcount * count, do_compose)
+      case dp_event.ComposedDpEvent(events=subevents):
+        for subevent in subevents:
+          if error := self._maybe_compose(subevent, count, do_compose):
+            return error
+        return None
+      case dp_event.EpsilonDeltaDpEvent(epsilon=eps, delta=delta):
+        if do_compose:
+          # numerically stable version of 1 - (1-delta_old)(1-delta_new)^count.
+          log_term = np.log1p(-self._extra_delta) + count * np.log1p(-delta)
+          self._extra_delta = -np.expm1(log_term)
+          # RDP of Randomized Response, see https://arxiv.org/pdf/1702.07476.
+          term1 = eps * orders
+          term2 = np.logaddexp(0, eps * (1 - 2 * orders))
+          term3 = np.logaddexp(0, eps)
+          self._rdp += count * (term1 + term2 - term3) / (orders - 1)
+        return None
+      case dp_event.GaussianDpEvent(noise_multiplier=sigma):
+        if do_compose:
+          self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
+              q=1.0, noise_multiplier=sigma, orders=orders
+          )
+        return None
+      case dp_event.ZCDpEvent(xi=xi, rho=rho):
+        if do_compose:
+          _check_nonnegative('xi', xi)
+          _check_nonnegative('rho', rho)
+          self._rdp += count * (xi + rho * orders)
+        return None
+      case dp_event.DiscreteGaussianDpEvent(sigma=sigma, sensitivity=sens):
+        # Discrete Gaussian satisfies rho-zCDP with rho = sens^2 / (2 sigma^2).
+        # See https://arxiv.org/abs/2004.00010, Proposition 5.
+        if do_compose:
+          self._rdp += count * sens**2 / (2.0 * sigma**2) * orders
+        return None
+      case dp_event.ExponentialMechanismDpEvent(epsilon=eps):
+        if do_compose:
+          _check_nonnegative('epsilon', eps)
+          # zCDP bound from Section 3 of https://arxiv.org/pdf/2004.07223, plus
+          # epsilon-DP implies all orders are at most epsilon.
+          xi = (
+              eps / np.expm1(eps) - 1 - np.log(eps / np.expm1(eps)) - eps**2 / 8
+          )
+          self._rdp += count * np.minimum(xi + (eps**2 / 8) * orders, eps)
+        return None
+      case dp_event.PermuteAndFlipDpEvent(epsilon=eps):
+        if do_compose:
+          _check_nonnegative('epsilon', eps)
+          # Permute-and-flip satisfies standard epsilon-DP. Its privacy loss
+          # distribution is identical to the Laplace mechanism with parameter
+          # 1/epsilon, so we use the tight Laplace RDP formula.
+          self._rdp += count * np.array([_laplace_rdp(eps, a) for a in orders])
+        return None
+      case dp_event.PoissonSampledDpEvent(sampling_probability=q):
+        if error := self._check_neighboring_relation(
+            event, NeighborRel.ADD_OR_REMOVE_ONE, NeighborRel.REPLACE_SPECIAL
+        ):
+          return error
+        sigma = _gaussian_subevent_sigma(event)
+        if isinstance(sigma, CompositionErrorDetails):
+          return sigma
+        if do_compose:
+          self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
+              q=q, noise_multiplier=sigma, orders=orders
+          )
+        return None
+      case dp_event.SampledWithoutReplacementDpEvent(
+          sample_size=sample_size, source_dataset_size=dataset_size
+      ):
+        if error := self._check_neighboring_relation(
+            event, NeighborRel.REPLACE_ONE
+        ):
+          return error
+        sigma = _gaussian_subevent_sigma(event)
+        if isinstance(sigma, CompositionErrorDetails):
+          return sigma
+        if do_compose:
+          self._rdp += count * _compute_rdp_sample_wor_gaussian(
+              q=sample_size / dataset_size,
+              noise_multiplier=sigma,
+              orders=orders,
+          )
+        return None
+      case dp_event.SingleEpochTreeAggregationDpEvent(
+          noise_multiplier=sigma, step_counts=step_counts
+      ):
+        if error := self._check_neighboring_relation(
+            event, NeighborRel.REPLACE_SPECIAL
+        ):
+          return error
+        if do_compose:
+          self._rdp += count * _compute_rdp_single_epoch_tree_aggregation(
+              sigma, step_counts, orders
+          )
+        return None
+      case dp_event.LaplaceDpEvent(noise_multiplier=b):
+        if do_compose:
+          self._rdp += count * np.array(
+              [_laplace_rdp(1 / b, a) for a in orders]
+          )
+        return None
+      case dp_event.RepeatAndSelectDpEvent(
+          event=subevent, mean=mean, shape=shape
+      ):
+        sub_accountant = RdpAccountant(orders, self._neighboring_relation)
+        # pylint: disable=protected-access
+        if error := sub_accountant._maybe_compose(
+            subevent, 1, do_compose=False
+        ):
+          return error
+        sub_accountant._maybe_compose(subevent, 1, do_compose=True)
+        if sub_accountant._extra_delta > 0:
+          return CompositionErrorDetails(
+              invalid_event=event,
+              error_message=(
+                  'Cannot compose `RepeatAndSelectDpEvent` when composing its'
+                  ' subevent causes `_extra_delta` > 0.'
+              ),
+          )
+        if do_compose:
+          self._rdp += count * _compute_rdp_repeat_and_select(
+              orders, sub_accountant._rdp, mean, shape
+          )
+        # pylint: enable=protected-access
+        return None
+      case dp_event.RandomizedResponseDpEvent(noise_parameter=p, num_buckets=k):
+        if error := self._check_neighboring_relation(
+            event, NeighborRel.REPLACE_SPECIAL, NeighborRel.REPLACE_ONE
+        ):
+          return error
+        if do_compose:
+          self._rdp += count * _compute_randomized_response_rdp(
+              p, k, orders, self._neighboring_relation
+          )
+        return None
+      case _:
+        # Unsupported event (including `UnsupportedDpEvent`).
         return CompositionErrorDetails(
-            invalid_event=event, error_message=error_msg
+            invalid_event=event, error_message='Unsupported event.'
         )
-      sigma_or_bad_event = _effective_gaussian_noise_multiplier(event.event)
-      if isinstance(sigma_or_bad_event, dp_event.DpEvent):
-        return CompositionErrorDetails(
-            invalid_event=event,
-            error_message=(
-                'Subevent of `PoissonSampledDpEvent` must be a'
-                ' `GaussianDpEvent` or a nested structure of `ComposedDpEvent`'
-                ' and/or `SelfComposedDpEvent` bottoming out in'
-                f' `GaussianDpEvent`s. Found subevent {sigma_or_bad_event}.'
-            ),
-        )
-      if do_compose:
-        self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
-            q=event.sampling_probability,
-            noise_multiplier=sigma_or_bad_event,
-            orders=self._orders,
-        )
-      return None
-    elif isinstance(event, dp_event.SampledWithoutReplacementDpEvent):
-      if self._neighboring_relation is not NeighborRel.REPLACE_ONE:
-        error_msg = (
-            'neighboring_relation must be `REPLACE_ONE` for '
-            '`SampledWithoutReplacementDpEvent`. Found '
-            f'{self._neighboring_relation}.'
-        )
-        return CompositionErrorDetails(
-            invalid_event=event, error_message=error_msg
-        )
-      sigma_or_bad_event = _effective_gaussian_noise_multiplier(event.event)
-      if isinstance(sigma_or_bad_event, dp_event.DpEvent):
-        return CompositionErrorDetails(
-            invalid_event=event,
-            error_message=(
-                'Subevent of `SampledWithoutReplacementDpEvent` must be a'
-                ' `GaussianDpEvent` or a nested structure of `ComposedDpEvent`'
-                ' and/or `SelfComposedDpEvent` bottoming out in'
-                f' `GaussianDpEvent`s. Found subevent {sigma_or_bad_event}.'
-            ),
-        )
-      if do_compose:
-        self._rdp += count * _compute_rdp_sample_wor_gaussian(
-            q=event.sample_size / event.source_dataset_size,
-            noise_multiplier=sigma_or_bad_event,
-            orders=self._orders,
-        )
-      return None
-    elif isinstance(event, dp_event.SingleEpochTreeAggregationDpEvent):
-      if self._neighboring_relation is not NeighborRel.REPLACE_SPECIAL:
-        error_msg = (
-            'neighboring_relation must be `REPLACE_SPECIAL` for '
-            '`SingleEpochTreeAggregationDpEvent`. Found '
-            f'{self._neighboring_relation}.'
-        )
-        return CompositionErrorDetails(
-            invalid_event=event, error_message=error_msg
-        )
-      if do_compose:
-        self._rdp += count * _compute_rdp_single_epoch_tree_aggregation(
-            event.noise_multiplier, event.step_counts, self._orders
-        )
-      return None
-    elif isinstance(event, dp_event.LaplaceDpEvent):
-      if do_compose:
-        eps = 1 / event.noise_multiplier
-        self._rdp += count * np.array(
-            [_laplace_rdp(eps, order) for order in self._orders]
-        )
-      return None
-    elif isinstance(event, dp_event.RepeatAndSelectDpEvent):
-      sub_accountant = RdpAccountant(
-          orders=self._orders,
-          neighboring_relation=self._neighboring_relation,
-      )
-      # pylint: disable=protected-access
-      composition_error = sub_accountant._maybe_compose(
-          event.event, 1, do_compose=False
-      )
-      if composition_error is not None:
-        return composition_error
-      sub_accountant._maybe_compose(event.event, 1, do_compose=True)
-      if sub_accountant._extra_delta > 0:
-        return CompositionErrorDetails(
-            invalid_event=event,
-            error_message=(
-                'Cannot compose `RepeatAndSelectDpEvent` when composing its'
-                ' subevent causes `_extra_delta` > 0.'
-            ),
-        )
-      if do_compose:
-        self._rdp += count * _compute_rdp_repeat_and_select(
-            self._orders, sub_accountant._rdp, event.mean, event.shape
-        )
-      # pylint: enable=protected-access
-      return None
-    elif isinstance(event, dp_event.RandomizedResponseDpEvent):
-      if self._neighboring_relation not in [
-          NeighborRel.REPLACE_SPECIAL,
-          NeighborRel.REPLACE_ONE,
-      ]:
-        error_msg = (
-            'neighboring_relation must be `REPLACE_SPECIAL` or `REPLACE_ONE`'
-            ' for `RandomizedResponseDpEvent`. Found'
-            f' {self._neighboring_relation}.'
-        )
-        return CompositionErrorDetails(
-            invalid_event=event, error_message=error_msg
-        )
-      if do_compose:
-        self._rdp += count * _compute_randomized_response_rdp(
-            event.noise_parameter,
-            event.num_buckets,
-            self._orders,
-            self._neighboring_relation,
-        )
-      return None
-    else:
-      # Unsupported event (including `UnsupportedDpEvent`).
-      return CompositionErrorDetails(
-          invalid_event=event, error_message='Unsupported event.'
-      )
 
   def get_epsilon_and_optimal_order(
       self, target_delta: float
