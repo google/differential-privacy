@@ -24,4 +24,4 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.ExecutionMode
 fun DpEngine.Factory.createLocalEngine(
   budgetSpec: DpEngineBudgetSpec,
   executionMode: ExecutionMode = ExecutionMode.PRODUCTION,
-) = create(LocalEncoderFactory(), budgetSpec, executionMode = executionMode)
+): DpEngine = create(LocalEncoderFactory(), budgetSpec, executionMode = executionMode)

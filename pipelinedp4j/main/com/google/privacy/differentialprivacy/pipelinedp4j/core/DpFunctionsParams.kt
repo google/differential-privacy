@@ -578,7 +578,7 @@ sealed class MetricType : Serializable {
   data object MEAN : MetricType()
 
   data class QUANTILES(private val ranks: ImmutableList<Double>) : MetricType() {
-    val sortedRanks = ImmutableList.copyOf(ranks.sorted())
+    val sortedRanks: ImmutableList<Double> = ImmutableList.copyOf(ranks.sorted())
 
     init {
       require(sortedRanks.all { it in 0.0..1.0 }) { "Ranks for quantiles must be all in [0, 1]." }

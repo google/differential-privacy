@@ -44,13 +44,13 @@ interface EncoderFactory {
   fun <T : Any> records(recordClass: Class<T>): Encoder<T>
 
   /** Same as [records(Class)] but accepts Kotlin class. */
-  fun <T : Any> records(recordClass: KClass<T>) = records(recordClass.java)
+  fun <T : Any> records(recordClass: KClass<T>): Encoder<T> = records(recordClass.java)
 
   /** Returns an [Encoder] for a protobuf value, which can be stored in a [FrameworkCollection]. */
   fun <T : Message> protos(protoClass: Class<T>): Encoder<T>
 
   /** Same as [protos(Class)] but accepts Kotlin class. */
-  fun <T : Message> protos(protoClass: KClass<T>) = protos(protoClass.java)
+  fun <T : Message> protos(protoClass: KClass<T>): Encoder<T> = protos(protoClass.java)
 
   /** Returns an [Encoder] for a pair, which can be stored in a [FrameworkCollection]. */
   fun <T1 : Any, T2 : Any> tuple2sOf(first: Encoder<T1>, second: Encoder<T2>): Encoder<Pair<T1, T2>>
@@ -69,7 +69,7 @@ interface EncoderFactory {
    * Note that this method does not work for pairs ([tuple2sOf]) and for any other classes that are
    * parameterized by generic types.
    */
-  fun <T : Any> recordsOfUnknownClass(recordClass: Class<T>) =
+  fun <T : Any> recordsOfUnknownClass(recordClass: Class<T>): Encoder<out Any> =
     when {
       recordClass == String::class.java -> strings()
       recordClass == Double::class.java -> doubles()
@@ -81,7 +81,7 @@ interface EncoderFactory {
     }
 
   /** Same as [recordsOfUnknownClass(Class)] but accepts Kotlin class. */
-  fun <T : Any> recordsOfUnknownClass(recordClass: KClass<T>) =
+  fun <T : Any> recordsOfUnknownClass(recordClass: KClass<T>): Encoder<out Any> =
     recordsOfUnknownClass(recordClass.java)
 }
 
@@ -89,10 +89,10 @@ interface EncoderFactory {
  * Inlines the function and the type parameter which allows to use [EncoderFactory.records] without
  * specifying the class.
  */
-inline fun <reified T : Any> EncoderFactory.records() = this.records(T::class)
+inline fun <reified T : Any> EncoderFactory.records(): Encoder<T> = this.records(T::class)
 
 /**
  * Inlines the function and the type parameter which allows to use [EncoderFactory.protos] without
  * specifying the class.
  */
-inline fun <reified T : Message> EncoderFactory.protos() = this.protos(T::class)
+inline fun <reified T : Message> EncoderFactory.protos(): Encoder<T> = this.protos(T::class)
