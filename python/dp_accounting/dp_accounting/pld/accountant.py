@@ -13,8 +13,8 @@
 # limitations under the License.
 """Helper functions for privacy accounting across queries."""
 
+from collections.abc import Callable
 import math
-from typing import Callable, Optional
 
 from scipy import special
 
@@ -29,7 +29,7 @@ def get_smallest_parameter(
     privacy_loss_distribution_constructor: Callable[
         [float], privacy_loss_distribution.PrivacyLossDistribution],
     search_parameters: common.BinarySearchParameters
-    ) -> Optional[float]:
+    ) -> float | None:
   """Finds smallest parameter for which the mechanism satisfies desired privacy.
 
   This function computes the smallest "parameter" for which the corresponding
@@ -227,7 +227,7 @@ def get_smallest_subsampled_gaussian_noise(
 def advanced_composition(
     privacy_parameters: common.DifferentialPrivacyParameters,
     num_queries: int,
-    total_delta: float) -> Optional[float]:
+    total_delta: float) -> float | None:
   """Computes total DP parameters after applying an algorithm with given privacy parameters multiple times.
 
   Using the optimal advanced composition theorem, Theorem 3.3 from the paper
@@ -274,7 +274,7 @@ def advanced_composition(
 def get_smallest_epsilon_from_advanced_composition(
     total_privacy_parameters: common.DifferentialPrivacyParameters,
     num_queries: int,
-    delta: float = 0) -> Optional[float]:
+    delta: float = 0) -> float | None:
   """Computes DP parameters that after a certain number of queries remain DP with given parameters.
 
   Using the optimal advanced composition theorem, Theorem 3.3 from the paper

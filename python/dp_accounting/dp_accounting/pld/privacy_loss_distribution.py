@@ -21,10 +21,11 @@ supplementary material below for more details:
 """
 
 import collections
+from collections.abc import Callable, Mapping, Sequence
 import logging
 import math
 import numbers
-from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, overload
 
 import numpy as np
 from scipy import stats
@@ -95,7 +96,7 @@ class PrivacyLossDistribution:
 
   def __init__(self,
                pmf_remove: pld_pmf.PLDPmf,
-               pmf_add: Optional[pld_pmf.PLDPmf] = None):
+               pmf_add: pld_pmf.PLDPmf | None = None):
     """Initialization method for PrivacyLossDistribution."""
     self._pmf_remove = pmf_remove
     self._symmetric = pmf_add is None
@@ -108,9 +109,8 @@ class PrivacyLossDistribution:
       infinity_mass: float,
       value_discretization_interval: float,
       pessimistic_estimate: bool = True,
-      rounded_probability_mass_function_add: Optional[Mapping[int,
-                                                              float]] = None,
-      infinity_mass_add: Optional[float] = None,
+      rounded_probability_mass_function_add: Mapping[int, float] | None = None,
+      infinity_mass_add: float | None = None,
       symmetric: bool = True) -> 'PrivacyLossDistribution':
     """Create PrivacyLossDistribution from rounded probability mass function(s).
 
@@ -161,8 +161,17 @@ class PrivacyLossDistribution:
                                    infinity_mass_add, pessimistic_estimate)
     return cls(pmf_remove, pmf_add)
 
+  @overload
+  def get_delta_for_epsilon(self, epsilon: float) -> float:
+    ...
+
+  @overload
+  def get_delta_for_epsilon(self, epsilon: common.ArrayLike) -> np.ndarray:
+    ...
+
   def get_delta_for_epsilon(
-      self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
+      self, epsilon: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes the epsilon-hockey stick divergence between mu_upper, mu_lower.
 
     When this privacy loss distribution corresponds to a mechanism, the
@@ -178,11 +187,17 @@ class PrivacyLossDistribution:
       between the upper (mu_upper) and the lower (mu_lower) distributions
       corresponding to this privacy loss distribution.
     """
+    if isinstance(epsilon, (Sequence, np.ndarray)):
+      delta_remove = self._pmf_remove.get_delta_for_epsilon(epsilon)
+      if self._symmetric:
+        return delta_remove
+      delta_add = self._pmf_add.get_delta_for_epsilon(epsilon)
+      return np.maximum(delta_remove, delta_add)
     delta_remove = self._pmf_remove.get_delta_for_epsilon(epsilon)
     if self._symmetric:
       return delta_remove
     delta_add = self._pmf_add.get_delta_for_epsilon(epsilon)
-    return np.maximum(delta_remove, delta_add)
+    return max(delta_remove, delta_add)
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta.
@@ -435,9 +450,9 @@ class PrivacyLossDistribution:
 
   def get_true_positive_rates(
       self,
-      false_positive_rates: Union[float, np.ndarray],
-      deltas: Optional[np.ndarray] = None,
-  ) -> Union[float, np.ndarray]:
+      false_positive_rates: float | np.ndarray,
+      deltas: np.ndarray | None = None,
+  ) -> float | np.ndarray:
     """Computes an upper bound on the true positive rate (TPR).
 
     In particular, each (epsilon, delta) pair implied by the PLD also implies an
@@ -488,8 +503,8 @@ class PrivacyLossDistribution:
 
   def get_gdp_parameter_estimate(
       self,
-      false_positive_rates: Optional[np.ndarray] = None,
-      deltas: Optional[np.ndarray] = None,
+      false_positive_rates: np.ndarray | None = None,
+      deltas: np.ndarray | None = None,
   ) -> float:
     """Computes an estimate of the mu-GDP parameter implied by the PLD.
 
@@ -614,7 +629,7 @@ def from_two_probability_mass_functions(
   def _create_rounded_probability_mass_function(
       log_pmf_lower: Mapping[Any, float],
       log_pmf_upper: Mapping[Any, float]
-  ) -> Tuple[float, Mapping[int, float]]:
+  ) -> tuple[float, Mapping[int, float]]:
     """Helper function for creating rounded pmf."""
     infinity_mass = 0
     for outcome in log_pmf_upper:
@@ -646,7 +661,9 @@ def from_two_probability_mass_functions(
           infinity_mass += math.exp(log_pmf_upper.get(outcome, -math.inf))
     # Discretize the probability mass so that the values are integer multiples
     # of value_discretization_interval
-    rounded_pmf = collections.defaultdict(lambda: 0)
+    rounded_pmf: collections.defaultdict[int, float] = collections.defaultdict(
+        float
+    )
     round_fn = math.ceil if pessimistic_estimate else math.floor
     for val in pmf:
       rounded_pmf[round_fn(val / value_discretization_interval)] += pmf[val]
@@ -680,8 +697,7 @@ def from_two_probability_mass_functions(
 
 
 def _create_pld_pmf_from_monotone_privacy_loss(
-    monotone_privacy_loss:
-    'privacy_loss_mechanism.MonotonePrivacyLoss',
+    monotone_privacy_loss: privacy_loss_mechanism.MonotonePrivacyLoss,
     pessimistic_estimate: bool = True,
     value_discretization_interval: float = 1e-4,
     use_connect_dots: bool = False) -> pld_pmf.PLDPmf:
@@ -728,21 +744,21 @@ def _create_pld_pmf_from_monotone_privacy_loss(
             connect_dots_bounds.upper_x is None):
           raise ValueError('Connect dots bounds does not contain lower_x and '
                            'upper_x for discrete additive noise mechanism.')
-        rounded_epsilons = []
+        rounded_epsilons_list: list[int] = []
         for x in range(connect_dots_bounds.upper_x,
                        connect_dots_bounds.lower_x - 1,
                        -1):
           scaled_epsilon = (monotone_privacy_loss.privacy_loss(x)
                             / value_discretization_interval)
-          if (not rounded_epsilons or
-              math.floor(scaled_epsilon) > rounded_epsilons[-1]):
-            rounded_epsilons.append(math.floor(scaled_epsilon))
-          if math.ceil(scaled_epsilon) > rounded_epsilons[-1]:
-            rounded_epsilons.append(math.ceil(scaled_epsilon))
-        rounded_epsilons = np.array(rounded_epsilons)
+          if (not rounded_epsilons_list or
+              math.floor(scaled_epsilon) > rounded_epsilons_list[-1]):
+            rounded_epsilons_list.append(math.floor(scaled_epsilon))
+          if math.ceil(scaled_epsilon) > rounded_epsilons_list[-1]:
+            rounded_epsilons_list.append(math.ceil(scaled_epsilon))
+        rounded_epsilons = np.array(rounded_epsilons_list)
 
         deltas = monotone_privacy_loss.get_delta_for_epsilon(
-            rounded_epsilons * value_discretization_interval)  # pyrefly: ignore[bad-argument-type]
+            rounded_epsilons * value_discretization_interval)
 
         return pld_pmf.create_pmf_pessimistic_connect_dots(
             value_discretization_interval,
@@ -762,7 +778,7 @@ def _create_pld_pmf_from_monotone_privacy_loss(
                                      rounded_epsilon_upper + 1)
 
         deltas = monotone_privacy_loss.get_delta_for_epsilon(
-            rounded_epsilons * value_discretization_interval)  # pyrefly: ignore[bad-argument-type]
+            rounded_epsilons * value_discretization_interval)
 
         # Use a specialized numerically stable approach for continuous noise
         return pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
@@ -776,11 +792,13 @@ def _create_pld_pmf_from_monotone_privacy_loss(
   tail_pld = monotone_privacy_loss.privacy_loss_tail()
   lower_x, upper_x = tail_pld.lower_x_truncation, tail_pld.upper_x_truncation
 
-  rounded_probability_mass_function = collections.defaultdict(lambda: 0)
+  rounded_probability_mass_function: collections.defaultdict[int, float] = (
+      collections.defaultdict(float)
+  )
   infinity_mass = tail_pld.tail_probability_mass_function.get(math.inf, 0)
   for privacy_loss in tail_pld.tail_probability_mass_function:
     if privacy_loss != math.inf:
-      rounded_probability_mass_function[round_fn(  # pyrefly: ignore[unsupported-operation]
+      rounded_probability_mass_function[round_fn(
           privacy_loss / value_discretization_interval
       )] += tail_pld.tail_probability_mass_function[privacy_loss]
 
@@ -790,7 +808,7 @@ def _create_pld_pmf_from_monotone_privacy_loss(
     # Compute PMF for the x's. Note that a vectorized call to mu_upper_cdf can
     # be much faster than many scalar calls.
     cdf_values = monotone_privacy_loss.mu_upper_cdf(xs)
-    probability_mass = cdf_values[1:] - cdf_values[:-1]  # pyrefly: ignore[bad-index]
+    probability_mass = cdf_values[1:] - cdf_values[:-1]
 
     for x, prob in zip(xs[1:], probability_mass):
       rounded_probability_mass_function[round_fn(
@@ -820,7 +838,7 @@ def _create_pld_pmf_from_monotone_privacy_loss(
     # Compute PLD for discretization intervals. Note that a vectorized call to
     # mu_upper_cdf is much faster than many scalar calls.
     cdf_values = monotone_privacy_loss.mu_upper_cdf(xs)
-    probability_mass = cdf_values[1:] - cdf_values[:-1]  # pyrefly: ignore[bad-index]
+    probability_mass = cdf_values[1:] - cdf_values[:-1]
 
     # Each x in [lower_x, upper_x] results in privacy loss that lies in
     # [value_discretization_interval * rounded_down_value,
@@ -1224,7 +1242,7 @@ def from_discrete_laplace_mechanism(
 def from_discrete_gaussian_mechanism(
     sigma: float,
     sensitivity: int = 1,
-    truncation_bound: Optional[int] = None,
+    truncation_bound: int | None = None,
     pessimistic_estimate: bool = True,
     value_discretization_interval: float = 1e-4,
     sampling_prob: float = 1.0,
@@ -1455,12 +1473,14 @@ def from_privacy_parameters(
   delta = privacy_parameters.delta
   epsilon = privacy_parameters.epsilon
 
-  rounded_probability_mass_function = collections.defaultdict(lambda: 0)
+  rounded_probability_mass_function: collections.defaultdict[int, float] = (
+      collections.defaultdict(float)
+  )
 
   rounded_probability_mass_function[math.ceil(
       epsilon /
-      value_discretization_interval)] = (1 - delta) / (1 + math.exp(-epsilon))  # pyrefly: ignore[unsupported-operation]
-  rounded_probability_mass_function[math.ceil(  # pyrefly: ignore[unsupported-operation]
+      value_discretization_interval)] = (1 - delta) / (1 + math.exp(-epsilon))
+  rounded_probability_mass_function[math.ceil(
       -epsilon /
       value_discretization_interval)] += (1 - delta) / (1 + math.exp(epsilon))
 

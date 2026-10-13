@@ -102,7 +102,6 @@ py_test(
         ":common",
         ":test_util",
         "@accounting_py_pip_deps//absl_py",
-        "@accounting_py_pip_deps//numpy",
     ],
 )
 
@@ -201,7 +200,6 @@ py_test(
     deps = [
         ":accountant",
         ":common",
-        ":privacy_loss_mechanism",
         "@accounting_py_pip_deps//absl_py",
     ],
 )

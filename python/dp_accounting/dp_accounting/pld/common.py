@@ -13,16 +13,16 @@
 # limitations under the License.
 """Common classes and functions for the accounting library."""
 
+from collections.abc import Callable, Mapping, Sequence
 import dataclasses
 import math
-from typing import Callable, List, Mapping, Optional, Tuple, Union
 
 import numpy as np
 from scipy import fft
 from scipy import signal
 from scipy import special
 
-ArrayLike = Union[np.ndarray, List[float]]
+ArrayLike = Sequence[float] | np.ndarray
 
 
 @dataclasses.dataclass
@@ -58,7 +58,7 @@ class BinarySearchParameters(object):
   """
   lower_bound: float
   upper_bound: float
-  initial_guess: Optional[float] = None
+  initial_guess: float | None = None
   tolerance: float = 1e-7
   discrete: bool = False
 
@@ -66,7 +66,7 @@ class BinarySearchParameters(object):
 def inverse_monotone_function(func: Callable[[float], float],
                               value: float,
                               search_parameters: BinarySearchParameters,
-                              increasing: bool = False) -> Optional[float]:
+                              increasing: bool = False) -> float | None:
   """Inverse a monotone function.
 
   Args:
@@ -124,7 +124,7 @@ def inverse_monotone_function(func: Callable[[float], float],
 
 
 def dictionary_to_list(
-    input_dictionary: Mapping[int, float]) -> Tuple[int, List[float]]:
+    input_dictionary: Mapping[int, float]) -> tuple[int, list[float]]:
   """Converts an integer-keyed dictionary into an list.
 
   Args:
@@ -143,9 +143,9 @@ def dictionary_to_list(
   return (offset, result_list)
 
 
-def list_to_dictionary(input_list: List[float],
+def list_to_dictionary(input_list: ArrayLike,
                        offset: int,
-                       tail_mass_truncation: float = 0) -> Mapping[int, float]:
+                       tail_mass_truncation: float = 0) -> dict[int, float]:
   """Converts a list into an integer-keyed dictionary, with a specified offset.
 
   Args:
@@ -184,7 +184,7 @@ def list_to_dictionary(input_list: List[float],
 
 def convolve_dictionary(dictionary1: Mapping[int, float],
                         dictionary2: Mapping[int, float],
-                        tail_mass_truncation: float = 0) -> Mapping[int, float]:
+                        tail_mass_truncation: float = 0) -> dict[int, float]:
   """Computes a convolution of two dictionaries.
 
   Args:
@@ -212,10 +212,10 @@ def convolve_dictionary(dictionary1: Mapping[int, float],
 
 
 def compute_self_convolve_bounds(
-    input_list: List[float],
+    input_list: ArrayLike,
     num_times: int,
     tail_mass_truncation: float = 0,
-    orders: Optional[List[float]] = None) -> Tuple[int, int]:
+    orders: ArrayLike | None = None) -> tuple[int, int]:
   """Computes truncation bounds for convolution using Chernoff bound.
 
   Args:
@@ -239,15 +239,15 @@ def compute_self_convolve_bounds(
     # Set orders so whose absolute values are not too large; otherwise, we may
     # run into numerical issues.
     orders = (
-        np.concatenate((np.arange(-20, 0), np.arange(1, 21))) / len(input_list))  # pyrefly: ignore[bad-assignment]
+        np.concatenate((np.arange(-20, 0), np.arange(1, 21))) / len(input_list))
 
   # Compute log of the moment generating function at the specified orders.
   log_mgfs = [
       special.logsumexp(np.arange(len(input_list)) * order, b=input_list)
-      for order in orders  # pyrefly: ignore[not-iterable]
+      for order in orders
   ]
 
-  for order, log_mgf_value in zip(orders, log_mgfs):  # pyrefly: ignore[bad-argument-type]
+  for order, log_mgf_value in zip(orders, log_mgfs):
     # Use Chernoff bound to update the upper/lower bound. See equation (5) in
     # the supplementary material.
     bound = (num_times * log_mgf_value +
@@ -264,7 +264,7 @@ def compute_self_convolve_bounds(
 
 def self_convolve(input_list: ArrayLike,
                   num_times: int,
-                  tail_mass_truncation: float = 0) -> Tuple[int, List[float]]:
+                  tail_mass_truncation: float = 0) -> tuple[int, np.ndarray]:
   """Computes a convolution of the input list with itself num_times times.
 
   Args:
@@ -280,7 +280,7 @@ def self_convolve(input_list: ArrayLike,
     of input_list[i_1] * input_list[i_2] * ... * input_list[i_num_times].
   """
   truncation_lower_bound, truncation_upper_bound = compute_self_convolve_bounds(
-      input_list, num_times, tail_mass_truncation)  # pyrefly: ignore[bad-argument-type]
+      input_list, num_times, tail_mass_truncation)
 
   # Use FFT to compute the convolution
   output_len = truncation_upper_bound - truncation_lower_bound + 1
@@ -300,7 +300,7 @@ def self_convolve(input_list: ArrayLike,
 def self_convolve_dictionary(
     input_dictionary: Mapping[int, float],
     num_times: int,
-    tail_mass_truncation: float = 0) -> Mapping[int, float]:
+    tail_mass_truncation: float = 0) -> dict[int, float]:
   """Computes a convolution of the input dictionary with itself num_times times.
 
   Args:

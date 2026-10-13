@@ -10,7 +10,6 @@ import math
 import numpy as np
 from scipy import stats
 from scipy.stats import _distn_infrastructure
-from typing_extensions import Self
 
 from dp_accounting.pld.random_allocation import definitions
 
@@ -315,7 +314,7 @@ class DiscreteDistBase(abc.ABC):
 
   def truncate_edges(
       self, tail_truncation: float, bound_type: definitions.BoundType
-  ) -> Self:
+  ) -> DiscreteDistBase:
     """Truncate distribution edges."""
     new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = _compute_truncation(
         self.prob_arr, self.p_min, self.p_max, tail_truncation, bound_type
@@ -332,7 +331,7 @@ class DiscreteDistBase(abc.ABC):
       new_p_max: float,
       min_ind: int,
       max_ind: int,
-  ) -> Self:
+  ) -> DiscreteDistBase:
     """Create truncated instance preserving representation semantics."""
 
 
@@ -505,6 +504,17 @@ class DenseDiscreteDist(DiscreteDistBase):
     """Return materialized support points."""
     return self.grid.x_array
 
+  def truncate_edges(
+      self, tail_truncation: float, bound_type: definitions.BoundType
+  ) -> DenseDiscreteDist:
+    """Truncate distribution edges."""
+    new_prob_arr, new_p_min, new_p_max, min_ind, max_ind = _compute_truncation(
+        self.prob_arr, self.p_min, self.p_max, tail_truncation, bound_type
+    )
+    return self._create_truncated(
+        new_prob_arr, new_p_min, new_p_max, min_ind, max_ind
+    )
+
   def _create_truncated(
       self,
       new_prob_arr: np.typing.NDArray[np.float64],
@@ -512,7 +522,7 @@ class DenseDiscreteDist(DiscreteDistBase):
       new_p_max: float,
       min_ind: int,
       max_ind: int,
-  ) -> "DenseDiscreteDist":
+  ) -> DenseDiscreteDist:
     if self.spacing_type == definitions.SpacingType.LINEAR:
       new_grid = definitions.RegularGrid(
           x_min=self.x_min + min_ind * self.step,
@@ -623,7 +633,7 @@ class PLDRealization(DenseDiscreteDist):
           "not a valid PLD realization"
       )
 
-  def truncate_edges(  # type: ignore[override]
+  def truncate_edges(
       self, tail_truncation: float, bound_type: definitions.BoundType
   ) -> DenseDiscreteDist:
     if bound_type == definitions.BoundType.IS_DOMINATED:

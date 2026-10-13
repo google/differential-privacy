@@ -15,7 +15,6 @@
 
 import math
 import numbers
-from typing import Optional, Union
 
 import numpy as np
 
@@ -50,7 +49,7 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
 
   def _maybe_compose(
       self, event: dp_event.DpEvent, count: int, do_compose: bool
-  ) -> Optional[CompositionErrorDetails]:
+  ) -> CompositionErrorDetails | None:
     if isinstance(event, dp_event.NoOpDpEvent):
       return None
     elif isinstance(event, dp_event.NonPrivateDpEvent):
@@ -383,13 +382,13 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
   def get_delta(self, target_epsilon: float) -> float:
     if self._contains_non_dp_event:
       return 1
-    return self._pld.get_delta_for_epsilon(target_epsilon)  # pyrefly: ignore[bad-return]
+    return self._pld.get_delta_for_epsilon(target_epsilon)
 
   def get_true_positive_rates(
       self,
-      false_positive_rates: Union[float, np.ndarray],
-      deltas: Optional[np.ndarray] = None,
-  ) -> Union[float, np.ndarray]:
+      false_positive_rates: float | np.ndarray,
+      deltas: np.ndarray | None = None,
+  ) -> float | np.ndarray:
     """Computes an upper bound on the true positive rate (TPR).
 
     In particular, each (epsilon, delta) pair implied by the PLD also implies an
@@ -424,8 +423,8 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
 
   def get_gdp_parameter_estimate(
       self,
-      false_positive_rates: Optional[np.ndarray] = None,
-      deltas: Optional[np.ndarray] = None,
+      false_positive_rates: np.ndarray | None = None,
+      deltas: np.ndarray | None = None,
   ) -> float:
     """Computes an estimate of the mu-GDP parameter implied by the PLD.
 

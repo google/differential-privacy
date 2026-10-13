@@ -20,25 +20,25 @@ supplementary material below for more details:
 """
 
 import abc
+from collections.abc import Iterable, Mapping, Sequence
 import itertools
 import math
-import numbers
-from typing import Iterable, List, Mapping, Sequence, Tuple, Union
+from typing import overload
 
 import numpy as np
-import numpy.typing
+import numpy.typing as npt
 from scipy import signal
 
 from dp_accounting.pld import common
 
-ArrayLike = Union[np.ndarray, List[float]]
+ArrayLike = Sequence[float] | np.ndarray
 _MAX_PMF_SPARSE_SIZE = 1000
 _DELTA_DIFF_TOLERANCE = 1e-12
 
 
 def _get_delta_for_epsilon(infinity_mass: float,
-                           losses: Sequence[float],
-                           probs: Sequence[float],
+                           losses: ArrayLike,
+                           probs: ArrayLike,
                            epsilon: float) -> float:
   """Computes the epsilon-hockey stick divergence.
 
@@ -52,19 +52,19 @@ def _get_delta_for_epsilon(infinity_mass: float,
     The epsilon-hockey stick divergence.
   """
   # delta is inf_mass + sum_{loss} max(0, 1 - exp(epsilon - loss)) * prob
-  losses = np.asarray(losses)  # pyrefly: ignore[bad-assignment]
-  probs = np.asarray(probs)  # pyrefly: ignore[bad-assignment]
-  indices = losses > epsilon  # pyrefly: ignore[unsupported-operation]
-  return (
-      infinity_mass +
-      np.dot(-np.expm1(epsilon - losses[indices]), probs[indices])
+  losses_arr = np.asarray(losses)
+  probs_arr = np.asarray(probs)
+  indices = losses_arr > epsilon
+  return float(
+      infinity_mass
+      + np.dot(-np.expm1(epsilon - losses_arr[indices]), probs_arr[indices])
   )
 
 
 def _get_delta_for_epsilon_vectorized(infinity_mass: float,
-                                      losses: Sequence[float],
-                                      probs: Sequence[float],
-                                      epsilons: Sequence[float]) -> np.ndarray:
+                                      losses: ArrayLike,
+                                      probs: ArrayLike,
+                                      epsilons: ArrayLike) -> np.ndarray:
   """Computes the epsilon-hockey stick divergence for multiple epsilons.
 
   Args:
@@ -154,8 +154,29 @@ def _get_epsilon_for_delta(infinity_mass: float,
   return math.log((mass_upper - delta) / mass_lower)
 
 
-def _truncate_tails(probs: ArrayLike, tail_mass_truncation: float,
-                    pessimistic_estimate: bool) -> Tuple[int, ArrayLike, float]:
+@overload
+def _truncate_tails(
+    probs: list[float],
+    tail_mass_truncation: float,
+    pessimistic_estimate: bool,
+) -> tuple[int, list[float], float]:
+  ...
+
+
+@overload
+def _truncate_tails(
+    probs: np.ndarray,
+    tail_mass_truncation: float,
+    pessimistic_estimate: bool,
+) -> tuple[int, np.ndarray, float]:
+  ...
+
+
+def _truncate_tails(
+    probs: list[float] | np.ndarray,
+    tail_mass_truncation: float,
+    pessimistic_estimate: bool,
+) -> tuple[int, list[float] | np.ndarray, float]:
   """Truncates an array from both sides by not more than tail_mass_truncation.
 
   It truncates the maximum prefix and suffix from probs, each of which have
@@ -177,7 +198,7 @@ def _truncate_tails(probs: ArrayLike, tail_mass_truncation: float,
   if tail_mass_truncation == 0:
     return 0, probs, 0
 
-  def _find_prefix_to_truncate(arr: np.ndarray, threshold: float) -> int:
+  def _find_prefix_to_truncate(arr: ArrayLike, threshold: float) -> int:
     # Find the max size of array prefix, with the sum of elements less than
     # threshold.
     s = 0
@@ -187,7 +208,7 @@ def _truncate_tails(probs: ArrayLike, tail_mass_truncation: float,
         return i
     return len(arr)
 
-  left_idx = _find_prefix_to_truncate(probs, tail_mass_truncation / 2)  # pyrefly: ignore[bad-argument-type]
+  left_idx = _find_prefix_to_truncate(probs, tail_mass_truncation / 2)
   right_idx = len(probs) - _find_prefix_to_truncate(
       np.flip(probs), tail_mass_truncation / 2)
   # Be sure that left_idx < right_idx. left_idx >= right_idx might be when
@@ -195,8 +216,8 @@ def _truncate_tails(probs: ArrayLike, tail_mass_truncation: float,
   # (i.e. if a few truncations were operated on it already).
   right_idx = max(right_idx, left_idx + 1)
 
-  left_mass = np.sum(probs[:left_idx])
-  right_mass = np.sum(probs[right_idx:])
+  left_mass = float(np.sum(probs[:left_idx]))
+  right_mass = float(np.sum(probs[right_idx:]))
 
   truncated_probs = probs[left_idx:right_idx]
   if pessimistic_estimate:
@@ -278,9 +299,18 @@ class PLDPmf(abc.ABC):
       A privacy loss distribution PMF which is the result of the composition.
     """
 
+  @overload
+  def get_delta_for_epsilon(self, epsilon: float) -> float:
+    ...
+
+  @overload
+  def get_delta_for_epsilon(self, epsilon: ArrayLike) -> np.ndarray:
+    ...
+
   @abc.abstractmethod
   def get_delta_for_epsilon(
-      self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
+      self, epsilon: float | ArrayLike
+  ) -> float | np.ndarray:
     """Computes the epsilon-hockey stick divergence."""
 
   @abc.abstractmethod
@@ -390,11 +420,18 @@ class DensePLDPmf(PLDPmf):
   def size(self) -> int:
     return len(self._probs)
 
-  def compose(self,  # pyrefly: ignore[bad-override]
-              other: 'DensePLDPmf',
-              tail_mass_truncation: float = 0) -> 'DensePLDPmf':
+  def compose(
+      self,
+      other: PLDPmf,
+      tail_mass_truncation: float = 0,
+  ) -> 'DensePLDPmf':
     """Computes a PMF resulting from composing two PMFs. See base class."""
     self.validate_composable(other)
+    if not isinstance(other, DensePLDPmf):
+      raise ValueError(
+          f'Only PMFs of the same type can be composed:'
+          f'{type(self).__name__} != {type(other).__name__}.'
+      )
 
     # pylint: disable=protected-access
     lower_loss = self._lower_loss + other._lower_loss
@@ -404,7 +441,7 @@ class DensePLDPmf(PLDPmf):
     offset, probs, right_tail = _truncate_tails(probs, tail_mass_truncation,
                                                 self._pessimistic_estimate)
     # pylint: enable=protected-access
-    return DensePLDPmf(self._discretization, lower_loss + offset, probs,  # pyrefly: ignore[bad-argument-type]
+    return DensePLDPmf(self._discretization, lower_loss + offset, probs,
                        infinity_mass + right_tail, self._pessimistic_estimate)
 
   def self_compose(self,
@@ -426,16 +463,27 @@ class DensePLDPmf(PLDPmf):
     return DensePLDPmf(self._discretization, lower_loss, probs,
                        inf_prob, self._pessimistic_estimate)
 
+  @overload
+  def get_delta_for_epsilon(self, epsilon: float) -> float:
+    ...
+
+  @overload
+  def get_delta_for_epsilon(self, epsilon: ArrayLike) -> np.ndarray:
+    ...
+
   def get_delta_for_epsilon(
-      self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
+      self, epsilon: float | ArrayLike
+  ) -> float | np.ndarray:
     """Computes the epsilon-hockey stick divergence."""
     losses = (np.arange(self.size) + self._lower_loss) * self._discretization
 
-    if isinstance(epsilon, numbers.Number):
-      return _get_delta_for_epsilon(self._infinity_mass, losses,  # pyrefly: ignore[bad-argument-type]
-                                    self._probs, epsilon)  # pyrefly: ignore[bad-argument-type]
-    return _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,  # pyrefly: ignore[bad-argument-type]
-                                             self._probs, epsilon)  # pyrefly: ignore[bad-argument-type]
+    if isinstance(epsilon, (Sequence, np.ndarray)):
+      return _get_delta_for_epsilon_vectorized(
+          self._infinity_mass, losses, self._probs, epsilon
+      )
+    return _get_delta_for_epsilon(
+        self._infinity_mass, losses, self._probs, float(epsilon)
+    )
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta."""
@@ -533,11 +581,18 @@ class SparsePLDPmf(PLDPmf):
   def size(self) -> int:
     return len(self._loss_probs)
 
-  def compose(self,  # pyrefly: ignore[bad-override]
-              other: 'SparsePLDPmf',
-              tail_mass_truncation: float = 0) -> 'SparsePLDPmf':
+  def compose(
+      self,
+      other: PLDPmf,
+      tail_mass_truncation: float = 0,
+  ) -> 'SparsePLDPmf':
     """Computes a PMF resulting from composing two PMFs. See base class."""
     self.validate_composable(other)
+    if not isinstance(other, SparsePLDPmf):
+      raise ValueError(
+          f'Only PMFs of the same type can be composed:'
+          f'{type(self).__name__} != {type(other).__name__}.'
+      )
     # Assumed small number of points, so simple quadratic algorithm is fine.
     convolution = {}
     # pylint: disable=protected-access
@@ -584,22 +639,34 @@ class SparsePLDPmf(PLDPmf):
 
     return result
 
-  def _get_losses_probs(self) -> Tuple[List[float], List[float]]:
+  def _get_losses_probs(self) -> tuple[list[float], list[float]]:
     """Returns losses, sorted ascendingly and respective probabilities."""
     losses = sorted(list(self._loss_probs.keys()))
     probs = [self._loss_probs[loss] for loss in losses]
     losses = [loss * self._discretization for loss in losses]
     return losses, probs
 
+  @overload
+  def get_delta_for_epsilon(self, epsilon: float) -> float:
+    ...
+
+  @overload
+  def get_delta_for_epsilon(self, epsilon: ArrayLike) -> np.ndarray:
+    ...
+
   def get_delta_for_epsilon(
-      self, epsilon: Union[float, Sequence[float]]) -> Union[float, np.ndarray]:
+      self, epsilon: float | ArrayLike
+  ) -> float | np.ndarray:
     """Computes the epsilon-hockey stick divergence."""
     losses, probs = self._get_losses_probs()
-    if isinstance(epsilon, numbers.Number):
-      return _get_delta_for_epsilon(self._infinity_mass, losses, probs, epsilon)
+    if isinstance(epsilon, (Sequence, np.ndarray)):
+      return _get_delta_for_epsilon_vectorized(
+          self._infinity_mass, losses, probs, epsilon
+      )
 
-    return _get_delta_for_epsilon_vectorized(self._infinity_mass, losses,
-                                             probs, epsilon)  # pyrefly: ignore[bad-argument-type]
+    return _get_delta_for_epsilon(
+        self._infinity_mass, losses, probs, float(epsilon)
+    )
 
   def get_epsilon_for_delta(self, delta: float) -> float:
     """Computes epsilon for which hockey stick divergence is at most delta."""
@@ -669,8 +736,8 @@ def create_pmf(loss_probs: Mapping[int, float], discretization: float,
 
 def create_pmf_pessimistic_connect_dots(
     discretization: float,
-    rounded_epsilons: numpy.typing.ArrayLike,  # dtype int, shape (n,)
-    deltas: numpy.typing.ArrayLike,  # dtype float, shape (n,)
+    rounded_epsilons: npt.ArrayLike,  # dtype int, shape (n,)
+    deltas: npt.ArrayLike,  # dtype float, shape (n,)
     ) -> PLDPmf:
   """Returns PLD probability mass function using pessimistic Connect-the-Dots.
 
@@ -768,7 +835,7 @@ def create_pmf_pessimistic_connect_dots_fixed_gap(
     discretization: float,
     rounded_epsilon_lower: int,
     rounded_epsilon_upper: int,
-    deltas: numpy.typing.ArrayLike,  # dtype float, shape (n,)
+    deltas: npt.ArrayLike,  # dtype float, shape (n,)
     ) -> PLDPmf:
   """Returns pessimistic Connect-the-Dots PLD PMF for epsilons with fixed gaps.
 

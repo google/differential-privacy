@@ -21,12 +21,13 @@ Please refer to the supplementary material below for more details:
 """
 
 import abc
+from collections.abc import Iterable, Mapping
 import dataclasses
 import enum
 import functools
 import math
 import numbers
-from typing import Iterable, Mapping, Optional, Sequence, Union
+from typing import overload
 
 import numpy as np
 import scipy
@@ -98,10 +99,10 @@ class ConnectDotsBounds:
     upper_x: largest x value to be considered in the connect-the-dots algorithm
       for discrete additive noise mechanisms.
   """
-  epsilon_upper: Optional[float] = None
-  epsilon_lower: Optional[float] = None
-  lower_x: Optional[int] = None
-  upper_x: Optional[int] = None
+  epsilon_upper: float | None = None
+  epsilon_lower: float | None = None
+  lower_x: int | None = None
+  upper_x: int | None = None
 
 
 class MonotonePrivacyLoss(metaclass=abc.ABCMeta):
@@ -124,9 +125,16 @@ class MonotonePrivacyLoss(metaclass=abc.ABCMeta):
   def __init__(self, is_discrete: bool):
     self.is_discrete = is_discrete
 
+  @overload
+  def mu_upper_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def mu_upper_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   @abc.abstractmethod
-  def mu_upper_cdf(
-      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+  def mu_upper_cdf(self, x: float | common.ArrayLike) -> float | np.ndarray:
     """Computes the cumulative density function of the mu_upper distribution.
 
     Args:
@@ -139,9 +147,18 @@ class MonotonePrivacyLoss(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
+  @overload
+  def mu_lower_log_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def mu_lower_log_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   @abc.abstractmethod
   def mu_lower_log_cdf(
-      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes log cumulative density function of the mu_lower distribution.
 
     Args:
@@ -155,10 +172,19 @@ class MonotonePrivacyLoss(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
+  @overload
+  def get_delta_for_epsilon(self, epsilon: float) -> float:
+    ...
+
+  @overload
+  def get_delta_for_epsilon(self, epsilon: common.ArrayLike) -> np.ndarray:
+    ...
+
   @abc.abstractmethod
   def get_delta_for_epsilon(
-      self, epsilon: Union[float, Sequence[float]],
-  ) -> Union[float, Sequence[float]]:
+      self,
+      epsilon: float | common.ArrayLike,
+  ) -> float | np.ndarray:
     """Computes the epsilon-hockey stick divergence of the mechanism.
 
     The epsilon-hockey stick divergence of the mechanism is the value of delta
@@ -324,8 +350,15 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
             f'{self.__class__.__name__}.'
         ) from exc
 
-  def mu_upper_cdf(
-      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+  @overload
+  def mu_upper_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def mu_upper_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
+  def mu_upper_cdf(self, x: float | common.ArrayLike) -> float | np.ndarray:
     """Computes the cumulative density function of the mu_upper distribution.
 
     For any subsampling probability q:
@@ -345,17 +378,33 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
     if self.adjacency_type == AdjacencyType.ADD:
       return self.noise_cdf(x)
     elif self.adjacency_type in [AdjacencyType.REMOVE, AdjacencyType.REPLACE]:
+      shifted_x = (
+          float(x) + self.sensitivity
+          if isinstance(x, (int, float, np.number))
+          else np.asarray(x) + self.sensitivity
+      )
       # For performance, the case of sampling_prob=1 is handled separately.
       if self.sampling_prob == 1.0:
-        return self.noise_cdf(np.add(x, self.sensitivity))  # pyrefly: ignore[no-matching-overload]
-      return ((1 - self.sampling_prob) * self.noise_cdf(x) +
-              self.sampling_prob * self.noise_cdf(np.add(x, self.sensitivity)))  # pyrefly: ignore[no-matching-overload]
+        return self.noise_cdf(shifted_x)
+      return (
+          (1 - self.sampling_prob) * self.noise_cdf(x)
+          + self.sampling_prob * self.noise_cdf(shifted_x)
+      )
     else:
       raise ValueError(
           f'{self.adjacency_type} adjacency type is not supported.')
 
+  @overload
+  def mu_lower_log_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def mu_lower_log_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   def mu_lower_log_cdf(
-      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes log cumulative density function of the mu_lower distribution.
 
     For any subsampling probability q:
@@ -374,23 +423,39 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
       x.
     """
     if self.adjacency_type in [AdjacencyType.ADD, AdjacencyType.REPLACE]:
+      shifted_x = (
+          float(x) - self.sensitivity
+          if isinstance(x, (int, float, np.number))
+          else np.asarray(x) - self.sensitivity
+      )
       # For performance, the case of sampling_prob=1 is handled separately.
       if self.sampling_prob == 1.0:
-        return self.noise_log_cdf(np.add(x, -self.sensitivity))  # pyrefly: ignore[no-matching-overload]
-      return np.logaddexp(
+        return self.noise_log_cdf(shifted_x)
+      logaddexp_result = np.logaddexp(
           np.log1p(-self.sampling_prob) + self.noise_log_cdf(x),
-          np.log(self.sampling_prob) +
-          self.noise_log_cdf(np.add(x, -self.sensitivity))  # pyrefly: ignore[no-matching-overload]
+          np.log(self.sampling_prob) + self.noise_log_cdf(shifted_x),
       )
+      if isinstance(x, (int, float, np.number)):
+        return float(logaddexp_result)
+      return logaddexp_result
     elif self.adjacency_type == AdjacencyType.REMOVE:
       return self.noise_log_cdf(x)
     else:
       raise ValueError(
           f'{self.adjacency_type} adjacency type is not supported.')
 
+  @overload
+  def get_delta_for_epsilon(self, epsilon: float) -> float:
+    ...
+
+  @overload
+  def get_delta_for_epsilon(self, epsilon: common.ArrayLike) -> np.ndarray:
+    ...
+
   def get_delta_for_epsilon(
-      self, epsilon: Union[float, Sequence[float]],
-  ) -> Union[float, Sequence[float]]:
+      self,
+      epsilon: float | common.ArrayLike,
+  ) -> float | np.ndarray:
     """Computes the epsilon-hockey stick divergence of the mechanism.
 
     The epsilon-hockey stick divergence of the mechanism is the value of delta
@@ -442,7 +507,7 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
         np.exp(epsilons[inverse_indices] + self.mu_lower_log_cdf(x_cutoffs)))
     # Clip delta values to lie in [0,1] (to avoid numerical errors)
     deltas = np.clip(deltas, 0, 1)
-    return float(deltas[0]) if is_scalar else deltas  # pyrefly: ignore[bad-return]
+    return float(deltas[0]) if is_scalar else deltas
 
   @abc.abstractmethod
   def privacy_loss_tail(self) -> TailPrivacyLossDistribution:
@@ -769,9 +834,16 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
+  @overload
+  def noise_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   @abc.abstractmethod
-  def noise_cdf(self, x: Union[float,
-                               Iterable[float]]) -> Union[float, np.ndarray]:
+  def noise_cdf(self, x: float | common.ArrayLike) -> float | np.ndarray:
     """Computes the cumulative density function of the noise distribution mu.
 
     Args:
@@ -787,9 +859,18 @@ class AdditiveNoisePrivacyLoss(MonotonePrivacyLoss, metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
+  @overload
+  def noise_log_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_log_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   @abc.abstractmethod
   def noise_log_cdf(
-      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes log of cumulative density function of the noise distribution mu.
 
     Args:
@@ -931,12 +1012,17 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
           f'{self.adjacency_type} adjacency type is not supported.')
 
     return TailPrivacyLossDistribution(
-        lower_x_truncation, upper_x_truncation, {  # pyrefly: ignore[bad-argument-type]
-            self.privacy_loss(lower_x_truncation):
-                self.mu_upper_cdf(lower_x_truncation),  # pyrefly: ignore[bad-assignment]
-            self.privacy_loss(upper_x_truncation):
-                1 - self.mu_upper_cdf(upper_x_truncation)  # pyrefly: ignore[bad-assignment]
-        })
+        lower_x_truncation,
+        upper_x_truncation,
+        {
+            self.privacy_loss(lower_x_truncation): (
+                self.mu_upper_cdf(lower_x_truncation)
+            ),
+            self.privacy_loss(upper_x_truncation): (
+                1 - self.mu_upper_cdf(upper_x_truncation)
+            ),
+        },
+    )
 
   def connect_dots_bounds(self) -> ConnectDotsBounds:
     """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
@@ -1012,8 +1098,15 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
       return math.inf
     return 0.5 * (-self.sensitivity - loss_threshold)
 
-  def noise_cdf(self, x: Union[float,
-                               Iterable[float]]) -> Union[float, np.ndarray]:
+  @overload
+  def noise_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
+  def noise_cdf(self, x: float | common.ArrayLike) -> float | np.ndarray:
     """Computes the cumulative density function of the Laplace distribution.
 
     Args:
@@ -1026,8 +1119,17 @@ class LaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     """
     return self._laplace_random_variable.cdf(x)
 
+  @overload
+  def noise_log_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_log_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   def noise_log_cdf(
-      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes log of cumulative density function of the Laplace distribution.
 
     Args:
@@ -1210,8 +1312,11 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       A TailPrivacyLossDistribution instance representing the tail of the
       privacy loss distribution.
     """
-    lower_x_truncation = self._gaussian_random_variable.ppf(
-        0.5 * math.exp(self._log_mass_truncation_bound))
+    lower_x_truncation = float(
+        self._gaussian_random_variable.ppf(
+            0.5 * math.exp(self._log_mass_truncation_bound)
+        )
+    )
     upper_x_truncation = -lower_x_truncation
     if self.adjacency_type == AdjacencyType.ADD:
       upper_x_truncation += self.sensitivity
@@ -1232,8 +1337,9 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
           self.privacy_loss(lower_x_truncation):
               self.mu_upper_cdf(lower_x_truncation),
       }
-    return TailPrivacyLossDistribution(lower_x_truncation, upper_x_truncation,
-                                       tail_probability_mass_function)  # pyrefly: ignore[bad-argument-type]
+    return TailPrivacyLossDistribution(
+        lower_x_truncation, upper_x_truncation, tail_probability_mass_function
+    )
 
   def connect_dots_bounds(self) -> ConnectDotsBounds:
     """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
@@ -1324,8 +1430,15 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
         * (asinh_term - privacy_loss / 2)
     )
 
-  def noise_cdf(self, x: Union[float,
-                               Iterable[float]]) -> Union[float, np.ndarray]:
+  @overload
+  def noise_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
+  def noise_cdf(self, x: float | common.ArrayLike) -> float | np.ndarray:
     """Computes the cumulative density function of the Gaussian distribution.
 
     Args:
@@ -1338,8 +1451,17 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     """
     return self._gaussian_random_variable.cdf(x)
 
+  @overload
+  def noise_log_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_log_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   def noise_log_cdf(
-      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes log of cumulative density function of the Gaussian distribution.
 
     Args:
@@ -1417,9 +1539,15 @@ class GaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     standard_deviation = common.inverse_monotone_function(
         _get_delta_for_standard_deviation, privacy_parameters.delta,
         search_parameters)
+    if standard_deviation is None:
+      raise ValueError(
+          'Cannot find standard deviation for Gaussian mechanism with '
+          f'epsilon={privacy_parameters.epsilon} and '
+          f'delta={privacy_parameters.delta}.'
+      )
 
     return GaussianPrivacyLoss(
-        standard_deviation,  # pyrefly: ignore[bad-argument-type]
+        standard_deviation,
         sensitivity=sensitivity,
         pessimistic_estimate=pessimistic_estimate,
         sampling_prob=sampling_prob,
@@ -1524,12 +1652,17 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
       raise ValueError(
           f'{self.adjacency_type} adjacency type is not supported.')
     return TailPrivacyLossDistribution(
-        lower_x_truncation, upper_x_truncation, {  # pyrefly: ignore[bad-argument-type]
-            self.privacy_loss(lower_x_truncation - 1):
-                self.mu_upper_cdf(lower_x_truncation - 1),  # pyrefly: ignore[bad-assignment]
-            self.privacy_loss(upper_x_truncation + 1):
-                1 - self.mu_upper_cdf(upper_x_truncation)  # pyrefly: ignore[bad-assignment]
-        })
+        lower_x_truncation,
+        upper_x_truncation,
+        {
+            self.privacy_loss(lower_x_truncation - 1): (
+                self.mu_upper_cdf(lower_x_truncation - 1)
+            ),
+            self.privacy_loss(upper_x_truncation + 1): (
+                1 - self.mu_upper_cdf(upper_x_truncation)
+            ),
+        },
+    )
 
   def connect_dots_bounds(self) -> ConnectDotsBounds:
     """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
@@ -1594,8 +1727,15 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
       return math.inf
     return math.floor(0.5 * (-self.sensitivity - loss_threshold))
 
-  def noise_cdf(self, x: Union[float,
-                               Iterable[float]]) -> Union[float, np.ndarray]:
+  @overload
+  def noise_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
+  def noise_cdf(self, x: float | common.ArrayLike) -> float | np.ndarray:
     """Computes cumulative density function of the discrete Laplace distribution.
 
     Args:
@@ -1609,8 +1749,17 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     """
     return self._discrete_laplace_random_variable.cdf(x)
 
+  @overload
+  def noise_log_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_log_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   def noise_log_cdf(
-      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes log of the CDF of the discrete Laplace distribution.
 
     Args:
@@ -1625,12 +1774,13 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
     return self._discrete_laplace_random_variable.logcdf(x)
 
   @classmethod
-  def from_privacy_guarantee(  # pyrefly: ignore[bad-override]
+  def from_privacy_guarantee(
       cls,
       privacy_parameters: common.DifferentialPrivacyParameters,
-      sensitivity: int = 1,
+      sensitivity: float = 1,
+      pessimistic_estimate: bool = True,
       sampling_prob: float = 1.0,
-      adjacency_type: AdjacencyType = AdjacencyType.REMOVE
+      adjacency_type: AdjacencyType = AdjacencyType.REMOVE,
   ) -> 'DiscreteLaplacePrivacyLoss':
     """Creates privacy loss for discrete Laplace mechanism with desired privacy.
 
@@ -1647,6 +1797,9 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
       privacy_parameters: the desired privacy guarantee of the mechanism.
       sensitivity: the sensitivity of function f. (i.e. the maximum absolute
         change in f when an input to a single user changes.)
+      pessimistic_estimate: a value indicating whether the rounding is done in
+        such a way that the resulting epsilon-hockey stick divergence
+        computation gives an upper estimate to the real value.
       sampling_prob: sub-sampling probability, a value in (0,1].
       adjacency_type: type of adjacency relation to used for defining the
         privacy loss distribution.
@@ -1655,6 +1808,7 @@ class DiscreteLaplacePrivacyLoss(AdditiveNoisePrivacyLoss):
       The privacy loss of the discrete Laplace mechanism with the given privacy
       guarantee.
     """
+    del pessimistic_estimate  # Unused.
     if not isinstance(sensitivity, int):
       raise ValueError(f'Sensitivity is not an integer : {sensitivity}')
     if sensitivity <= 0:
@@ -1734,7 +1888,7 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
   def __init__(self,
                sigma: float,
                sensitivity: int = 1,
-               truncation_bound: Optional[int] = None,
+               truncation_bound: int | None = None,
                sampling_prob: float = 1.0,
                adjacency_type: AdjacencyType = AdjacencyType.REMOVE) -> None:
     """Initializes the privacy loss of the discrete Gaussian mechanism.
@@ -1822,8 +1976,10 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
           f'{self.adjacency_type} adjacency type is not supported.')
 
     return TailPrivacyLossDistribution(
-        lower_x_truncation, upper_x_truncation,
-        {math.inf: self.mu_upper_cdf(lower_x_truncation - 1)})  # pyrefly: ignore[bad-argument-type, bad-assignment]
+        lower_x_truncation,
+        upper_x_truncation,
+        {math.inf: self.mu_upper_cdf(lower_x_truncation - 1)},
+    )
 
   def connect_dots_bounds(self) -> ConnectDotsBounds:
     """Computes the bounds on epsilon values to use in connect-the-dots algorithm.
@@ -1898,8 +2054,15 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
         )
     )
 
-  def noise_cdf(self, x: Union[float,
-                               Iterable[float]]) -> Union[float, np.ndarray]:
+  @overload
+  def noise_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
+  def noise_cdf(self, x: float | common.ArrayLike) -> float | np.ndarray:
     """Computes the CDF of the discrete Gaussian distribution.
 
     Args:
@@ -1911,13 +2074,29 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       the probability that the discrete Gaussian noise is less than or equal to
       x.
     """
-    clipped_x = np.clip(x, -1 * self._truncation_bound - 1,  # pyrefly: ignore[no-matching-overload]
-                        self._truncation_bound)
+    if isinstance(x, (int, float, np.number)):
+      clipped_x = np.clip(
+          float(x), -1 * self._truncation_bound - 1, self._truncation_bound
+      )
+      index = math.floor(clipped_x) - self._offset
+      return float(self._cdf_array[index])
+    clipped_x = np.clip(
+        np.asarray(x), -1 * self._truncation_bound - 1, self._truncation_bound
+    )
     indices = np.floor(clipped_x).astype('int') - self._offset
     return self._cdf_array[indices]
 
+  @overload
+  def noise_log_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_log_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   def noise_log_cdf(
-      self, x: Union[float, Iterable[float]]) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes log of the CDF of the discrete Gaussian distribution.
 
     Args:
@@ -1929,18 +2108,26 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       i.e., the log of the probability that the discrete Gaussian noise is less
       than or equal to x.
     """
-    clipped_x = np.clip(x, -1 * self._truncation_bound - 1,  # pyrefly: ignore[no-matching-overload]
-                        self._truncation_bound)
+    if isinstance(x, (int, float, np.number)):
+      clipped_x = np.clip(
+          float(x), -1 * self._truncation_bound - 1, self._truncation_bound
+      )
+      index = math.floor(clipped_x) - self._offset
+      return float(self._log_cdf_array[index])
+    clipped_x = np.clip(
+        np.asarray(x), -1 * self._truncation_bound - 1, self._truncation_bound
+    )
     indices = np.floor(clipped_x).astype('int') - self._offset
     return self._log_cdf_array[indices]
 
   @classmethod
-  def from_privacy_guarantee(  # pyrefly: ignore[bad-override]
+  def from_privacy_guarantee(
       cls,
       privacy_parameters: common.DifferentialPrivacyParameters,
-      sensitivity: int = 1,
+      sensitivity: float = 1,
+      pessimistic_estimate: bool = True,
       sampling_prob: float = 1.0,
-      adjacency_type: AdjacencyType = AdjacencyType.REMOVE
+      adjacency_type: AdjacencyType = AdjacencyType.REMOVE,
   ) -> 'DiscreteGaussianPrivacyLoss':
     """Creates the privacy loss for discrete Gaussian mechanism with desired privacy.
 
@@ -1956,6 +2143,9 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       privacy_parameters: the desired privacy guarantee of the mechanism.
       sensitivity: the sensitivity of function f. (i.e. the maximum absolute
         change in f when an input to a single user changes.)
+      pessimistic_estimate: a value indicating whether the rounding is done in
+        such a way that the resulting epsilon-hockey stick divergence
+        computation gives an upper estimate to the real value.
       sampling_prob: sub-sampling probability, a value in (0,1].
       adjacency_type: type of adjacency relation to used for defining the
         privacy loss distribution.
@@ -1964,6 +2154,7 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
       The privacy loss of the discrete Gaussian mechanism with the given privacy
       guarantee.
     """
+    del pessimistic_estimate  # Unused.
     if not isinstance(sensitivity, int):
       raise ValueError(f'Sensitivity is not an integer : {sensitivity}')
     if privacy_parameters.delta == 0:
@@ -1991,9 +2182,15 @@ class DiscreteGaussianPrivacyLoss(AdditiveNoisePrivacyLoss):
     sigma = common.inverse_monotone_function(_get_delta_for_sigma,
                                              privacy_parameters.delta,
                                              search_parameters)
+    if sigma is None:
+      raise ValueError(
+          'Cannot find sigma for discrete Gaussian mechanism with '
+          f'epsilon={privacy_parameters.epsilon} and '
+          f'delta={privacy_parameters.delta}.'
+      )
 
     return DiscreteGaussianPrivacyLoss(
-        sigma,  # pyrefly: ignore[bad-argument-type]
+        sigma,
         sensitivity=sensitivity,
         sampling_prob=sampling_prob,
         adjacency_type=adjacency_type)
@@ -2076,8 +2273,8 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
   def __init__(
       self,
       standard_deviation: float,
-      sensitivities: Sequence[float],
-      sampling_probs: Sequence[float],
+      sensitivities: common.ArrayLike,
+      sampling_probs: common.ArrayLike,
       pessimistic_estimate: bool = True,
       log_mass_truncation_bound: float = -50,
       adjacency_type: AdjacencyType = AdjacencyType.REMOVE,
@@ -2120,27 +2317,27 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
       )
 
     non_zero_indices = np.asarray(sampling_probs) != 0.0
-    sensitivities = np.asarray(sensitivities)[non_zero_indices]
-    sampling_probs = np.asarray(sampling_probs)[non_zero_indices]
-    if np.any(sensitivities < 0):  # pyrefly: ignore[unsupported-operation]
+    sensitivities_arr = np.asarray(sensitivities)[non_zero_indices]
+    sampling_probs_arr = np.asarray(sampling_probs)[non_zero_indices]
+    if np.any(sensitivities_arr < 0):
       raise ValueError(
-          f'Sensitivities contains a negative number: {sensitivities}.'
+          f'Sensitivities contains a negative number: {sensitivities_arr}.'
       )
-    if sensitivities.max() == 0.0:  # pyrefly: ignore[missing-attribute]
+    if sensitivities_arr.max() == 0.0:
       raise ValueError('Must have at least one positive sensitivity.')
-    if not math.isclose(sum(sampling_probs), 1):
+    if not math.isclose(sum(sampling_probs_arr), 1):
       raise ValueError(
-          f'Probabilities do not add up to 1: {sum(sampling_probs)}'
+          f'Probabilities do not add up to 1: {sum(sampling_probs_arr)}'
       )
-    for sampling_prob in sampling_probs:
+    for sampling_prob in sampling_probs_arr:
       if sampling_prob <= 0 or sampling_prob > 1:
         raise ValueError(
             f'Sampling probability is not in (0,1] : {sampling_prob}'
         )
     super().__init__(is_discrete=False)
     self.adjacency_type = adjacency_type
-    self.sampling_probs = sampling_probs
-    self.sensitivities = sensitivities
+    self.sampling_probs: np.ndarray = sampling_probs_arr
+    self.sensitivities: np.ndarray = sensitivities_arr
     self._standard_deviation = standard_deviation
     self._variance = standard_deviation**2
     self._pessimistic_estimate = pessimistic_estimate
@@ -2148,16 +2345,24 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
 
     # Constant properties.
     self._log_sampling_probs = np.log(self.sampling_probs)
-    self._pos_sampling_probs = self.sampling_probs[self.sensitivities > 0.0]  # pyrefly: ignore[unsupported-operation]
-    self._sampling_prob = np.clip(self._pos_sampling_probs.sum(), 0, 1)  # pyrefly: ignore[missing-attribute]
-    nonzero_sens = self.sensitivities[self.sensitivities > 0.0]  # pyrefly: ignore[unsupported-operation]
-    self._min_sens = np.min(nonzero_sens)
-    self._max_sens = np.max(nonzero_sens)
+    self._pos_sampling_probs = self.sampling_probs[self.sensitivities > 0.0]
+    self._sampling_prob = float(np.clip(self._pos_sampling_probs.sum(), 0, 1))
+    nonzero_sens = self.sensitivities[self.sensitivities > 0.0]
+    self._min_sens = float(np.min(nonzero_sens))
+    self._max_sens = float(np.max(nonzero_sens))
     self._gaussian_random_variable = stats.norm(scale=standard_deviation)
 
+  @overload
+  def mu_upper_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def mu_upper_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   def mu_upper_cdf(
-      self, x: Union[float, Iterable[float]]
-  ) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes the cumulative density function of the mu_upper distribution.
 
     For ADD adjacency type:
@@ -2176,21 +2381,31 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     if self.adjacency_type == AdjacencyType.ADD:
       return self.noise_cdf(x)
     elif self.adjacency_type == AdjacencyType.REMOVE:
-      points_per_sens = np.add.outer(np.atleast_1d(x), self.sensitivities)  # pyrefly: ignore[no-matching-overload]
-      output = (self.noise_cdf(points_per_sens) * self.sampling_probs).sum(  # pyrefly: ignore[missing-attribute, unsupported-operation]
+      points_per_sens = np.add.outer(
+          np.atleast_1d(np.asarray(x)), self.sensitivities
+      )
+      output = (self.noise_cdf(points_per_sens) * self.sampling_probs).sum(
           axis=1
       )
       if isinstance(x, numbers.Number):
-        return output[0]
+        return float(output[0])
       else:
         return output
     else:
       raise ValueError(
           f'{self.adjacency_type} adjacency type is not supported.')
 
+  @overload
+  def mu_lower_log_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def mu_lower_log_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   def mu_lower_log_cdf(
-      self, x: Union[float, Iterable[float]]
-  ) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes log cumulative density function of the mu_lower distribution.
 
     For ADD adjacency type:
@@ -2208,13 +2423,17 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
       x.
     """
     if self.adjacency_type == AdjacencyType.ADD:
-      points_per_sens = np.add.outer(np.atleast_1d(x), -self.sensitivities)  # pyrefly: ignore[no-matching-overload, unsupported-operation]
+      points_per_sens = np.add.outer(
+          np.atleast_1d(np.asarray(x)), -self.sensitivities
+      )
       logcdf_per_sens = self.noise_log_cdf(points_per_sens)
-      output = scipy.special.logsumexp(
-          logcdf_per_sens, axis=1, b=self.sampling_probs
+      output = np.asarray(
+          scipy.special.logsumexp(
+              logcdf_per_sens, axis=1, b=self.sampling_probs
+          )
       )
       if isinstance(x, numbers.Number):
-        return output[0]
+        return float(output[0])
       else:
         return output
     elif self.adjacency_type == AdjacencyType.REMOVE:
@@ -2223,9 +2442,17 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
       raise ValueError(
           f'{self.adjacency_type} adjacency type is not supported.')
 
+  @overload
+  def get_delta_for_epsilon(self, epsilon: float) -> float:
+    ...
+
+  @overload
+  def get_delta_for_epsilon(self, epsilon: common.ArrayLike) -> np.ndarray:
+    ...
+
   def get_delta_for_epsilon(
-      self, epsilon: Union[float, Sequence[float]]
-  ) -> Union[float, list[float]]:
+      self, epsilon: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes the epsilon-hockey stick divergence of the mechanism.
 
     Args:
@@ -2236,7 +2463,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
       A non-negative real number which is the epsilon-hockey stick divergence of
       the mechanism, or a numpy array if epsilon is list-like.
     """
-    epsilons = np.atleast_1d(epsilon)
+    epsilons = np.atleast_1d(np.asarray(epsilon))
     if not np.all(epsilons[1:] >= epsilons[:-1]):
       raise ValueError(f'Epsilon values must be non-decreasing: {epsilons}')
     deltas = np.zeros_like(epsilons, dtype=float)
@@ -2264,7 +2491,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
       # is fixed post-hoc at small cost in accuracy.
       for i in reversed(range(deltas.shape[0] - 1)):
         deltas[i] = max(deltas[i], deltas[i + 1])
-      return deltas  # pyrefly: ignore[bad-return]
+      return deltas
 
   def privacy_loss_tail(
       self, precision: float = 1e-4
@@ -2297,13 +2524,13 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
       privacy loss distribution.
     """
     tail_mass = 0.5 * np.exp(self._log_mass_truncation_bound)
-    z_value = self._gaussian_random_variable.ppf(tail_mass)
+    z_value = float(self._gaussian_random_variable.ppf(tail_mass))
     upper_x_truncation = -z_value
     if self.adjacency_type == AdjacencyType.ADD:
       lower_x_truncation = z_value
     elif self.adjacency_type == AdjacencyType.REMOVE:
       lower_x_truncation = common.inverse_monotone_function(
-          self.mu_upper_cdf,  # pyrefly: ignore[bad-argument-type]
+          self.mu_upper_cdf,
           tail_mass,
           common.BinarySearchParameters(
               z_value - self._max_sens,
@@ -2333,7 +2560,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
           ),
       }
     return TailPrivacyLossDistribution(
-        lower_x_truncation, upper_x_truncation, tail_probability_mass_function  # pyrefly: ignore[bad-argument-type]
+        lower_x_truncation, upper_x_truncation, tail_probability_mass_function
     )
 
   def connect_dots_bounds(self) -> ConnectDotsBounds:
@@ -2354,7 +2581,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
   def _precompute_privacy_loss_constants(self) -> np.ndarray:
     """(Pre-)computes the constants in the expression for the privacy loss."""
     sens_loss = self.privacy_loss_for_single_gaussian(
-        np.repeat(0, len(self.sensitivities)), self.sensitivities  # pyrefly: ignore[bad-argument-type]
+        np.repeat(0, len(self.sensitivities)), self.sensitivities
     )
     if self.adjacency_type == AdjacencyType.ADD:
       return self._log_sampling_probs - sens_loss
@@ -2378,7 +2605,7 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     #   return -np.logaddexp.reduce(summands)
     #
     # and similarly for .REMOVE.
-    x_loss = self.sensitivities * x / (self._variance)  # pyrefly: ignore[unsupported-operation]
+    x_loss = self.sensitivities * x / (self._variance)
     if self.adjacency_type == AdjacencyType.ADD:
       summands = self._precompute_privacy_loss_constants + x_loss
       return -np.logaddexp.reduce(summands)
@@ -2391,8 +2618,8 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
 
   def privacy_loss_for_single_gaussian(
       self,
-      x: Union[float, np.ndarray],
-      sensitivity: Union[float, np.ndarray] = 1.0
+      x: float | np.ndarray,
+      sensitivity: float | np.ndarray = 1.0,
   ) -> np.ndarray:
     """Computes the privacy loss of the Gaussian mechanism.
 
@@ -2420,9 +2647,9 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
 
   def inverse_privacy_loss_for_single_gaussian(
       self,
-      privacy_loss: Union[float, np.ndarray],
-      sensitivity: Union[float, np.ndarray] = 1.0,
-  ) -> Union[float, np.ndarray]:
+      privacy_loss: float | np.ndarray,
+      sensitivity: float | np.ndarray = 1.0,
+  ) -> float | np.ndarray:
     """Computes the inverse privacy loss for the Gaussian mechanism.
 
     Args:
@@ -2621,9 +2848,17 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     )
     return output
 
+  @overload
+  def noise_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   def noise_cdf(
-      self, x: Union[float, Iterable[float]]
-  ) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes the cumulative density function of the Gaussian distribution.
 
     Args:
@@ -2636,9 +2871,17 @@ class MixtureGaussianPrivacyLoss(MonotonePrivacyLoss):
     """
     return self._gaussian_random_variable.cdf(x)
 
+  @overload
+  def noise_log_cdf(self, x: float) -> float:
+    ...
+
+  @overload
+  def noise_log_cdf(self, x: common.ArrayLike) -> np.ndarray:
+    ...
+
   def noise_log_cdf(
-      self, x: Union[float, Iterable[float]]
-  ) -> Union[float, np.ndarray]:
+      self, x: float | common.ArrayLike
+  ) -> float | np.ndarray:
     """Computes log of cumulative density function of the Gaussian distribution.
 
     Args:

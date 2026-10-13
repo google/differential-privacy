@@ -189,8 +189,10 @@ class PLDPmfTest(parameterized.TestCase):
 
     self.assertEqual(discretization, pmf._discretization)
     if dense:
+      self.assertIsInstance(pmf, pld_pmf.DensePLDPmf)
       self._check_dense_probs(pmf, expected_lower_loss, expected_probs)
     else:
+      self.assertIsInstance(pmf, pld_pmf.SparsePLDPmf)
       self._check_sparse_probs(pmf, expected_lower_loss, expected_probs)
 
     expected_inf_mass = 1 - (1 - 0.1) * (1 -
@@ -282,8 +284,10 @@ class PLDPmfTest(parameterized.TestCase):
 
     self.assertEqual(discretization, pmf._discretization)
     if dense:
+      self.assertIsInstance(pmf, pld_pmf.DensePLDPmf)
       self._check_dense_probs(pmf, expected_lower_loss, expected_probs)
     else:
+      self.assertIsInstance(pmf, pld_pmf.SparsePLDPmf)
       self._check_sparse_probs(pmf, expected_lower_loss, expected_probs)
 
     expected_inf_mass = 1 - (1 - 0.1) * (1 -
@@ -354,6 +358,7 @@ class PLDPmfTest(parameterized.TestCase):
     self.assertEqual(discretization, pmf_result._discretization)
     self.assertAlmostEqual(1 - (1 - infinity_mass)**num_times,
                            pmf_result._infinity_mass)
+    self.assertIsInstance(pmf_result, pld_pmf.SparsePLDPmf)
     self._check_sparse_probs(pmf_result, expected_lower_loss, expected_probs)
 
   @parameterized.parameters(
@@ -384,6 +389,7 @@ class PLDPmfTest(parameterized.TestCase):
     self.assertEqual(discretization, pmf_result._discretization)
     self.assertAlmostEqual(1 - (1 - infinity_mass)**num_times,
                            pmf_result._infinity_mass)
+    self.assertIsInstance(pmf_result, pld_pmf.DensePLDPmf)
     self._check_dense_probs(pmf_result, expected_lower_loss, expected_probs)
 
   def test_self_compose_dense_truncation(self):
@@ -470,6 +476,7 @@ class PLDPmfTest(parameterized.TestCase):
                                          rounded_epsilons, deltas):
     pmf = pld_pmf.create_pmf_pessimistic_connect_dots(
         discretization, rounded_epsilons, deltas)
+    self.assertIsInstance(pmf, pld_pmf.SparsePLDPmf)
     for k, v in pmf._loss_probs.items():
       self.assertGreaterEqual(v, 0, msg=f'Probability for loss={k} is {v} < 0')
     self.assertGreaterEqual(
@@ -525,6 +532,7 @@ class PLDPmfTest(parameterized.TestCase):
     pmf = pld_pmf.create_pmf_pessimistic_connect_dots(discretization,
                                                       rounded_epsilons,
                                                       deltas)
+    self.assertIsInstance(pmf, pld_pmf.SparsePLDPmf)
     self._check_sparse_pld_pmf_equal(pmf,
                                      discretization,
                                      expected_infinity_mass,
@@ -581,6 +589,7 @@ class PLDPmfTest(parameterized.TestCase):
       deltas):
     pmf = pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
         discretization, rounded_epsilon_lower, rounded_epsilon_upper, deltas)
+    self.assertIsInstance(pmf, pld_pmf.SparsePLDPmf)
     for k, v in pmf._loss_probs.items():
       self.assertGreaterEqual(v, 0, msg=f'Probability for loss={k} is {v} < 0')
     self.assertGreaterEqual(
@@ -641,6 +650,7 @@ class PLDPmfTest(parameterized.TestCase):
       deltas, expected_loss_probs, expected_infinity_mass):
     pmf = pld_pmf.create_pmf_pessimistic_connect_dots_fixed_gap(
         discretization, rounded_epsilon_lower, rounded_epsilon_upper, deltas)
+    self.assertIsInstance(pmf, pld_pmf.SparsePLDPmf)
     self._check_sparse_pld_pmf_equal(pmf,
                                      discretization,
                                      expected_infinity_mass,

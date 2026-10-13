@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for privacy_loss_distribution.py."""
+from collections.abc import Mapping
 import math
-from typing import Any, Mapping, Optional
+from typing import Any
 import unittest
 
 from absl.testing import parameterized
@@ -36,28 +37,30 @@ def _assert_pld_pmf_equal(
     pld: privacy_loss_distribution.PrivacyLossDistribution,
     expected_rounded_pmf_add: Mapping[int, float],
     expected_infinity_mass_add: float,
-    expected_rounded_pmf_remove: Optional[Mapping[int, float]] = None,
-    expected_infinity_mass_remove: Optional[float] = None):
+    expected_rounded_pmf_remove: Mapping[int, float] | None = None,
+    expected_infinity_mass_remove: float | None = None):
   """Asserts equality of PLD with expected values."""
   def sparse_loss_probs(pmf: pld_pmf.PLDPmf) -> Mapping[int, float]:
     if isinstance(pmf, pld_pmf.SparsePLDPmf):
       return pmf._loss_probs
     elif isinstance(pmf, pld_pmf.DensePLDPmf):
-      return common.list_to_dictionary(pmf._probs, pmf._lower_loss)  # pyrefly: ignore[bad-argument-type]
+      return common.list_to_dictionary(pmf._probs, pmf._lower_loss)
     return {}
 
   test_util.assert_dictionary_almost_equal(
-      testcase, expected_rounded_pmf_add, sparse_loss_probs(pld._pmf_add))  # pyrefly: ignore[bad-argument-type]
+      testcase, expected_rounded_pmf_add, sparse_loss_probs(pld._pmf_add))
   testcase.assertAlmostEqual(expected_infinity_mass_add,
                              pld._pmf_add._infinity_mass)
   if expected_rounded_pmf_remove is None:
     testcase.assertTrue(pld._symmetric)
   else:
+    if expected_infinity_mass_remove is None:
+      testcase.fail('expected_infinity_mass_remove must not be None')
     test_util.assert_dictionary_almost_equal(
         testcase,
-        expected_rounded_pmf_remove,  # pyrefly: ignore[bad-argument-type]
-        sparse_loss_probs(pld._pmf_remove))  # pyrefly: ignore[bad-argument-type]
-    testcase.assertAlmostEqual(expected_infinity_mass_remove,  # pyrefly: ignore[no-matching-overload]
+        expected_rounded_pmf_remove,
+        sparse_loss_probs(pld._pmf_remove))
+    testcase.assertAlmostEqual(expected_infinity_mass_remove,
                                pld._pmf_remove._infinity_mass)
     testcase.assertFalse(pld._symmetric)
 
@@ -171,7 +174,9 @@ class PrivacyLossDistributionTest(parameterized.TestCase):
     if symmetric:
       _assert_pld_pmf_equal(self, pld, expected_pmf, infinity_mass)
     else:
-      _assert_pld_pmf_equal(self, pld, expected_pmf_add, infinity_mass_add,  # pyrefly: ignore[bad-argument-type]
+      self.assertIsNotNone(expected_pmf_add)
+      self.assertIsNotNone(infinity_mass_add)
+      _assert_pld_pmf_equal(self, pld, expected_pmf_add, infinity_mass_add,
                             expected_pmf, infinity_mass)
 
   def test_compute_mixture(self):
@@ -931,16 +936,18 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         use_connect_dots=False,
         neighboring_relation=neighbor_rel)
 
+    self.assertIsInstance(pld._pmf_add, pld_pmf.SparsePLDPmf)
     test_util.assert_dictionary_almost_equal(self, expected_rounded_pmf_add,
-                                             pld._pmf_add._loss_probs)  # pyrefly: ignore[missing-attribute]
+                                             pld._pmf_add._loss_probs)
     test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
                                           pld._pmf_add._infinity_mass)
     if expected_rounded_pmf_remove is None:
       self.assertTrue(pld._symmetric)
     else:
+      self.assertIsInstance(pld._pmf_remove, pld_pmf.SparsePLDPmf)
       test_util.assert_dictionary_almost_equal(self,
                                                expected_rounded_pmf_remove,
-                                               pld._pmf_remove._loss_probs)  # pyrefly: ignore[missing-attribute]
+                                               pld._pmf_remove._loss_probs)
       test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
                                             pld._pmf_remove._infinity_mass)
       self.assertFalse(pld._symmetric)
@@ -1139,9 +1146,10 @@ class GaussianPrivacyLossDistributionTest(parameterized.TestCase):
         use_connect_dots=False)
     test_util.assert_almost_greater_equal(self, stats.norm.cdf(-0.9),
                                           pld._pmf_remove._infinity_mass)
+    self.assertIsInstance(pld._pmf_remove, pld_pmf.SparsePLDPmf)
     test_util.assert_dictionary_almost_equal(
         self, expected_rounded_pmf,
-        pld._pmf_remove._loss_probs)  # pyrefly: ignore[missing-attribute]
+        pld._pmf_remove._loss_probs)
 
   @parameterized.parameters((0.5, 0.056696236, {
       3: 0.178515818,
@@ -1959,14 +1967,16 @@ class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
         use_connect_dots=False,
     )
 
+    self.assertIsInstance(pld._pmf_add, pld_pmf.SparsePLDPmf)
+    self.assertIsInstance(pld._pmf_remove, pld_pmf.SparsePLDPmf)
     test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_pmf_add, pld._pmf_add._loss_probs  # pyrefly: ignore[missing-attribute]
+        self, expected_rounded_pmf_add, pld._pmf_add._loss_probs
     )
     test_util.assert_almost_greater_equal(
         self, stats.norm.cdf(-0.9), pld._pmf_add._infinity_mass
     )
     test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_pmf_remove, pld._pmf_remove._loss_probs  # pyrefly: ignore[missing-attribute]
+        self, expected_rounded_pmf_remove, pld._pmf_remove._loss_probs
     )
     test_util.assert_almost_greater_equal(
         self, stats.norm.cdf(-0.9), pld._pmf_remove._infinity_mass
@@ -2091,14 +2101,16 @@ class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
         use_connect_dots=True,
     )
 
+    self.assertIsInstance(pld._pmf_add, pld_pmf.SparsePLDPmf)
+    self.assertIsInstance(pld._pmf_remove, pld_pmf.SparsePLDPmf)
     test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_pmf_add, pld._pmf_add._loss_probs  # pyrefly: ignore[missing-attribute]
+        self, expected_rounded_pmf_add, pld._pmf_add._loss_probs
     )
     test_util.assert_almost_greater_equal(
         self, stats.norm.cdf(-0.9), pld._pmf_add._infinity_mass
     )
     test_util.assert_dictionary_almost_equal(
-        self, expected_rounded_pmf_remove, pld._pmf_remove._loss_probs  # pyrefly: ignore[missing-attribute]
+        self, expected_rounded_pmf_remove, pld._pmf_remove._loss_probs
     )
     test_util.assert_almost_greater_equal(
         self, stats.norm.cdf(-0.9), pld._pmf_remove._infinity_mass
@@ -2170,11 +2182,13 @@ class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
     test_util.assert_almost_greater_equal(
         self, stats.norm.cdf(-0.9), pld._pmf_remove._infinity_mass
     )
+    self.assertIsInstance(pld._pmf_add, pld_pmf.SparsePLDPmf)
+    self.assertIsInstance(pld._pmf_remove, pld_pmf.SparsePLDPmf)
     test_util.assert_dictionary_almost_equal(
-        self, expected_add_pmf, pld._pmf_add._loss_probs  # pyrefly: ignore[missing-attribute]
+        self, expected_add_pmf, pld._pmf_add._loss_probs
     )
     test_util.assert_dictionary_almost_equal(
-        self, expected_remove_pmf, pld._pmf_remove._loss_probs  # pyrefly: ignore[missing-attribute]
+        self, expected_remove_pmf, pld._pmf_remove._loss_probs
     )
 
   @parameterized.named_parameters(
@@ -2252,11 +2266,13 @@ class MixtureGaussianPrivacyLossDistributionTest(parameterized.TestCase):
     self.assertAlmostEqual(
         expected_remove_infinity_mass, pld._pmf_remove._infinity_mass
     )
+    self.assertIsInstance(pld._pmf_add, pld_pmf.SparsePLDPmf)
+    self.assertIsInstance(pld._pmf_remove, pld_pmf.SparsePLDPmf)
     test_util.assert_dictionary_almost_equal(
-        self, expected_add_pmf, pld._pmf_add._loss_probs  # pyrefly: ignore[missing-attribute]
+        self, expected_add_pmf, pld._pmf_add._loss_probs
     )
     test_util.assert_dictionary_almost_equal(
-        self, expected_remove_pmf, pld._pmf_remove._loss_probs  # pyrefly: ignore[missing-attribute]
+        self, expected_remove_pmf, pld._pmf_remove._loss_probs
     )
 
   @parameterized.named_parameters(
@@ -2770,8 +2786,9 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
     if neighbor_rel == REPLACE_ONE:
       _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
     else:  # Case of REPLACE_SPECIAL.
+      self.assertIsNotNone(expected_rounded_pmf_add)
       _assert_pld_pmf_equal(
-          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0  # pyrefly: ignore[bad-argument-type]
+          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0
       )
 
   @parameterized.parameters(
@@ -2833,8 +2850,9 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
       # The true (non-discretized) PLD is
       # REMOVE: {1.224: 0.85, -1.609: 0.15}.
       # ADD: {1.609: 0.75, -1.224: 0.25}.
+      self.assertIsNotNone(expected_rounded_pmf_add)
       _assert_pld_pmf_equal(
-          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0)  # pyrefly: ignore[bad-argument-type]
+          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0)
 
   @parameterized.parameters(
       dict(
@@ -2896,8 +2914,9 @@ class RandomizedResponsePrivacyLossDistributionTest(parameterized.TestCase):
     if neighbor_rel == REPLACE_ONE:
       _assert_pld_pmf_equal(self, pld, expected_rounded_pmf, 0.0)
     else:  # Case of REPLACE_SPECIAL.
+      self.assertIsNotNone(expected_rounded_pmf_add)
       _assert_pld_pmf_equal(
-          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0  # pyrefly: ignore[bad-argument-type]
+          self, pld, expected_rounded_pmf_add, 0.0, expected_rounded_pmf, 0.0
       )
 
   @parameterized.parameters((0.0, 10), (1.1, 4), (0.5, 1))
