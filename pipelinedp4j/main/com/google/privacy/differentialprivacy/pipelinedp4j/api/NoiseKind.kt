@@ -25,10 +25,14 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind as Int
  *   epsilon, delta is not required if groups are public.
  * @property GAUSSIAN noise is sampled from a Gaussian distribution. To use it, you need to specify
  *   both epsilon and delta in absolute budgets for aggregations and total budgets.
+ * @property AUTO Let the system decide the noise kind. The system will choose the noise kind that
+ *   gives the best utility (e.g., adds less noise) for the same level of privacy based on the
+ *   parameters you provide and the aggregation you perform.
  */
 enum class NoiseKind {
   LAPLACE,
   GAUSSIAN,
+  AUTO,
 }
 
 /**
@@ -41,4 +45,5 @@ internal fun NoiseKind.toInternalNoiseKind() =
   when (this) {
     NoiseKind.LAPLACE -> InternalNoiseKind.LAPLACE
     NoiseKind.GAUSSIAN -> InternalNoiseKind.GAUSSIAN
+    NoiseKind.AUTO -> InternalNoiseKind.AUTO
   }
