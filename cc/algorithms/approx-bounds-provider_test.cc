@@ -487,7 +487,7 @@ TYPED_TEST(ApproxBoundsProviderTypedTest,
 
   EXPECT_THAT(clamped_calculation->GetNumBins(), Eq(10));
   EXPECT_THAT(clamped_calculation->GetBaseForTesting(), Eq(3));
-  EXPECT_THAT(clamped_calculation->GetScaleForTesting(), Eq(2));
+  EXPECT_THAT(clamped_calculation->GetScale(), Eq(2));
 }
 
 TYPED_TEST(ApproxBoundsProviderTypedTest,

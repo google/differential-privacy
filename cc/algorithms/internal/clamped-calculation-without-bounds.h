@@ -190,7 +190,7 @@ class ClampedCalculationWithoutBounds {
 
   int64_t GetNumBins() const { return num_bins_; }
 
-  double GetScaleForTesting() const { return scale_; }
+  double GetScale() const { return scale_; }
 
   double GetBaseForTesting() const { return base_; }
 
