@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 from absl.testing import absltest
@@ -28,6 +29,119 @@ class ContainerDpEvent(dp_event.DpEvent):
   name: str
   events: tuple[dp_event.DpEvent, ...]
   table: dict[str, dp_event.DpEvent]
+
+
+@attrs.frozen
+class _ArgSpec:
+  default: Any
+  valid: Sequence[Any] = ()
+  invalid: Sequence[Any] = ()
+
+
+_EVENT = _ArgSpec(default=dp_event.NoOpDpEvent())
+_NONNEG = _ArgSpec(default=1, valid=(0,), invalid=(-0.1, float('nan')))
+_GEQ_ONE = _ArgSpec(default=1, valid=(1,), invalid=(0, 0.9, -1, float('nan')))
+_ZERO_TO_ONE = _ArgSpec(
+    default=0.5, valid=(0.0, 1.0), invalid=(-0.1, 1.1, float('nan'))
+)
+_BOUNDED_BY_ONE = _ArgSpec(
+    default=0, valid=(0, 1), invalid=(-1, 2, float('nan'))
+)
+
+_EVENT_ARG_SPECS: Sequence[
+    tuple[type[dp_event.DpEvent], Sequence[_ArgSpec]]
+] = (
+    (dp_event.RandomizedResponseDpEvent, (_ZERO_TO_ONE, _GEQ_ONE)),
+    (dp_event.EpsilonDeltaDpEvent, (_NONNEG, _ZERO_TO_ONE)),
+    (dp_event.GaussianDpEvent, (_NONNEG,)),
+    (dp_event.LaplaceDpEvent, (_NONNEG,)),
+    (dp_event.DiscreteLaplaceDpEvent, (_NONNEG, _NONNEG)),
+    (
+        dp_event.DiscreteGaussianDpEvent,
+        (
+            _NONNEG,
+            _NONNEG,
+            _ArgSpec(
+                default=None, valid=(None, 1), invalid=(0, -1, float('nan'))
+            ),
+        ),
+    ),
+    (dp_event.SelfComposedDpEvent, (_EVENT, _NONNEG)),
+    (dp_event.PoissonSampledDpEvent, (_ZERO_TO_ONE, _EVENT)),
+    (
+        dp_event.SampledWithReplacementDpEvent,
+        (
+            _GEQ_ONE,
+            _ArgSpec(default=1, valid=(0, 5), invalid=(-1, float('nan'))),
+            _EVENT,
+        ),
+    ),
+    (
+        dp_event.SampledWithoutReplacementDpEvent,
+        (_GEQ_ONE, _BOUNDED_BY_ONE, _EVENT),
+    ),
+    (
+        dp_event.SingleEpochTreeAggregationDpEvent,
+        (
+            _NONNEG,
+            _ArgSpec(
+                default=1,
+                valid=(0, [0]),
+                invalid=(-1, float('nan'), [], [5, -1], [5, float('nan')]),
+            ),
+        ),
+    ),
+    (
+        dp_event.RepeatAndSelectDpEvent,
+        (
+            _EVENT,
+            _GEQ_ONE,
+            _ArgSpec(
+                default=1.0,
+                valid=(0.0, float('inf')),
+                invalid=(-0.1, float('nan')),
+            ),
+        ),
+    ),
+    (
+        dp_event.MixtureOfGaussiansDpEvent,
+        (
+            _NONNEG,
+            _ArgSpec(
+                default=[0.0, 1.0],
+                valid=([0.0, 0.0],),
+                invalid=([], [1.0], [-1.0, 1.0], [float('nan'), 1.0]),
+            ),
+            _ArgSpec(
+                default=[0.5, 0.5],
+                valid=([0.0, 1.0],),
+                invalid=([], [-0.1, 1.1], [float('nan'), 0.5], [0.3, 0.3]),
+            ),
+        ),
+    ),
+    (dp_event.ZCDpEvent, (_NONNEG, _NONNEG)),
+    (dp_event.ExponentialMechanismDpEvent, (_NONNEG,)),
+    (dp_event.PermuteAndFlipDpEvent, (_NONNEG,)),
+    (
+        dp_event.TruncatedSubsampledGaussianDpEvent,
+        (_NONNEG, _ZERO_TO_ONE, _NONNEG, _NONNEG),
+    ),
+    (dp_event.RandomAllocationDpEvent, (_EVENT, _BOUNDED_BY_ONE, _GEQ_ONE)),
+)
+
+
+def _generate_test_cases(
+    valid: bool,
+) -> Iterator[tuple[str, type[dp_event.DpEvent], tuple[Any, ...]]]:
+  for event_cls, specs in _EVENT_ARG_SPECS:
+    fields = attrs.fields(event_cls)
+    defaults = [s.default for s in specs]
+    for i, (field, spec) in enumerate(zip(fields, specs, strict=True)):
+      values = spec.valid if valid else spec.invalid
+      for val in values:
+        args = tuple(val if j == i else d for j, d in enumerate(defaults))
+        name = f'{event_cls.__name__}_{field.name}_{val}'
+        yield (name, event_cls, args)
 
 
 def assert_not_contains_attrs(structure: Any) -> None:
@@ -187,6 +301,15 @@ class DpEventTest(parameterized.TestCase):
     self.assertIsInstance(named_tuple.table, dict)
     self.assertEqual(named_tuple.events[0].class_name, 'GaussianDpEvent')
     self.assertEqual(named_tuple.table['laplace'].class_name, 'LaplaceDpEvent')
+
+  @parameterized.named_parameters(*_generate_test_cases(valid=True))
+  def test_valid_boundary_parameters(self, event_cls, args):
+    event_cls(*args)
+
+  @parameterized.named_parameters(*_generate_test_cases(valid=False))
+  def test_invalid_parameters_raise_value_error(self, event_cls, args):
+    with self.assertRaises(ValueError):
+      event_cls(*args)
 
 
 if __name__ == '__main__':

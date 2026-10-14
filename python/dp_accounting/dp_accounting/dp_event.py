@@ -63,6 +63,7 @@ import collections
 from collections.abc import Callable, Sequence
 import importlib
 import logging
+import math
 from typing import Any, ClassVar, Protocol, runtime_checkable
 
 import attr
@@ -210,6 +211,50 @@ def _check_attrs_cls_for_known_errors(cls: type[DpEvent]) -> None:
       )
 
 
+def _validate_nonnegative(value: float, name: str) -> None:
+  """Validates that `value` is non-negative.
+
+  Does not accept NaN, but does accept inf.
+
+  Args:
+    value: The value to validate.
+    name: The name of the value, used in the error message.
+  """
+  # Using `not ... >=` instead of `<` so that NaN is rejected while inf is
+  # accepted.
+  if not value >= 0:
+    raise ValueError(f'{name} must be non-negative. Got {value}.')
+
+
+def _validate_geq_one(value: float, name: str) -> None:
+  """Validates that `value` is >= 1.
+
+  Does not accept NaN, but does accept inf.
+
+  Args:
+    value: The value to validate.
+    name: The name of the value, used in the error message.
+  """
+  # Using `not ... >=` instead of `<` so that NaN is rejected while inf is
+  # accepted.
+  if not value >= 1:
+    raise ValueError(f'{name} must be >= 1. Got {value}.')
+
+
+def _validate_in_zero_to_one(value: float, name: str) -> None:
+  """Validates that `value` is in [0, 1].
+
+  Does not accept NaN.
+
+  Args:
+    value: The value to validate.
+    name: The name of the value, used in the error message.
+  """
+  # Using `not 0 <= ... <= 1` instead of `< 0 or > 1` so that NaN is rejected.
+  if not 0 <= value <= 1:
+    raise ValueError(f'{name} must be in [0, 1]. Got {value}.')
+
+
 @attr.s(frozen=True)
 class NoOpDpEvent(DpEvent):
   """Represents appplication of an operation with no privacy impact.
@@ -259,6 +304,10 @@ class RandomizedResponseDpEvent(DpEvent):
   noise_parameter: float
   num_buckets: int
 
+  def __attrs_post_init__(self):
+    _validate_in_zero_to_one(self.noise_parameter, 'noise_parameter')
+    _validate_geq_one(self.num_buckets, 'num_buckets')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class EpsilonDeltaDpEvent(DpEvent):
@@ -272,6 +321,10 @@ class EpsilonDeltaDpEvent(DpEvent):
   epsilon: float
   delta: float
 
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.epsilon, 'epsilon')
+    _validate_in_zero_to_one(self.delta, 'delta')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class GaussianDpEvent(DpEvent):
@@ -283,6 +336,9 @@ class GaussianDpEvent(DpEvent):
   """
 
   noise_multiplier: float
+
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.noise_multiplier, 'Noise multiplier')
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -299,6 +355,9 @@ class LaplaceDpEvent(DpEvent):
 
   noise_multiplier: float
 
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.noise_multiplier, 'Noise multiplier')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class DiscreteLaplaceDpEvent(DpEvent):
@@ -314,6 +373,10 @@ class DiscreteLaplaceDpEvent(DpEvent):
 
   noise_parameter: float
   sensitivity: int
+
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.noise_parameter, 'noise_parameter')
+    _validate_nonnegative(self.sensitivity, 'sensitivity')
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -342,6 +405,12 @@ class DiscreteGaussianDpEvent(DpEvent):
   sensitivity: float = 1.0
   dimension: int | None = None
 
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.sigma, 'sigma')
+    _validate_nonnegative(self.sensitivity, 'sensitivity')
+    if self.dimension is not None:
+      _validate_geq_one(self.dimension, 'dimension')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class SelfComposedDpEvent(DpEvent):
@@ -356,6 +425,9 @@ class SelfComposedDpEvent(DpEvent):
 
   event: DpEvent
   count: int
+
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.count, 'count')
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -413,6 +485,7 @@ class PoissonSampledDpEvent(DpEvent):
           'arguments in the wrong order. Please pass sampling_probability '
           'first, followed by event.'
       )
+    _validate_in_zero_to_one(self.sampling_probability, 'Sampling rate')
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -429,6 +502,10 @@ class SampledWithReplacementDpEvent(DpEvent):
   sample_size: int
   event: DpEvent
 
+  def __attrs_post_init__(self):
+    _validate_geq_one(self.source_dataset_size, 'source_dataset_size')
+    _validate_nonnegative(self.sample_size, 'sample_size')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class SampledWithoutReplacementDpEvent(DpEvent):
@@ -442,6 +519,15 @@ class SampledWithoutReplacementDpEvent(DpEvent):
   source_dataset_size: int
   sample_size: int
   event: DpEvent
+
+  def __attrs_post_init__(self):
+    _validate_geq_one(self.source_dataset_size, 'source_dataset_size')
+    if not 0 <= self.sample_size <= self.source_dataset_size:
+      raise ValueError(
+          'sample_size must be in [0, source_dataset_size]. Got '
+          f'sample_size={self.sample_size}, '
+          f'source_dataset_size={self.source_dataset_size}.'
+      )
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -466,6 +552,18 @@ class SingleEpochTreeAggregationDpEvent(DpEvent):
   noise_multiplier: float
   step_counts: int | list[int]
 
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.noise_multiplier, 'noise_multiplier')
+    step_counts = (
+        self.step_counts
+        if isinstance(self.step_counts, Sequence)
+        else [self.step_counts]
+    )
+    if not step_counts:
+      raise ValueError('step_counts must be non-empty.')
+    for steps in step_counts:
+      _validate_nonnegative(steps, 'step_counts')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class RepeatAndSelectDpEvent(DpEvent):
@@ -486,6 +584,10 @@ class RepeatAndSelectDpEvent(DpEvent):
   event: DpEvent
   mean: float
   shape: float
+
+  def __attrs_post_init__(self):
+    _validate_geq_one(self.mean, 'mean')
+    _validate_nonnegative(self.shape, 'shape')
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -509,6 +611,25 @@ class MixtureOfGaussiansDpEvent(DpEvent):
   sensitivities: Sequence[float]
   sampling_probs: Sequence[float]
 
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.standard_deviation, 'standard_deviation')
+    if len(self.sensitivities) != len(self.sampling_probs):
+      raise ValueError(
+          'sensitivities and sampling_probs must have the same length. Got '
+          f'len(sensitivities)={len(self.sensitivities)}, '
+          f'len(sampling_probs)={len(self.sampling_probs)}.'
+      )
+    if not self.sensitivities:
+      raise ValueError('sensitivities and sampling_probs must be non-empty.')
+    for s in self.sensitivities:
+      _validate_nonnegative(s, 'sensitivities')
+    for p in self.sampling_probs:
+      _validate_in_zero_to_one(p, 'sampling_probs')
+    if not math.isclose(sum(self.sampling_probs), 1.0):
+      raise ValueError(
+          f'sampling_probs must sum to 1. Got sum={sum(self.sampling_probs)}.'
+      )
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class ZCDpEvent(DpEvent):
@@ -526,6 +647,10 @@ class ZCDpEvent(DpEvent):
   rho: float
   xi: float = 0.0
 
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.rho, 'rho')
+    _validate_nonnegative(self.xi, 'xi')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class ExponentialMechanismDpEvent(DpEvent):
@@ -541,6 +666,9 @@ class ExponentialMechanismDpEvent(DpEvent):
   """
 
   epsilon: float
+
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.epsilon, 'epsilon')
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -563,6 +691,9 @@ class PermuteAndFlipDpEvent(DpEvent):
   """
 
   epsilon: float
+
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.epsilon, 'epsilon')
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
@@ -588,6 +719,12 @@ class TruncatedSubsampledGaussianDpEvent(DpEvent):
   truncated_batch_size: int
   noise_multiplier: float
 
+  def __attrs_post_init__(self):
+    _validate_nonnegative(self.dataset_size, 'dataset_size')
+    _validate_in_zero_to_one(self.sampling_probability, 'sampling_probability')
+    _validate_nonnegative(self.truncated_batch_size, 'truncated_batch_size')
+    _validate_nonnegative(self.noise_multiplier, 'noise_multiplier')
+
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
 class RandomAllocationDpEvent(DpEvent):
@@ -610,3 +747,11 @@ class RandomAllocationDpEvent(DpEvent):
   event: DpEvent
   num_selected: int
   num_steps: int
+
+  def __attrs_post_init__(self):
+    _validate_geq_one(self.num_steps, 'num_steps')
+    if not 0 <= self.num_selected <= self.num_steps:
+      raise ValueError(
+          'num_selected must be in [0, num_steps]. Got '
+          f'num_selected={self.num_selected}, num_steps={self.num_steps}.'
+      )
