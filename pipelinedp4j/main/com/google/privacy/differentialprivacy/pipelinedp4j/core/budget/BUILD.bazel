@@ -26,6 +26,11 @@ package(
 )
 
 kt_jvm_library(
+    name = "budget_allocation_details",
+    srcs = ["BudgetAllocationDetails.kt"],
+)
+
+kt_jvm_library(
     name = "budget_spec",
     srcs = ["BudgetSpec.kt"],
     deps = [
@@ -43,6 +48,8 @@ kt_jvm_library(
     srcs = ["BudgetAccountant.kt"],
     deps = [
         ":allocated_budget",
+        ":budget_allocation_details",
         ":budget_spec",
+        "@maven//:com_google_errorprone_error_prone_annotations",
     ],
 )
