@@ -81,6 +81,12 @@ class DpEventTest(parameterized.TestCase):
           ),
       ),
       (
+          'parallel_composed',
+          dp_event.ParallelComposedDpEvent(
+              [dp_event.GaussianDpEvent(1.0), dp_event.LaplaceDpEvent(1.0)]
+          ),
+      ),
+      (
           'poisson',
           dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0)),
       ),

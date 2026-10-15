@@ -151,6 +151,25 @@ class RdpPrivacyAccountantTest(
     self.assertTrue(aor_accountant.supports(event))
     self.assertTrue(ro_accountant.supports(event))
 
+    event = dp_event.ParallelComposedDpEvent(
+        [dp_event.GaussianDpEvent(1.0), dp_event.GaussianDpEvent(2.0)]
+    )
+    self.assertTrue(aor_accountant.supports(event))
+    self.assertTrue(ro_accountant.supports(event))
+
+    event = dp_event.ParallelComposedDpEvent([
+        dp_event.GaussianDpEvent(1.0),
+        dp_event.PoissonSampledDpEvent(0.1, dp_event.GaussianDpEvent(1.0)),
+    ])
+    self.assertTrue(aor_accountant.supports(event))
+    self.assertFalse(ro_accountant.supports(event))
+
+    event = dp_event.ParallelComposedDpEvent(
+        [dp_event.GaussianDpEvent(1.0), dp_event.UnsupportedDpEvent()]
+    )
+    self.assertFalse(aor_accountant.supports(event))
+    self.assertFalse(ro_accountant.supports(event))
+
     event = dp_event.ExponentialMechanismDpEvent(1.0)
     self.assertTrue(aor_accountant.supports(event))
     self.assertTrue(ro_accountant.supports(event))
@@ -1307,6 +1326,75 @@ class RdpPrivacyAccountantTest(
     self.assertTrue(accountant.supports(event))
     accountant.compose(event)
     self.assertAlmostEqual(accountant._extra_delta, 1e-5)
+
+  def test_parallel_composed_empty(self):
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=[2.0, 5.0])
+    accountant.compose(dp_event.ParallelComposedDpEvent([]), count=3)
+    np.testing.assert_array_equal(accountant._rdp, [0.0, 0.0])
+    self.assertEqual(accountant._extra_delta, 0.0)
+
+  def test_parallel_composed_rdp_elementwise_max_and_count(self):
+    orders = [2.0, 10.0]
+    # event1 = ZCDpEvent(rho=0.5, xi=3.0) -> [4.0, 8.0]
+    # event2 = ZCDpEvent(rho=1.0, xi=0.0) -> [2.0, 10.0]
+    # Elementwise max across subevents is [4.0, 10.0].
+    event1 = dp_event.ZCDpEvent(rho=0.5, xi=3.0)
+    event2 = dp_event.ZCDpEvent(rho=1.0, xi=0.0)
+    parallel_event = dp_event.ParallelComposedDpEvent([event1, event2])
+
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    accountant.compose(dp_event.ZCDpEvent(rho=0.25, xi=1.0))  # [1.5, 3.5]
+    accountant.compose(parallel_event, count=3)
+
+    expected_rdp = np.array([1.5 + 3 * 4.0, 3.5 + 3 * 10.0])
+    np.testing.assert_allclose(accountant._rdp, expected_rdp)
+    self.assertEqual(accountant._extra_delta, 0.0)
+
+  def test_parallel_composed_extra_delta(self):
+    orders = [2.0, 5.0]
+    event1 = dp_event.EpsilonDeltaDpEvent(epsilon=1.0, delta=0.01)
+    event2 = dp_event.EpsilonDeltaDpEvent(epsilon=0.5, delta=0.05)
+    parallel_event = dp_event.ParallelComposedDpEvent([event1, event2])
+
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    initial_delta = 0.02
+    accountant.compose(
+        dp_event.EpsilonDeltaDpEvent(epsilon=0.0, delta=initial_delta)
+    )
+    accountant.compose(parallel_event, count=3)
+
+    # Max delta across subevents is 0.05; composed 3 times on top of 0.02:
+    expected_extra_delta = 1.0 - (1.0 - initial_delta) * (1.0 - 0.05) ** 3
+    self.assertAlmostEqual(
+        accountant._extra_delta, expected_extra_delta, places=10
+    )
+
+    # Max RDP across subevents is event1 (since epsilon=1.0 > 0.5):
+    ref_accountant = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    ref_accountant.compose(event1, count=3)
+    np.testing.assert_allclose(accountant._rdp, ref_accountant._rdp)
+
+  def test_parallel_composed_non_private(self):
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=[2.0, 5.0])
+    event = dp_event.ParallelComposedDpEvent(
+        [dp_event.GaussianDpEvent(1.0), dp_event.NonPrivateDpEvent()]
+    )
+    self.assertTrue(accountant.supports(event))
+    accountant.compose(event)
+    self.assertEqual(accountant.get_epsilon(1e-5), float('inf'))
+    self.assertEqual(accountant.get_delta(1.0), 1.0)
+
+  def test_parallel_composed_unsupported_subevent(self):
+    accountant = rdp_privacy_accountant.RdpAccountant(orders=[2.0, 5.0])
+    unsupported = dp_event.UnsupportedDpEvent()
+    event = dp_event.ParallelComposedDpEvent(
+        [dp_event.GaussianDpEvent(1.0), unsupported]
+    )
+    self.assertFalse(accountant.supports(event))
+    with self.assertRaisesRegex(
+        privacy_accountant.UnsupportedEventError, 'caused by subevent'
+    ):
+      accountant.compose(event)
 
 
 if __name__ == '__main__':

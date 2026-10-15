@@ -134,6 +134,11 @@ the subsampled Gaussian mechanism used in a single iteration).
    :undoc-members:
    :show-inheritance:
 
+.. autoclass:: ParallelComposedDpEvent
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. autoclass:: RepeatAndSelectDpEvent
    :members:
    :undoc-members:

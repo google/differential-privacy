@@ -370,6 +370,31 @@ class ComposedDpEvent(DpEvent):
 
 
 @attr.s(frozen=True, slots=True, auto_attribs=True)
+class ParallelComposedDpEvent(DpEvent):
+  """Represents application of mechanisms in parallel to disjoint data subsets.
+
+  Each record in the dataset participates in at most one of the mechanisms
+  corresponding to `events`.
+
+  The tightest way to do accounting would be to maintain a separate accountant
+  for each event in events. For example, if we compose E_1 with
+  ParallelComposedDpEvent([E_2, E_3]), we could maintain two accountants, one
+  for E_1 composed with E_2 and another for E_1 composed with E_3. This is
+  computationally expensive (requiring all future events to be composed twice),
+  especially if we compose multiple ParallelComposedDpEvents, in which case the
+  memory/runtime blows up exponentially in the number of such events. Instead,
+  accountants in this library reduce each ParallelComposedDpEvent to a privacy
+  guarantee which dominates the privacy guarantee of all of the events, but may
+  not be tight for any of them. For example, a parallel composition of an
+  (epsilon, 0)-DP event and a (0, delta)-DP event might be reduced to a
+  (epsilon, delta)-DP event. This is pessimistic, but efficient and often not
+  too loose.
+  """
+
+  events: list[DpEvent]
+
+
+@attr.s(frozen=True, slots=True, auto_attribs=True)
 class PoissonSampledDpEvent(DpEvent):
   """Represents an application of Poisson subsampling.
 

@@ -1047,6 +1047,30 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
           if error := self._maybe_compose(subevent, count, do_compose):
             return error
         return None
+      case dp_event.ParallelComposedDpEvent(events=subevents):
+        max_rdp = np.zeros_like(self._orders, dtype=np.float64)
+        max_extra_delta = 0.0
+        for e in subevents:
+          sub_accountant = RdpAccountant(
+              orders=self._orders,
+              neighboring_relation=self._neighboring_relation,
+          )
+          # pylint: disable=protected-access
+          result = sub_accountant._maybe_compose(e, 1, do_compose=do_compose)
+          if result is not None:
+            return result
+          if do_compose:
+            max_rdp = np.maximum(max_rdp, sub_accountant._rdp)
+            max_extra_delta = max(max_extra_delta, sub_accountant._extra_delta)
+          # pylint: enable=protected-access
+        if do_compose:
+          self._rdp += count * max_rdp
+          # numerically stable version of 1 - (1-delta_old)(1-delta_new)^count.
+          log_term = np.log1p(-self._extra_delta) + count * np.log1p(
+              -max_extra_delta
+          )
+          self._extra_delta = -np.expm1(log_term)
+        return None
       case dp_event.EpsilonDeltaDpEvent(epsilon=eps, delta=delta):
         if do_compose:
           # numerically stable version of 1 - (1-delta_old)(1-delta_new)^count.
