@@ -539,26 +539,15 @@ def _effective_gaussian_noise_multiplier(
 
   Args:
     event: A `dp_event.DpEvent`. In order for conversion to be successful it
-      must consist of a single Gaussian-equivalent event, or a nested structure
+      must consist of a single `dp_event.GaussianDpEvent`, or a nested structure
       of `dp_event.ComposedDpEvent` and/or `dp_event.SelfComposedDpEvent`
-      bottoming out in Gaussian-equivalent events. Gaussian-equivalent events
-      are `dp_event.GaussianDpEvent`, `dp_event.DiscreteGaussianDpEvent` and
-      `dp_event.ZCDpEvent` with `xi == 0`, all of which have the RDP curve of a
-      Gaussian mechanism.
-
+      bottoming out in `dp_event.GaussianDpEvent`s.
   Returns:
     The noise multiplier of the equivalent `dp_event.GaussianDpEvent`, or the
     offending subevent if `event` is not of the form described above.
   """
   if isinstance(event, dp_event.GaussianDpEvent):
     return event.noise_multiplier
-  elif isinstance(event, dp_event.ZCDpEvent) and event.xi == 0:
-    # If xi>0 the zCDP guarantee does not correspond to a Gaussian mechanism.
-    return 1 / np.sqrt(2 * event.rho)  # rho = 1/2/noise_multiplier^2
-  elif isinstance(event, dp_event.DiscreteGaussianDpEvent):
-    # Discrete Gaussian satisfies rho-zCDP with rho = sens^2 / (2*sigma^2),
-    # equivalent to GaussianDpEvent(noise_multiplier=sigma/sensitivity).
-    return event.sigma / event.sensitivity
   elif isinstance(event, dp_event.ComposedDpEvent):
     sum_sigma_inv_sq = 0
     for e in event.events:

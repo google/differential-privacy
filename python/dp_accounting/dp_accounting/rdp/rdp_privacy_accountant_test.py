@@ -215,7 +215,11 @@ class RdpPrivacyAccountantTest(
     event = dp_event.PoissonSampledDpEvent(
         0.1, dp_event.DiscreteGaussianDpEvent(sigma=10.0)
     )
-    self.assertTrue(aor_accountant.supports(event))
+    self.assertFalse(aor_accountant.supports(event))
+    self.assertFalse(ro_accountant.supports(event))
+
+    event = dp_event.PoissonSampledDpEvent(0.1, dp_event.ZCDpEvent(1.0))
+    self.assertFalse(aor_accountant.supports(event))
     self.assertFalse(ro_accountant.supports(event))
 
   def test_rdp_composition(self):
@@ -363,34 +367,6 @@ class RdpPrivacyAccountantTest(
         int_accountant.get_epsilon(1e-5), float_accountant.get_epsilon(1e-5)
     )
 
-  def test_effective_gaussian_noise_multiplier_zcdp_basic(self):
-    sigma = 3.14159
-    event = dp_event.ZCDpEvent(0.5 / sigma**2)
-    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
-    self.assertIsInstance(result, float)
-    self.assertAlmostEqual(result, sigma)
-
-  def test_effective_gaussian_noise_multiplier_zcdp_composed(self):
-    sigma = 3.14159
-    event = dp_event.ComposedDpEvent([
-        dp_event.ZCDpEvent(0.5 / sigma**2),
-        dp_event.GaussianDpEvent(sigma),
-    ])
-    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
-    self.assertAlmostEqual(result, sigma / np.sqrt(2))
-
-  def test_effective_gaussian_noise_multiplier_zcdp_self_composed(self):
-    sigma = 3.14159
-    event = dp_event.SelfComposedDpEvent(dp_event.ZCDpEvent(0.5 / sigma**2), 2)
-    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
-    self.assertAlmostEqual(result, sigma / np.sqrt(2))
-
-  def test_effective_gaussian_noise_multiplier_zcdp_xi_positive(self):
-    # ZCDpEvent with xi > 0 does not correspond to a Gaussian mechanism.
-    event = dp_event.ZCDpEvent(1.0, xi=0.5)
-    result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
-    self.assertIsInstance(result, dp_event.DpEvent)
-
   def test_compute_rdp_multi_zcdp(self):
     alpha = 2.0
     xi1, xi2 = 3.14159, 1.23456
@@ -454,74 +430,6 @@ class RdpPrivacyAccountantTest(
     accountant2.compose(dp_event.GaussianDpEvent(sigma))
     self.assertAlmostEqual(accountant1._rdp[0], accountant2._rdp[0])
 
-  def test_poisson_sampled_zcdp_matches_gaussian(self):
-    """PoissonSampled(ZCDpEvent(xi=0)) should give same RDP as PoissonSampled(Gaussian)."""
-    orders = [1.5, 2.5, 5, 50, 100]
-    sigma = 2.5
-    rho = 0.5 / sigma**2
-    sampling_probability = 0.01
-    count = 50
-
-    gaussian_event = dp_event.SelfComposedDpEvent(
-        dp_event.PoissonSampledDpEvent(
-            sampling_probability, dp_event.GaussianDpEvent(sigma)
-        ),
-        count,
-    )
-    zcdp_event = dp_event.SelfComposedDpEvent(
-        dp_event.PoissonSampledDpEvent(
-            sampling_probability, dp_event.ZCDpEvent(rho)
-        ),
-        count,
-    )
-
-    accountant_g = rdp_privacy_accountant.RdpAccountant(orders=orders)
-    accountant_g.compose(gaussian_event)
-
-    accountant_z = rdp_privacy_accountant.RdpAccountant(orders=orders)
-    accountant_z.compose(zcdp_event)
-
-    np.testing.assert_allclose(accountant_g._rdp, accountant_z._rdp, rtol=1e-10)
-
-  def test_poisson_sampled_discrete_gaussian_matches_gaussian(self):
-    """PoissonSampled(DiscreteGaussian) should match PoissonSampled(Gaussian)."""
-    orders = [1.5, 2.5, 5, 50, 100]
-    sigma = 2.5
-    sampling_probability = 0.01
-    count = 50
-
-    gaussian_event = dp_event.SelfComposedDpEvent(
-        dp_event.PoissonSampledDpEvent(
-            sampling_probability, dp_event.GaussianDpEvent(sigma)
-        ),
-        count,
-    )
-    dg_event = dp_event.SelfComposedDpEvent(
-        dp_event.PoissonSampledDpEvent(
-            sampling_probability,
-            dp_event.DiscreteGaussianDpEvent(sigma=sigma),
-        ),
-        count,
-    )
-
-    accountant_g = rdp_privacy_accountant.RdpAccountant(orders=orders)
-    accountant_g.compose(gaussian_event)
-
-    accountant_dg = rdp_privacy_accountant.RdpAccountant(orders=orders)
-    accountant_dg.compose(dg_event)
-
-    np.testing.assert_allclose(
-        accountant_g._rdp, accountant_dg._rdp, rtol=1e-10
-    )
-
-  def test_poisson_sampled_zcdp_xi_positive_unsupported(self):
-    """PoissonSampled(ZCDpEvent(xi>0)) should not be supported."""
-    event = dp_event.PoissonSampledDpEvent(
-        0.01, dp_event.ZCDpEvent(1.0, xi=0.5)
-    )
-    accountant = rdp_privacy_accountant.RdpAccountant(orders=[2.0])
-    self.assertFalse(accountant.supports(event))
-
   def test_compute_rdp_exponential_mechanism(self):
     alphas = [1.0, 1000.0]
     accountant = rdp_privacy_accountant.RdpAccountant(orders=alphas)
@@ -539,13 +447,25 @@ class RdpPrivacyAccountantTest(
     np.testing.assert_array_almost_equal(pf._rdp, lap._rdp)
 
   @parameterized.named_parameters(
-      ('simple', _LAPLACE_EVENT),
-      ('composed', dp_event.ComposedDpEvent([_LAPLACE_EVENT])),
-      ('self_composed', dp_event.SelfComposedDpEvent(_LAPLACE_EVENT, 3)),
+      ('simple', _LAPLACE_EVENT, _LAPLACE_EVENT),
+      ('composed', dp_event.ComposedDpEvent([_LAPLACE_EVENT]), _LAPLACE_EVENT),
+      (
+          'self_composed',
+          dp_event.SelfComposedDpEvent(_LAPLACE_EVENT, 3),
+          _LAPLACE_EVENT,
+      ),
+      ('zcdp', dp_event.ZCDpEvent(1.0), dp_event.ZCDpEvent(1.0)),
+      (
+          'discrete_gaussian',
+          dp_event.DiscreteGaussianDpEvent(1.0),
+          dp_event.DiscreteGaussianDpEvent(1.0),
+      ),
   )
-  def test_effective_gaussian_noise_multiplier_invalid_event(self, event):
+  def test_effective_gaussian_noise_multiplier_invalid_event(
+      self, event, expected
+  ):
     result = rdp_privacy_accountant._effective_gaussian_noise_multiplier(event)
-    self.assertEqual(result, _LAPLACE_EVENT)
+    self.assertEqual(result, expected)
 
   def test_compute_rdp_poisson_sampled_gaussian(self):
     orders = [1.5, 2.5, 5, 50, 100, np.inf]
