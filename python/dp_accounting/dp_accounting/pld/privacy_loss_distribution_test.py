@@ -3092,5 +3092,73 @@ class IdentityPrivacyLossDistributionTest(parameterized.TestCase):
     _assert_pld_pmf_equal(self, pld, {1: 0.5, -1: 0.5}, 0.0)
 
 
+def _expected_bounded_range_delta(epsilon: float, nu: float) -> float:
+  if epsilon < -nu:
+    return 1.0 - math.exp(epsilon)
+  if epsilon > nu:
+    return 0.0
+  return (math.exp(nu / 2) - math.exp(epsilon / 2)) ** 2 / (math.exp(nu) - 1)
+
+
+class BoundedRangePrivacyLossDistributionTest(parameterized.TestCase):
+
+  @parameterized.parameters((0.5, 0.05), (1.0, 0.1), (2.0, 0.2))
+  def test_delta_at_grid_points(self, nu, discretization):
+    pld = privacy_loss_distribution.create_tight_dominating_bounded_range_pld(
+        nu=nu, value_discretization_interval=discretization
+    )
+    max_grid_point = round(nu / discretization)
+    for k in range(-max_grid_point, max_grid_point + 1):
+      eps = k * discretization
+      self.assertAlmostEqual(
+          pld.get_delta_for_epsilon(eps),
+          _expected_bounded_range_delta(eps, nu),
+          delta=1e-12,  # in grid points, it should be very accurate.
+      )
+
+  @parameterized.parameters((0.5, 0.05), (1.0, 0.1), (2.0, 0.2))
+  def test_delta_slightly_before_grid_points(self, nu, discretization):
+    pld = privacy_loss_distribution.create_tight_dominating_bounded_range_pld(
+        nu=nu, value_discretization_interval=discretization
+    )
+    max_grid_point = round(nu / discretization)
+    for k in range(-max_grid_point + 1, max_grid_point + 1):
+      eps = k * discretization - 1e-5
+      actual_delta = pld.get_delta_for_epsilon(eps)
+      expected_delta = _expected_bounded_range_delta(eps, nu)
+      # Between grid points, by the properties of the connect-the-dots
+      # approximation computed delta should be slightly larger than the expected
+      # delta.
+      self.assertGreater(actual_delta, expected_delta)
+      self.assertAlmostEqual(actual_delta, expected_delta, delta=1e-4)
+
+  @parameterized.parameters((0.5, 0.05), (1.0, 0.1), (2.0, 0.2))
+  def test_delta_outside_range(self, nu, discretization):
+    pld = privacy_loss_distribution.create_tight_dominating_bounded_range_pld(
+        nu=nu, value_discretization_interval=discretization
+    )
+    for eps in [
+        -2 * nu,
+        -nu - 0.5,
+        -nu - 0.13 * discretization,
+        nu + 0.13 * discretization,
+        nu + 0.5,
+        2 * nu,
+    ]:
+      self.assertAlmostEqual(
+          pld.get_delta_for_epsilon(eps),
+          _expected_bounded_range_delta(eps, nu),
+          delta=1e-12,  # outside the range, it should be very accurate.
+      )
+
+  @parameterized.parameters((0.5, 0.05), (1.0, 0.1), (2.0, 0.2))
+  def test_get_epsilon_for_delta_extremes(self, nu, discretization):
+    pld = privacy_loss_distribution.create_tight_dominating_bounded_range_pld(
+        nu=nu, value_discretization_interval=discretization
+    )
+    self.assertAlmostEqual(pld.get_epsilon_for_delta(0.0), nu)
+    self.assertEqual(pld.get_epsilon_for_delta(1.0), 0.0)
+
+
 if __name__ == '__main__':
   unittest.main()

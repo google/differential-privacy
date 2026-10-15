@@ -1487,3 +1487,58 @@ def from_privacy_parameters(
   return PrivacyLossDistribution.create_from_rounded_probability(
       rounded_probability_mass_function, privacy_parameters.delta,
       value_discretization_interval)
+
+
+def create_tight_dominating_bounded_range_pld(
+    nu: float,
+    value_discretization_interval: float = 1e-4,
+) -> PrivacyLossDistribution:
+  """Creates a connect-the-dots PLD for a nu-Bounded Range mechanism.
+
+  According to https://arxiv.org/pdf/2610.17249 Theorem 3.1: the density of the
+  tight dominating bounded range PLD:
+    f(x) = D * exp(x/2), x in [-nu, nu]
+    f(x) = 0, otherwise.
+    where D = 1 / (4 sinh(nu/2)) normalizing constant.
+
+  Then
+    delta(epsilon) = (exp(nu/2) - exp(epsilon/2))**2 / (exp(nu) - 1), for
+    epsilon in [-nu, nu].
+    0, epsilon > nu.
+    1-exp(epsilon), epsilon < -nu.
+
+  Note: nu-Exponential mechanism is nu-Bounded Range mechanism.
+
+  Args:
+    nu: parameter of a Bounded Range mechanism.
+    value_discretization_interval: the length of the dicretization interval for
+      the privacy loss distribution.
+
+  Returns:
+    The privacy loss distribution corresponding to the nu-Bounded Range
+    mechanism with given parameters.
+  """
+
+  # For more numerically stable computation, we can rewrite use formula:
+  # delta(epsilon) = (exp((epsilon-nu)/2)-1)**2 * / (1-exp(-nu))
+  # and use np.expm1 for improving accuracy.
+
+  c_nu = -1 / np.expm1(-nu)  # independent of epsilon
+
+  def calc_delta(x: np.ndarray) -> np.ndarray:
+    return np.expm1((x - nu) / 2) ** 2 * c_nu
+
+  max_grid_point = int(np.ceil(nu / value_discretization_interval))
+  rounded_epsilons = np.linspace(
+      -max_grid_point, max_grid_point, num=2 * max_grid_point + 1
+  )
+  epsilons = rounded_epsilons * value_discretization_interval
+  deltas = np.zeros_like(epsilons, dtype=float)
+  deltas[1:-1] = calc_delta(epsilons[1:-1])
+  deltas[0] = -np.expm1(-max_grid_point * value_discretization_interval)
+
+  return PrivacyLossDistribution(
+      pld_pmf.create_pmf_pessimistic_connect_dots(
+          value_discretization_interval, rounded_epsilons, deltas
+      )
+  )
