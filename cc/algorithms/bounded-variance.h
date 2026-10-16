@@ -159,9 +159,9 @@ class BoundedVariance : public Algorithm<T> {
   static double MidpointOfSquares(T lower, T upper) {
     DCHECK_GE(upper, lower);
     if (0 > lower && 0 < upper) {
-      return std::max(lower * lower, upper * upper) / 2;
+      return std::max(lower * lower, upper * upper) / 2.0;
     }
-    return lower * lower + (upper * upper - lower * lower) / 2;
+    return lower * lower + (upper * upper - lower * lower) / 2.0;
   }
 
   // Friend class for testing only
@@ -245,7 +245,7 @@ class BoundedVarianceWithFixedBounds : public BoundedVariance<T> {
 
  protected:
   absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
-    const double sum_midpoint = lower_ + ((upper_ - lower_) / 2);
+    const double sum_midpoint = lower_ + ((upper_ - lower_) / 2.0);
     const double sum_of_squares_midpoint =
         BoundedVariance<T>::MidpointOfSquares(lower_, upper_);
 
@@ -500,7 +500,7 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     const double noised_count = count_mechanism_->AddNoise(partial_count_);
 
     // Calculate noised normalized sum
-    const T sum_midpoint = lower + ((upper - lower) / 2);
+    const double sum_midpoint = lower + ((upper - lower) / 2.0);
     ASSIGN_OR_RETURN(
         std::unique_ptr<NumericalMechanism> sum_mechanism,
         BoundedVariance<T>::BuildSumMechanism(

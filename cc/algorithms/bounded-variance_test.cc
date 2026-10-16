@@ -56,6 +56,12 @@ class BoundedVarianceTestPeer {
                                  BoundedVariance<T>* bv) {
     bv->AddMultipleEntries(t, num_of_entries);
   }
+
+  template <typename T,
+            std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+  static double MidpointOfSquares(T lower, T upper) {
+    return BoundedVariance<T>::MidpointOfSquares(lower, upper);
+  }
 };
 
 namespace {
@@ -1085,6 +1091,89 @@ TEST(BoundedVarianceTest, ApproxBoundsMechanismHasExpectedVariance) {
                   ->GetMechanismForTesting()
                   ->GetVariance(),
               DoubleEq(expected_variance));
+}
+
+TYPED_TEST(BoundedVarianceTest, MidpointOfSquaresFractionalResult) {
+  EXPECT_THAT(BoundedVarianceTestPeer::MidpointOfSquares<TypeParam>(-1, 1),
+              DoubleEq(0.5));
+  EXPECT_THAT(BoundedVarianceTestPeer::MidpointOfSquares<TypeParam>(0, 1),
+              DoubleEq(0.5));
+  EXPECT_THAT(BoundedVarianceTestPeer::MidpointOfSquares<TypeParam>(1, 2),
+              DoubleEq(2.5));
+}
+
+TEST(BoundedVarianceWithFixedBoundsTest,
+     CentersIntegerQueriesWithFractionalMidpoints) {
+  std::unique_ptr<test_utils::MockLaplaceMechanism> mock_count_mechanism =
+      std::make_unique<test_utils::MockLaplaceMechanism>();
+  std::unique_ptr<test_utils::MockLaplaceMechanism> mock_sum_mechanism =
+      std::make_unique<test_utils::MockLaplaceMechanism>();
+  std::unique_ptr<test_utils::MockLaplaceMechanism>
+      mock_sum_of_squares_mechanism =
+          std::make_unique<test_utils::MockLaplaceMechanism>();
+
+  test_utils::MockLaplaceMechanism* mock_count_ptr = mock_count_mechanism.get();
+  test_utils::MockLaplaceMechanism* mock_sum_ptr = mock_sum_mechanism.get();
+  test_utils::MockLaplaceMechanism* mock_sum_of_squares_ptr =
+      mock_sum_of_squares_mechanism.get();
+
+  // For bounds [0, 1] and a single entry of 1, both sum_midpoint and
+  // sum_of_squares_midpoint are 0.5, so the centered sum and centered sum of
+  // squares passed to AddDoubleNoise should both be 1 - 1 * 0.5 = 0.5.
+  EXPECT_CALL(*mock_count_ptr, AddInt64Noise(1))
+      .WillOnce(::testing::Return(2));
+  EXPECT_CALL(*mock_sum_ptr, AddDoubleNoise(DoubleEq(0.5)))
+      .WillOnce(::testing::Return(0.5));
+  EXPECT_CALL(*mock_sum_of_squares_ptr, AddDoubleNoise(DoubleEq(0.5)))
+      .WillOnce(::testing::Return(0.5));
+
+  BoundedVarianceWithFixedBounds<int64_t> bv(
+      /*epsilon=*/1.0,
+      /*lower=*/0,
+      /*upper=*/1, std::move(mock_count_mechanism),
+      std::move(mock_sum_mechanism), std::move(mock_sum_of_squares_mechanism));
+
+  bv.AddEntry(1);
+  absl::StatusOr<Output> result = bv.PartialResult();
+  ASSERT_OK(result);
+  EXPECT_THAT(GetValue<double>(*result), DoubleEq(0.1875));
+}
+
+TYPED_TEST(BoundedVarianceTest, FractionalMidpointWithApproxBounds) {
+  absl::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> bounds =
+      typename ApproxBounds<TypeParam>::Builder()
+          .SetEpsilon(0.5)
+          .SetNumBins(4)
+          .SetBase(2)
+          .SetScale(1)
+          .SetThresholdForTest(0.5)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(bounds);
+
+  std::unique_ptr<test_utils::MockLaplaceMechanism> mock_count_mechanism =
+      std::make_unique<test_utils::MockLaplaceMechanism>();
+  test_utils::MockLaplaceMechanism* mock_count_ptr = mock_count_mechanism.get();
+  EXPECT_CALL(*mock_count_ptr, AddInt64Noise(2))
+      .WillOnce(::testing::Return(4));
+
+  BoundedVarianceWithApproxBounds<TypeParam> bv(
+      /*epsilon=*/1.0, /*epsilon_for_sum=*/0.25, /*epsilon_for_squares=*/0.25,
+      /*l0_sensitivity=*/1, /*max_contributions_per_partition=*/1,
+      std::make_unique<ZeroNoiseMechanism::Builder>(),
+      std::move(mock_count_mechanism),
+      std::make_unique<ApproxBoundsAsBoundsProvider<TypeParam>>(
+          std::move(bounds).value()));
+
+  // Two entries of 1 produce equal approx bounds [1, 1], which are widened to
+  // [0, 1]. With partial_count == 2 and noised_count == 4, both mean and
+  // mean_of_square evaluate to (2 - 2 * 0.5) / 4 + 0.5 = 0.75, yielding a
+  // variance of 0.75 - 0.75^2 = 0.1875.
+  bv.AddEntry(1);
+  bv.AddEntry(1);
+  absl::StatusOr<Output> result = bv.PartialResult();
+  ASSERT_OK(result);
+  EXPECT_THAT(GetValue<double>(*result), DoubleEq(0.1875));
 }
 
 }  //  namespace
