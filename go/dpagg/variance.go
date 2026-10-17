@@ -350,6 +350,9 @@ func (bv *BoundedVariance) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode BoundedVariance from bytes")
 	}
+	if err := checks.CheckBoundsFloat64(enc.Lower, enc.Upper); err != nil {
+		return fmt.Errorf("couldn't decode BoundedVariance: %v", err)
+	}
 	*bv = BoundedVariance{
 		lower:                  enc.Lower,
 		upper:                  enc.Upper,
