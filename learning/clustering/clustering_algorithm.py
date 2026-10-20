@@ -90,7 +90,7 @@ class ClusteringMetrics():
 
     # True Non-matches
     true_label_count = np.sum(cross_label_histogram, axis=0)
-    self.true_pairs = np.sum(true_label_count * (true_label_count - 1) / 2)
+    self.true_pairs = np.sum(true_label_count * (true_label_count - 1) / 2)  # pyrefly: ignore[bad-assignment]
     self.true_nonmatch_count = (
         (np.sum(true_label_count**2) - hist_square_sum) / 2)
     self.true_nonmatch_frac = self.true_nonmatch_count / self.true_pairs
