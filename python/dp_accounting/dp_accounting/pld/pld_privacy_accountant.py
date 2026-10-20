@@ -294,9 +294,11 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         # applied to that single-application PLD below, and only the resulting
         # subsampled PLD is self-composed `count` times.
         # pylint: disable=protected-access
-        sub_accountant._maybe_compose(
+        composition_error = sub_accountant._maybe_compose(
             event.event, count=1, do_compose=do_compose
         )
+        if composition_error is not None:
+          return composition_error
         if do_compose:
           if sub_accountant._contains_non_dp_event:
             self._contains_non_dp_event = True

@@ -184,6 +184,64 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     event = dp_event.PoissonSampledDpEvent(0.1, dp_event.LaplaceDpEvent(1.0))
     self.assertFalse(pld_accountant.supports(event))
 
+  @parameterized.product(
+      unsupported_case=[
+          (
+              dp_event.UnsupportedDpEvent(),
+              'Unsupported event.',
+          ),
+          (
+              dp_event.RandomizedResponseDpEvent(0.0, 2),
+              'neighboring_relation must be `REPLACE_ONE` or `REPLACE_SPECIAL`',
+          ),
+      ],
+      nest_fn=[
+          lambda event: dp_event.PoissonSampledDpEvent(0.5, event),
+          lambda event: dp_event.PoissonSampledDpEvent(
+              0.5, dp_event.SelfComposedDpEvent(event, 2)
+          ),
+          lambda event: dp_event.PoissonSampledDpEvent(
+              0.5,
+              dp_event.ComposedDpEvent([
+                  dp_event.EpsilonDeltaDpEvent(0.3, 0.01), event
+              ]),
+          ),
+          lambda event: dp_event.PoissonSampledDpEvent(
+              0.5, dp_event.PoissonSampledDpEvent(0.2, event)
+          ),
+          lambda event: dp_event.SelfComposedDpEvent(
+              dp_event.PoissonSampledDpEvent(0.5, event), 2
+          ),
+          lambda event: dp_event.ComposedDpEvent([
+              dp_event.EpsilonDeltaDpEvent(0.3, 0.01),
+              dp_event.PoissonSampledDpEvent(0.5, event),
+          ]),
+      ],
+      prepopulated=[False, True],
+  )
+  def test_poisson_subsampling_rejects_unsupported_subevent(
+      self, unsupported_case, nest_fn, prepopulated
+  ):
+    unsupported_event, error_message = unsupported_case
+    event = nest_fn(unsupported_event)
+    accountant = pld_privacy_accountant.PLDAccountant()
+    if prepopulated:
+      accountant.compose(dp_event.EpsilonDeltaDpEvent(0.5, 0.01))
+    ledger_before = accountant.ledger
+    epsilon_before = accountant.get_epsilon(0.05)
+    delta_before = accountant.get_delta(0.1)
+
+    self.assertFalse(accountant.supports(event))
+    with self.assertRaises(privacy_accountant.UnsupportedEventError) as error:
+      accountant.compose(event, count=3)
+    self.assertIn(error_message, str(error.exception))
+    self.assertEndsWith(
+        str(error.exception), f'caused by subevent {unsupported_event}.'
+    )
+    self.assertEqual(accountant.ledger, ledger_before)
+    self.assertEqual(accountant.get_epsilon(0.05), epsilon_before)
+    self.assertEqual(accountant.get_delta(0.1), delta_before)
+
   @parameterized.parameters(
       (pld_privacy_accountant.NeighborRel.REPLACE_ONE, True),
       (pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL, True),
@@ -334,6 +392,7 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     subsampled_gaussian_event = dp_event.PoissonSampledDpEvent(
         0.2, dp_event.GaussianDpEvent(noise_multiplier=0.5))
     accountant = pld_privacy_accountant.PLDAccountant()
+    self.assertTrue(accountant.supports(subsampled_gaussian_event))
     accountant.compose(subsampled_gaussian_event, 1)
     accountant.compose(subsampled_gaussian_event, 2)
 
@@ -376,6 +435,7 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     subsampled_laplace_event = dp_event.PoissonSampledDpEvent(
         0.2, dp_event.LaplaceDpEvent(noise_multiplier=0.5))
     accountant = pld_privacy_accountant.PLDAccountant()
+    self.assertTrue(accountant.supports(subsampled_laplace_event))
     accountant.compose(subsampled_laplace_event, 1)
     accountant.compose(subsampled_laplace_event, 2)
 
@@ -472,7 +532,9 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
       self, sub_event, expected_delta, expected_epsilon
   ):
     accountant = pld_privacy_accountant.PLDAccountant()
-    accountant.compose(dp_event.PoissonSampledDpEvent(0.5, sub_event))
+    event = dp_event.PoissonSampledDpEvent(0.5, sub_event)
+    self.assertTrue(accountant.supports(event))
+    accountant.compose(event)
     self.assertAlmostEqual(accountant.get_delta(0.0), expected_delta)
     self.assertAlmostEqual(accountant.get_epsilon(0.1), expected_epsilon)
 
