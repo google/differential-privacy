@@ -69,6 +69,31 @@ def get_epsilon_gaussian(
   )
 
 
+def get_delta_gaussian(
+    epsilon: float, sigma: float
+) -> float:
+  """Compute the delta for the Gaussian mechanism with the given DP params.
+
+  Args:
+    epsilon: The target epsilon.
+    sigma: The standard deviation of the Gaussian noise.
+
+  Returns:
+    The delta for the Gaussian mechanism with the given DP params.
+  """
+  if epsilon < 0:
+    raise ValueError(f'epsilon must be non-negative, got epsilon={epsilon}.')
+  if sigma < 0:
+    raise ValueError(f'sigma must be non-negative, got sigma={sigma}.')
+
+  if sigma == np.inf or epsilon == np.inf:
+    return 0
+  elif sigma == 0:
+    return 1
+
+  return np.exp(_get_log_delta(sigma, epsilon))
+
+
 def get_sigma_gaussian(
     epsilon: float, delta: float, tol: float = 1.0e-12
 ) -> float:
