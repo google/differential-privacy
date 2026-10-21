@@ -379,6 +379,9 @@ func (bm *BoundedMean) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode BoundedMean from bytes")
 	}
+	if err := checks.CheckBoundsFloat64(enc.Lower, enc.Upper); err != nil {
+		return fmt.Errorf("couldn't decode BoundedMean: %v", err)
+	}
 	*bm = BoundedMean{
 		lower:         enc.Lower,
 		upper:         enc.Upper,
