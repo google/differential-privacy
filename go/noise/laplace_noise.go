@@ -17,6 +17,7 @@
 package noise
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/google/differential-privacy/go/v4/checks"
@@ -61,7 +62,11 @@ func (laplace) AddNoiseFloat64(x float64, l0Sensitivity int64, lInfSensitivity, 
 	if err := checkArgsLaplace(l0Sensitivity, lInfSensitivity, epsilon, delta); err != nil {
 		return 0, err
 	}
-	return addLaplaceFloat64(x, epsilon, lInfSensitivity*float64(l0Sensitivity) /* l1Sensitivity */), nil
+	l1Sensitivity := lInfSensitivity * float64(l0Sensitivity)
+	if math.IsInf(l1Sensitivity, 0) || math.IsNaN(l1Sensitivity) {
+		return 0, fmt.Errorf("l1Sensitivity = lInfSensitivity * l0Sensitivity overflows: %v * %v = %v, must be finite", lInfSensitivity, l0Sensitivity, l1Sensitivity)
+	}
+	return addLaplaceFloat64(x, epsilon, l1Sensitivity), nil
 }
 
 // AddNoiseInt64 adds Laplace noise to the specified int64 x so that the
@@ -71,7 +76,13 @@ func (laplace) AddNoiseInt64(x, l0Sensitivity, lInfSensitivity int64, epsilon, d
 	if err := checkArgsLaplace(l0Sensitivity, float64(lInfSensitivity), epsilon, delta); err != nil {
 		return 0, err
 	}
-	return addLaplaceInt64(x, epsilon, lInfSensitivity*l0Sensitivity /* l1Sensitivity */), nil
+	// Check for int64 overflow: if both operands have the same sign and the
+	// product divided by one operand does not equal the other, it overflowed.
+	l1Sensitivity := lInfSensitivity * l0Sensitivity
+	if l0Sensitivity != 0 && l1Sensitivity/l0Sensitivity != lInfSensitivity {
+		return 0, fmt.Errorf("l1Sensitivity = lInfSensitivity * l0Sensitivity overflows int64: %v * %v", lInfSensitivity, l0Sensitivity)
+	}
+	return addLaplaceInt64(x, epsilon, l1Sensitivity), nil
 }
 
 // Threshold returns the smallest threshold k to use in a differentially private
