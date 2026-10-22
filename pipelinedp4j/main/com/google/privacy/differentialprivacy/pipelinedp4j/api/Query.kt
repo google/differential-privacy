@@ -28,6 +28,7 @@ import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkCollect
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.FrameworkTable
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.MetricType
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.SelectPartitionsParams
+import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetAllocationDetails
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.DpAggregates
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.PerFeature
 import com.google.privacy.differentialprivacy.pipelinedp4j.proto.copy
@@ -71,7 +72,17 @@ protected constructor(
     validate()
   }
 
-  protected fun runWithDpEngine(testMode: TestMode): FrameworkTable<GroupKeysT, DpAggregates> {
+  /**
+   * The result of running the DP engine.
+   *
+   * Contains the aggregated metrics and budget allocation details.
+   */
+  protected data class DpEngineResult<GroupKeysT>(
+    val aggregationResults: FrameworkTable<GroupKeysT, DpAggregates>,
+    val budgetAllocationDetails: List<BudgetAllocationDetails>,
+  )
+
+  protected fun runWithDpEngine(testMode: TestMode): DpEngineResult<GroupKeysT> {
     val dpEngine =
       DpEngine.create(
         encoderFactory,
@@ -84,13 +95,17 @@ protected constructor(
       val extractors =
         createDataExtractors(valueExtractor = null, vectorExtractor = null, featureId = null)
       val result = dpEngine.selectPartitions(data, createSelectPartitionsParams(), extractors)
-      dpEngine.done()
+      val budgetAllocationDetails = dpEngine.done()
 
-      return result.mapToTable(
-        "Add empty DpAggregates",
-        groupKeyEncoder,
-        encoderFactory.protos(DpAggregates::class),
-        { it to DpAggregates.getDefaultInstance() },
+      return DpEngineResult(
+        aggregationResults =
+          result.mapToTable(
+            "Add empty DpAggregates",
+            groupKeyEncoder,
+            encoderFactory.protos(DpAggregates::class),
+            { it to DpAggregates.getDefaultInstance() },
+          ),
+        budgetAllocationDetails = budgetAllocationDetails,
       )
     }
 
@@ -133,7 +148,7 @@ protected constructor(
         aggregateWithDpEngine(dpEngine, featureAggregation, listOf(featureAggregation), partitions)
       aggResults.add(result)
     }
-    dpEngine.done()
+    val budgetAllocationDetails = dpEngine.done()
 
     val featureIdPerRun =
       if (valueAndVectorAggs.isEmpty()) {
@@ -141,34 +156,40 @@ protected constructor(
       } else {
         valueAndVectorAggs.map { it.getFeatureId() }
       }
-    return aggResults
-      .zip(featureIdPerRun)
-      .map { (table, featureId) ->
-        table.mapValues("TagWithFeatureId", encoderFactory.protos(DpAggregates::class)) { _, agg ->
-          if (featureId == null) {
-            agg
-          } else {
-            val perFeature = constructPerFeature(agg, featureId)
-            dpAggregates {
-              count = agg.count
-              privacyIdCount = agg.privacyIdCount
-              this.perFeature += perFeature
+    val aggregationResults =
+      aggResults
+        .zip(featureIdPerRun)
+        .map { (table, featureId) ->
+          table.mapValues("TagWithFeatureId", encoderFactory.protos(DpAggregates::class)) { _, agg
+            ->
+            if (featureId == null) {
+              agg
+            } else {
+              val perFeature = constructPerFeature(agg, featureId)
+              dpAggregates {
+                count = agg.count
+                privacyIdCount = agg.privacyIdCount
+                this.perFeature += perFeature
+              }
             }
           }
         }
-      }
-      .reduce {
-        acc: FrameworkTable<GroupKeysT, DpAggregates>,
-        table: FrameworkTable<GroupKeysT, DpAggregates> ->
-        acc.flattenWith("FlattenResultsFromMultipleRuns", table)
-      }
-      .groupAndCombineValues("MergeDpAggregates") { acc, dpAggregatesFromSingleRun ->
-        acc.copy {
-          count += dpAggregatesFromSingleRun.count
-          privacyIdCount += dpAggregatesFromSingleRun.privacyIdCount
-          perFeature += dpAggregatesFromSingleRun.perFeatureList
+        .reduce {
+          acc: FrameworkTable<GroupKeysT, DpAggregates>,
+          table: FrameworkTable<GroupKeysT, DpAggregates> ->
+          acc.flattenWith("FlattenResultsFromMultipleRuns", table)
         }
-      }
+        .groupAndCombineValues("MergeDpAggregates") { acc, dpAggregatesFromSingleRun ->
+          acc.copy {
+            count += dpAggregatesFromSingleRun.count
+            privacyIdCount += dpAggregatesFromSingleRun.privacyIdCount
+            perFeature += dpAggregatesFromSingleRun.perFeatureList
+          }
+        }
+    return DpEngineResult(
+      aggregationResults = aggregationResults,
+      budgetAllocationDetails = budgetAllocationDetails,
+    )
   }
 
   private fun validate() {
@@ -277,8 +298,9 @@ protected constructor(
   private fun requireDistinctValueExtractors(aggregationsPerValue: List<ValueAggregations<*>>) {
     val valueExtractorCounts = aggregationsPerValue.groupingBy { it.valueExtractor }.eachCount()
     val duplicates = valueExtractorCounts.filter { it.value > 1 }.keys
-    val valueAggregationsWithDuplicates =
-      aggregationsPerValue.filter { it.valueExtractor in duplicates }
+    val valueAggregationsWithDuplicates = aggregationsPerValue.filter {
+      it.valueExtractor in duplicates
+    }
     require(duplicates.isEmpty()) {
       "There are the same (object reference equality) value extractors used in different aggregateValue() calls. Please merge them into one call." +
         "\nValue aggregations with duplicate value extractors:\n${
@@ -290,8 +312,9 @@ protected constructor(
   private fun requireDistinctVectorExtractors(aggregationsPerVector: List<VectorAggregations<*>>) {
     val vectorExtractorCounts = aggregationsPerVector.groupingBy { it.vectorExtractor }.eachCount()
     val duplicates = vectorExtractorCounts.filter { it.value > 1 }.keys
-    val vectorAggregationsWithDuplicates =
-      aggregationsPerVector.filter { it.vectorExtractor in duplicates }
+    val vectorAggregationsWithDuplicates = aggregationsPerVector.filter {
+      it.vectorExtractor in duplicates
+    }
     require(duplicates.isEmpty()) {
       "There are the same (object reference equality) vector extractors used in different aggregateVector() calls. Please merge them into one call." +
         "\nVector aggregations with duplicate vector extractors:\n${
