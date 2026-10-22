@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@bazel_jar_jar//:jar_jar.bzl", "jar_jar")
+
 java_binary(
     name = "BeamExample",
     srcs = [
@@ -19,7 +21,7 @@ java_binary(
     ],
     main_class = "com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample",
     runtime_deps = [
-        "@maven//:org_apache_beam_beam_runners_direct_java",
+        "@maven//:org_apache_beam_beam_runners_direct_java",  
     ],
     deps = [
         "//common/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:common",
@@ -28,4 +30,48 @@ java_binary(
         "@maven//:org_apache_beam_beam_sdks_java_extensions_avro",
         "@maven//:org_jetbrains_kotlin_kotlin_stdlib",
     ],
+)
+# --- Target SPARK RUNNER LOCAL (Scala 2.12) ---
+java_binary(
+    name = "BeamExampleSparkRunnerLocal",
+    srcs = ["BeamExample.java"],
+    main_class = "com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample",
+    runtime_deps = [
+        "@maven_spark_2_12//:org_apache_beam_beam_runners_spark_3",
+        "@maven_spark_2_12//:org_apache_spark_spark_core_2_12",
+        "@maven_spark_2_12//:org_apache_spark_spark_streaming_2_12",
+        "@maven_spark_2_12//:com_fasterxml_jackson_module_jackson_module_scala_2_12",
+    ],
+    deps = [
+        "//common/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:common",
+        "@com_google_privacy_differentialprivacy_pipelinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
+        "@maven_spark_2_12//:org_apache_beam_beam_sdks_java_core",
+        "@maven_spark_2_12//:org_apache_beam_beam_sdks_java_extensions_avro",
+        "@maven_spark_2_12//:org_jetbrains_kotlin_kotlin_stdlib",
+    ],
+)
+
+# Target for cluster deployment (equivalent to the spark-runner profile from Maven)
+# Do NOT include Spark in the runtime dependencies, as the cluster already provides it.
+java_binary(
+    name = "BeamExampleSparkRunnerCluster",
+    srcs = ["BeamExample.java"],
+    main_class = "com.google.privacy.differentialprivacy.pipelinedp4j.examples.BeamExample",
+    runtime_deps = [
+        "@maven//:org_apache_beam_beam_runners_spark_3",
+    ],
+    deps = [
+        "//common/src/main/java/com/google/privacy/differentialprivacy/pipelinedp4j/examples:common",
+        "@com_google_privacy_differentialprivacy_pipelinedp4j//main/com/google/privacy/differentialprivacy/pipelinedp4j/api",
+        "@maven//:org_apache_beam_beam_sdks_java_core",
+        "@maven//:org_apache_beam_beam_sdks_java_extensions_avro",
+        "@maven//:org_jetbrains_kotlin_kotlin_stdlib",
+    ],
+)
+# Shade the jar: Relocate the Guava package to avoid dependency conflicts. 
+# The Spark runner brings in its own version of Guava compiled for Scala 2.12.
+jar_jar(
+    name = "BeamExampleSparkRunnerCluster_shaded",
+    input_jar = ":BeamExampleSparkRunnerCluster_deploy.jar",
+    inline_rules = ["rule com.google.common.** custom.guava.cache.com.google.common.@1"],
 )
