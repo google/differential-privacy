@@ -31,12 +31,11 @@ import (
 	log "github.com/golang/glog"
 )
 
-// TODO: Add test coverage for the various exported
-// noise-generating functions.
-
 var (
 	randBufLock sync.Mutex
-	randBuf     io.Reader = bufio.NewReaderSize(cryptorand.Reader, 65536)
+	// randBuf must wrap crypto/rand: every DP mechanism in this library
+	// relies on it for unpredictable noise.
+	randBuf io.Reader = bufio.NewReaderSize(cryptorand.Reader, 65536)
 
 	randBitLock sync.Mutex
 	randBitBuf  uint8
@@ -91,6 +90,9 @@ func Boolean() bool {
 // I63n returns an integer from the set {0,...,n-1} uniformly at random.
 // The value of n must be positive.
 func I63n(n int64) int64 {
+	// TODO: n is not validated. n == 0 panics with divide-by-zero on the
+	// line below. n < 0 returns non-negative values in [0, |n|) instead
+	// of failing, violating the documented [0, n) contract.
 	largestMultipleOfN := (math.MaxInt64 / n) * n
 	var positiveRandomInteger int64
 	for true {
@@ -147,6 +149,10 @@ func (rs randSource) Int63() int64 {
 		log.Fatalf("out of randomness, should never happen: %v", err)
 	}
 	i := int64(binary.LittleEndian.Uint64(r[:]))
+	// Note: when i == math.MinInt64 (uint64 0x8000000000000000), -i
+	// overflows back to math.MinInt64, so the function returns a
+	// negative value once per 2^64 calls. Not fixed here because any
+	// fix changes the output mapping for many byte sequences.
 	if i < 0 {
 		return -i
 	}
