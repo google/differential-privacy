@@ -210,6 +210,7 @@ func (c *Count) ThresholdedResult(thresholdDelta float64) (*int64, error) {
 
 // PreThresholdedResult is similar to ThresholdedResult() but applies a deterministic
 // 'pre-threshold' before applying the differentially private threshold.
+// The method can be called only once, even if the result is suppressed.
 //
 // So, if the raw count is less than the specified pre-threshold or if the noisy result
 // is less than preThreshold+dpThreshold, it returns nil.
@@ -221,6 +222,9 @@ func (c *Count) PreThresholdedResult(preThreshold int64, thresholdDelta float64)
 	if err := checks.CheckPreThreshold(preThreshold); err != nil {
 		return nil, fmt.Errorf("Count's Pre-Thresholded Result cannot be computed: %w", err)
 	}
+	if c.state != defaultState {
+		return nil, fmt.Errorf("Count's Pre-Thresholded Result cannot be computed: %s", c.state.errorMessage())
+	}
 	// Set PreThreshold to default 1 if not specified.
 	if preThreshold < 1 {
 		preThreshold = 1
@@ -228,6 +232,7 @@ func (c *Count) PreThresholdedResult(preThreshold int64, thresholdDelta float64)
 	// Pre-thresholding guarantees that at least this number of unique contributions are in the
 	// partition.
 	if c.count < preThreshold {
+		c.state = resultSuppressed
 		return nil, nil
 	}
 
