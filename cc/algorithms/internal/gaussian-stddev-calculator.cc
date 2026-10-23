@@ -44,7 +44,7 @@ double CalculateGaussianStddev(double epsilon, double delta,
   BoundsForGaussianStddev bounds =
       CalculateBoundsForGaussianStddev(epsilon, delta, l2_sensitivity);
   while (bounds.upper - bounds.lower > kGaussianSigmaAccuracy * bounds.lower) {
-    const double middle = (bounds.lower + bounds.upper) / 2.0;
+    const double middle = bounds.lower + (bounds.upper - bounds.lower) / 2.0;
     if (CalculateDeltaForGaussianStddev(epsilon, l2_sensitivity,
                                         /* stddev= */ middle) > delta) {
       bounds.lower = middle;
@@ -59,8 +59,10 @@ double CalculateGaussianStddev(double epsilon, double delta,
 // to calculate the delta for a given standard deviation.
 double CalculateDeltaForGaussianStddev(double epsilon, double l2_sensitivity,
                                        double stddev) {
-  const double a = l2_sensitivity / (2 * stddev);
-  const double b = epsilon * stddev / l2_sensitivity;
+  const double a = (l2_sensitivity / 2.0) / stddev;
+  const double b = std::isinf(epsilon * stddev)
+                       ? epsilon * (stddev / l2_sensitivity)
+                       : epsilon * stddev / l2_sensitivity;
   const double c = std::exp(epsilon);
   if (std::isnan(b)) {
     // If either l2_sensitivity goes to 0 or e^epsilon goes to infinity,
@@ -80,7 +82,12 @@ BoundsForGaussianStddev CalculateBoundsForGaussianStddev(
   while (CalculateDeltaForGaussianStddev(epsilon, l2_sensitivity,
                                          /* stddev= */ bounds.upper) > delta) {
     bounds.lower = bounds.upper;
-    bounds.upper = bounds.upper * 2.0;
+    if (bounds.upper == std::numeric_limits<double>::max()) {
+      break;
+    }
+    bounds.upper = bounds.upper > std::numeric_limits<double>::max() / 2.0
+                       ? std::numeric_limits<double>::max()
+                       : bounds.upper * 2.0;
   }
   return bounds;
 }
