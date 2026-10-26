@@ -834,12 +834,7 @@ class QuantilesCombiner(
         }
       )
       .maxContributionsPerPartition(
-        if (
-          perPartitionContributionBoundingShouldBeApplied(
-            executionMode,
-            aggregationParams.contributionBoundingLevel,
-          )
-        ) {
+        if (executionMode.appliesContributionBounding) {
           aggregationParams.maxContributionsPerPartition!!
         } else {
           Int.MAX_VALUE

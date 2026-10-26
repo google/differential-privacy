@@ -18,6 +18,7 @@ package com.google.privacy.differentialprivacy.pipelinedp4j.core
 
 import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
+import com.google.privacy.differentialprivacy.ZeroNoise
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.NoiseKind.GAUSSIAN
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.AllocatedBudget
 import com.google.privacy.differentialprivacy.pipelinedp4j.dplibrary.NoiseFactory
@@ -27,6 +28,12 @@ import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import com.google.testing.junit.testparameterinjector.TestParameters
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.anyDouble
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.atLeastOnce
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.verify
 
 @RunWith(TestParameterInjector::class)
 class QuantilesCombinerTest {
@@ -122,5 +129,65 @@ class QuantilesCombinerTest {
     assertThat(quantiles.get(0)).isWithin(10.0).of(1.0)
     assertThat(quantiles.get(1)).isWithin(10.0).of(500.0)
     assertThat(quantiles.get(2)).isWithin(10.0).of(1000.0)
+  }
+
+  @Test
+  @TestParameters(
+    "{level: DATASET_LEVEL, mode: PRODUCTION, expectedL0: 12, expectedLInf: 5.0}",
+    "{level: PARTITION_LEVEL, mode: PRODUCTION, expectedL0: 4, expectedLInf: 5.0}",
+    "{level: RECORD_LEVEL, mode: PRODUCTION, expectedL0: 4, expectedLInf: 1.0}",
+    "{level: DATASET_LEVEL, mode: TEST_MODE_WITH_CONTRIBUTION_BOUNDING," +
+      " expectedL0: 12, expectedLInf: 5.0}",
+    "{level: PARTITION_LEVEL, mode: TEST_MODE_WITH_CONTRIBUTION_BOUNDING," +
+      " expectedL0: 4, expectedLInf: 5.0}",
+    "{level: RECORD_LEVEL, mode: TEST_MODE_WITH_CONTRIBUTION_BOUNDING," +
+      " expectedL0: 4, expectedLInf: 1.0}",
+    "{level: DATASET_LEVEL, mode: FULL_TEST_MODE, expectedL0: 4, expectedLInf: 2147483647.0}",
+    "{level: PARTITION_LEVEL, mode: FULL_TEST_MODE, expectedL0: 4, expectedLInf: 2147483647.0}",
+    "{level: RECORD_LEVEL, mode: FULL_TEST_MODE, expectedL0: 4, expectedLInf: 2147483647.0}",
+  )
+  fun computeMetrics_usesSensitivityForPrivacyLevelAndExecutionMode(
+    level: ContributionBoundingLevel,
+    mode: ExecutionMode,
+    expectedL0: Int,
+    expectedLInf: Double,
+  ) {
+    val allocatedBudget = AllocatedBudget()
+    allocatedBudget.initialize(1.1, 1e-5)
+    val noise = spy(ZeroNoise())
+    val combiner =
+      QuantilesCombiner(
+        sortedRanks = listOf(0.25, 0.5, 0.75),
+        defaultQuantilesAggParams()
+          .copy(
+            contributionBoundingLevel = level,
+            maxPartitionsContributed =
+              if (level == ContributionBoundingLevel.DATASET_LEVEL) 3 else 1,
+            maxContributionsPerPartition =
+              if (level == ContributionBoundingLevel.RECORD_LEVEL) 1 else 5,
+            minValue = 0.0,
+            maxValue = 6.0,
+          ),
+        allocatedBudget,
+        { _ -> noise },
+        mode,
+      )
+    val accumulator =
+      combiner.createAccumulator(
+        privacyIdContributions { singleValueContributions += listOf(1.0, 2.0, 3.0, 4.0, 5.0) }
+      )
+
+    val quantiles = combiner.computeMetrics(accumulator)
+
+    assertThat(quantiles).hasSize(3)
+    for ((actual, expected) in quantiles.zip(listOf(2.0, 3.0, 4.0))) {
+      assertThat(actual).isWithin(0.01).of(expected)
+    }
+    val l0 = argumentCaptor<Int>()
+    val lInf = argumentCaptor<Double>()
+    verify(noise, atLeastOnce())
+      .addNoise(anyDouble(), l0.capture(), lInf.capture(), eq(1.1), eq(1e-5))
+    assertThat(l0.allValues.toSet()).containsExactly(expectedL0)
+    assertThat(lInf.allValues.toSet()).containsExactly(expectedLInf)
   }
 }
