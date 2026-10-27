@@ -40,7 +40,8 @@ top-level utilities for:
   merging composed Gaussians into a single effective Gaussian for faster
   accounting.
 * **Exact analytical Gaussian conversions**
-  (`dp_accounting.get_sigma_gaussian`, `dp_accounting.get_epsilon_gaussian`):
+  (`dp_accounting.get_sigma_gaussian`, `dp_accounting.get_epsilon_gaussian`,
+  `dp_accounting.get_delta_gaussian`):
   closed-form calibration and accounting for a single Gaussian mechanism without
   PLD discretization overhead.
 

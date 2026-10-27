@@ -55,6 +55,8 @@ calibration.
 
 .. autofunction:: get_epsilon_gaussian
 
+.. autofunction:: get_delta_gaussian
+
 .. currentmodule:: dp_accounting.mechanism_calibration
 
 Classes
