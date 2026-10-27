@@ -37,17 +37,17 @@ configure_make(
     configure_command = "configure",
     env = select({
         ":darwin_build": {
-            # Neccessary to create a fully static linked library.
+            # Necessary to create a fully static linked library.
             "CXXFLAGS": "-fPIC",
-            "CFLAGS": "-fPIC",
+            "CFLAGS": "-fPIC -std=gnu17",
             # OSX crosstools specific flags
             "LDFLAGS": "-undefined error",
             "AR": "",
         },
         "//conditions:default": {
-            # Neccessary to create a fully static linked library.
+            # Necessary to create a fully static linked library.
             "CXXFLAGS": "-fPIC",
-            "CFLAGS": "-fPIC",
+            "CFLAGS": "-fPIC -std=gnu17",
         },
     }),
     lib_source = "@postgres//:all",
