@@ -271,6 +271,18 @@ TEST(GaussDistributionTest, StandardDeviationGetter) {
   EXPECT_EQ(dist->Stddev(), stddev);
 }
 
+TEST(GaussDistributionTest, LargeScaleDoesNotOverflowGranularityOrSqrtN) {
+  absl::StatusOr<std::unique_ptr<GaussianDistribution>> dist =
+      GaussianDistribution::Builder().SetStddev(1.0).Build();
+  ASSERT_OK(dist);
+
+  // A scale in (DBL_MAX / 2, DBL_MAX] previously overflowed 2 * sigma to +inf
+  // in GetGranularity() and Sample(), producing sqrt_n = inf / inf = NaN.
+  const double large_scale = std::numeric_limits<double>::max() * 0.75;
+  EXPECT_TRUE(std::isfinite((*dist)->GetGranularity(large_scale)));
+  EXPECT_FALSE(std::isnan((*dist)->Sample(large_scale)));
+}
+
 TEST(GaussDistributionTest, Cdf) {
   EXPECT_NEAR(GaussianDistribution::cdf(1, 0), 0.5, 0.000001);
   EXPECT_NEAR(GaussianDistribution::cdf(5, 0), 0.5, 0.000001);
