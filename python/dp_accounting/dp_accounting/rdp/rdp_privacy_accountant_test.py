@@ -287,13 +287,34 @@ class RdpPrivacyAccountantTest(
     accountant.compose(dp_event.GaussianDpEvent(0))
     self.assertEqual(accountant.get_epsilon(1e-1), np.inf)
 
-  def test_compute_rdp_gaussian(self):
+  @parameterized.named_parameters(
+      (
+          'add_or_remove_one',
+          privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE,
+          2.71828,
+      ),
+      (
+          'replace_special',
+          privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          2.71828,
+      ),
+      (
+          'replace_one',
+          privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          2.71828 / 2,
+      ),
+  )
+  def test_compute_rdp_gaussian(self, neighboring_relation, effective_sigma):
     alpha = 3.14159
     sigma = 2.71828
     event = dp_event.GaussianDpEvent(sigma)
-    accountant = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
+    accountant = rdp_privacy_accountant.RdpAccountant(
+        orders=[alpha], neighboring_relation=neighboring_relation
+    )
     accountant.compose(event)
-    self.assertAlmostEqual(accountant._rdp[0], alpha / (2 * sigma**2))
+    self.assertAlmostEqual(
+        accountant._rdp[0], alpha / (2 * effective_sigma**2)
+    )
 
   def test_compute_rdp_multi_gaussian(self):
     alpha = 3.14159
@@ -393,7 +414,21 @@ class RdpPrivacyAccountantTest(
     accountant2.compose(dp_event.ZCDpEvent(rho))
     self.assertAlmostEqual(accountant1._rdp[0], accountant2._rdp[0])
 
-  def test_discrete_gaussian_rdp(self):
+  @parameterized.named_parameters(
+      (
+          'add_or_remove_one',
+          privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE,
+      ),
+      (
+          'replace_special',
+          privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+      ),
+      (
+          'replace_one',
+          privacy_accountant.NeighboringRelation.REPLACE_ONE,
+      ),
+  )
+  def test_discrete_gaussian_rdp(self, neighboring_relation):
     """DiscreteGaussian RDP should equal alpha * sensitivity^2 / (2*sigma^2)."""
     alpha = 3.14159
     sigma = 5.0
@@ -401,7 +436,9 @@ class RdpPrivacyAccountantTest(
     event = dp_event.DiscreteGaussianDpEvent(
         sigma=sigma, sensitivity=sensitivity
     )
-    accountant = rdp_privacy_accountant.RdpAccountant(orders=[alpha])
+    accountant = rdp_privacy_accountant.RdpAccountant(
+        orders=[alpha], neighboring_relation=neighboring_relation
+    )
     accountant.compose(event)
     expected_rdp = alpha * sensitivity**2 / (2 * sigma**2)
     self.assertAlmostEqual(accountant._rdp[0], expected_rdp)
@@ -868,6 +905,42 @@ class RdpPrivacyAccountantTest(
     # Check consistency between the three formulas.
     self.assertAlmostEqual(accountant._rdp[0], accountant._rdp[1], places=3)
     self.assertAlmostEqual(accountant._rdp[2], accountant._rdp[3], places=3)
+
+  @parameterized.named_parameters(
+      (
+          'add_or_remove_one',
+          privacy_accountant.NeighboringRelation.ADD_OR_REMOVE_ONE,
+          2.0,
+      ),
+      (
+          'replace_special',
+          privacy_accountant.NeighboringRelation.REPLACE_SPECIAL,
+          2.0,
+      ),
+      (
+          'replace_one',
+          privacy_accountant.NeighboringRelation.REPLACE_ONE,
+          1.0,
+      ),
+  )
+  def test_laplace_neighboring_relations(
+      self, neighboring_relation, effective_noise_multiplier
+  ):
+    orders = [1.0, 1.05, 1.5, 2.0, 10.0, 1e10]
+    event = dp_event.LaplaceDpEvent(noise_multiplier=2.0)
+    accountant = rdp_privacy_accountant.RdpAccountant(
+        orders=orders, neighboring_relation=neighboring_relation
+    )
+    accountant.compose(event)
+
+    expected_accountant = rdp_privacy_accountant.RdpAccountant(orders=orders)
+    expected_accountant.compose(
+        dp_event.LaplaceDpEvent(noise_multiplier=effective_noise_multiplier)
+    )
+    np.testing.assert_allclose(accountant._rdp, expected_accountant._rdp)
+    self.assertAlmostEqual(
+        accountant.get_epsilon(1e-10), 1.0 / effective_noise_multiplier
+    )
 
   # The function _truncated_negative_binomial_mean computes the mean in
   # multiple ways to ensure numerical stability.

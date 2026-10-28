@@ -1073,8 +1073,11 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
         return None
       case dp_event.GaussianDpEvent(noise_multiplier=sigma):
         if do_compose:
+          noise_multiplier = sigma
+          if self._neighboring_relation == NeighborRel.REPLACE_ONE:
+            noise_multiplier /= 2
           self._rdp += count * _compute_rdp_poisson_subsampled_gaussian(
-              q=1.0, noise_multiplier=sigma, orders=orders
+              q=1.0, noise_multiplier=noise_multiplier, orders=orders
           )
         return None
       case dp_event.ZCDpEvent(xi=xi, rho=rho):
@@ -1154,9 +1157,12 @@ class RdpAccountant(privacy_accountant.PrivacyAccountant):
           )
         return None
       case dp_event.LaplaceDpEvent(noise_multiplier=b):
+        noise_multiplier = b
+        if self._neighboring_relation == NeighborRel.REPLACE_ONE:
+          noise_multiplier /= 2
         if do_compose:
           self._rdp += count * np.array(
-              [_laplace_rdp(1 / b, a) for a in orders]
+              [_laplace_rdp(1 / noise_multiplier, a) for a in orders]
           )
         return None
       case dp_event.RepeatAndSelectDpEvent(

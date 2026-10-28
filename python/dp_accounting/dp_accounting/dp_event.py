@@ -313,9 +313,11 @@ class RandomizedResponseDpEvent(DpEvent):
 class EpsilonDeltaDpEvent(DpEvent):
   """Represents application of a mechanism which satisfies (epsilon, delta)-DP.
 
-  Note that for many mechanisms, a single (epsilon, delta)-DP does not fully
-  characterize the privacy loss. If a more specific DpEvent that characterizes
-  a mechanism is available, it should be preferred over this one.
+  Accountants assume the (epsilon, delta)-DP guarantee already accounts for the
+  given neighboring relation. Note that for many mechanisms, a single
+  (epsilon, delta)-DP does not fully characterize the privacy loss. If a more
+  specific DpEvent that characterizes a mechanism is available, it should be
+  preferred over this one.
   """
 
   epsilon: float
@@ -399,6 +401,12 @@ class DiscreteGaussianDpEvent(DpEvent):
   - `dimension=None`: Unknown. (Default.) Accountants should be conservative.
 
   See https://arxiv.org/abs/2004.00010 for details.
+
+  Attributes:
+    sigma: The scale parameter of the discrete Gaussian distribution.
+    sensitivity: The L₂ sensitivity of the function being applied. Accountants
+      assume the sensitivity already accounts for the neighboring relation.
+    dimension: The dimension of the output.
   """
 
   sigma: float
@@ -635,9 +643,10 @@ class MixtureOfGaussiansDpEvent(DpEvent):
 class ZCDpEvent(DpEvent):
   """Represents an application of a mechanism satisfying (xi, rho)-zCDP.
 
-  Specifically, this event satisfies (alpha, xi + rho * alpha)-RDP
-  for all alpha > 0. The case where xi = 0 is referred to as rho-zCDP. See
-  https://arxiv.org/pdf/1605.02065 for details.
+  Accountants assume the zCDP guarantee already accounts for the given
+  neighboring relation. Specifically, this event satisfies
+  (alpha, xi + rho * alpha)-RDP for all alpha > 0. The case where xi = 0 is
+  referred to as rho-zCDP. See https://arxiv.org/pdf/1605.02065 for details.
 
   Attributes:
     rho: The multiplicative constant in the RDP bound.
@@ -656,8 +665,9 @@ class ZCDpEvent(DpEvent):
 class ExponentialMechanismDpEvent(DpEvent):
   """Represents an application of the epsilon-DP exponential mechanism.
 
-  For RDP accounting, we use the fact that the exponential mechanism is
-  epsilon-bounded range, i.e. for some t the privacy loss is always in the
+  Accountants assume the epsilon parameter already accounts for the neighboring
+  relation. For RDP accounting, we use the fact that the exponential mechanism
+  is epsilon-bounded range, i.e. for some t the privacy loss is always in the
   interval [t, t+epsilon]. See https://arxiv.org/abs/1905.04273 for details.
   For PLD accounting, we just treat it as a black-box epsilon-DP mechanism.
 
@@ -683,8 +693,10 @@ class PermuteAndFlipDpEvent(DpEvent):
   1/epsilon. A dedicated event type is provided for API clarity and to allow
   future tighter analyses.
 
-  For RDP accounting, we use the tight Laplace RDP formula (Mironov, 2017).
-  For PLD accounting, we use the Laplace privacy loss distribution.
+  Accountants assume the epsilon parameter already accounts for the neighboring
+  relation. For RDP accounting, we use the tight Laplace RDP formula
+  (Mironov, 2017). For PLD accounting, we use the Laplace privacy loss
+  distribution.
 
   Attributes:
     epsilon: The epsilon parameter of the permute-and-flip mechanism.
