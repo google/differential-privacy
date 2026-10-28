@@ -184,6 +184,54 @@ class PldPrivacyAccountantTest(privacy_accountant_test.PrivacyAccountantTest,
     event = dp_event.PoissonSampledDpEvent(0.1, dp_event.LaplaceDpEvent(1.0))
     self.assertFalse(pld_accountant.supports(event))
 
+  @parameterized.product(
+      unsupported_case=[
+          (
+              dp_event.UnsupportedDpEvent(),
+              'Unsupported event.',
+          ),
+          (
+              dp_event.RandomizedResponseDpEvent(0.0, 2),
+              'neighboring_relation must be `REPLACE_ONE` or `REPLACE_SPECIAL`',
+          ),
+      ],
+      nest_fn=[
+          lambda event: dp_event.PoissonSampledDpEvent(0.5, event),
+          lambda event: dp_event.PoissonSampledDpEvent(
+              0.5, dp_event.SelfComposedDpEvent(event, 2)
+          ),
+          lambda event: dp_event.PoissonSampledDpEvent(
+              0.5,
+              dp_event.ComposedDpEvent(
+                  [dp_event.EpsilonDeltaDpEvent(0.3, 0.01), event]
+              ),
+          ),
+          lambda event: dp_event.PoissonSampledDpEvent(
+              0.5, dp_event.PoissonSampledDpEvent(0.2, event)
+          ),
+          lambda event: dp_event.SelfComposedDpEvent(
+              dp_event.PoissonSampledDpEvent(0.5, event), 2
+          ),
+          lambda event: dp_event.ComposedDpEvent([
+              dp_event.EpsilonDeltaDpEvent(0.3, 0.01),
+              dp_event.PoissonSampledDpEvent(0.5, event),
+          ]),
+      ],
+  )
+  def test_poisson_subsampling_rejects_unsupported_subevent(
+      self, unsupported_case, nest_fn
+  ):
+    unsupported_event, error_message = unsupported_case
+    event = nest_fn(unsupported_event)
+    accountant = pld_privacy_accountant.PLDAccountant()
+
+    with self.assertRaises(privacy_accountant.UnsupportedEventError) as error:
+      accountant.compose(event, count=3)
+    self.assertIn(error_message, str(error.exception))
+    self.assertEndsWith(
+        str(error.exception), f'caused by subevent {unsupported_event}.'
+    )
+
   @parameterized.parameters(
       (pld_privacy_accountant.NeighborRel.REPLACE_ONE, True),
       (pld_privacy_accountant.NeighborRel.REPLACE_SPECIAL, True),

@@ -275,16 +275,16 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
             ).self_compose(count)
             self._pld = self._pld.compose(subsampled_laplace_pld)
         return None
+      elif self.neighboring_relation != NeighborRel.ADD_OR_REMOVE_ONE:
+        return CompositionErrorDetails(
+            invalid_event=event,
+            error_message=(
+                'neighboring_relation must be `ADD_OR_REMOVE_ONE` '
+                'for `PoissonSampledDpEvent` of a non-Gaussian/Laplace '
+                f'mechanism. Found {self._neighboring_relation}.'
+            ),
+        )
       else:
-        if self.neighboring_relation != NeighborRel.ADD_OR_REMOVE_ONE:
-          return CompositionErrorDetails(
-              invalid_event=event,
-              error_message=(
-                  'neighboring_relation must be `ADD_OR_REMOVE_ONE` '
-                  'for `PoissonSampledDpEvent` of a non-Gaussian/Laplace '
-                  f'mechanism. Found {self._neighboring_relation}.'
-              ),
-          )
         sub_accountant = PLDAccountant(
             neighboring_relation=self.neighboring_relation,
             value_discretization_interval=self._value_discretization_interval,
@@ -294,9 +294,11 @@ class PLDAccountant(privacy_accountant.PrivacyAccountant):
         # applied to that single-application PLD below, and only the resulting
         # subsampled PLD is self-composed `count` times.
         # pylint: disable=protected-access
-        sub_accountant._maybe_compose(
+        composition_error = sub_accountant._maybe_compose(
             event.event, count=1, do_compose=do_compose
         )
+        if composition_error is not None:
+          return composition_error
         if do_compose:
           if sub_accountant._contains_non_dp_event:
             self._contains_non_dp_event = True
