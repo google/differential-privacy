@@ -31,7 +31,7 @@ bazel_dep(name = "rules_jvm_external", version = "6.8")
 bazel_dep(name = "rules_java", version = "8.14.0")
 bazel_dep(name = "google_bazel_common", version = "0.0.1", repo_name = "bazel_common")
 bazel_dep(name = "protobuf", version = "29.5", repo_name = "com_google_protobuf")
-bazel_dep(name = "rules_python", version = "1.5.1")
+bazel_dep(name = "rules_python", version = "2.4.5")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(

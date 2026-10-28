@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-bazel_dep(name = "rules_python", version = "1.2.0")
+bazel_dep(name = "rules_python", version = "2.4.5")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
