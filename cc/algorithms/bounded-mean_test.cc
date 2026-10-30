@@ -1363,5 +1363,79 @@ TEST(BoundedMeanTest, ApproxBoundsMeanOutputHasConfidenceInterval) {
                      Le(upper_bound))));
 }
 
+// Test BoundsProvider returning fixed bounds to exercise equal-bounds widening
+// under floating-point imprecision, which built-in providers do not produce.
+template <typename T>
+class ConstantBoundsProvider final : public BoundsProvider<T> {
+ public:
+  using ClampedCalculationPtr =
+      decltype(std::declval<const ApproxBounds<T>&>()
+                   .CreateClampedCalculationWithoutBounds());
+
+  explicit ConstantBoundsProvider(BoundsResult<T> bounds, double scale = 1.0)
+      : bounds_(bounds),
+        approx_bounds_(typename ApproxBounds<T>::Builder()
+                           .SetEpsilon(1.0)
+                           .SetNumBins(10)
+                           .SetScale(scale)
+                           .SetBase(2.0)
+                           .Build()
+                           .value()) {}
+
+  void AddEntry(const T& entry) override { ++num_inputs_; }
+  absl::StatusOr<BoundsResult<T>> FinalizeAndCalculateBounds() override {
+    return bounds_;
+  }
+  BoundingReport GetBoundingReport(
+      const BoundsResult<T>& bounds_result) override {
+    BoundingReport report;
+    SetValue<T>(report.mutable_lower_bound(), bounds_result.lower_bound);
+    SetValue<T>(report.mutable_upper_bound(), bounds_result.upper_bound);
+    report.set_num_inputs(num_inputs_);
+    report.set_num_outside(0);
+    return report;
+  }
+  void Reset() override { num_inputs_ = 0; }
+  int64_t MemoryUsed() const override { return sizeof(*this); }
+  double GetEpsilon() const override { return 0; }
+  double GetDelta() const override { return 0; }
+  BoundsSummary Serialize() const override { return BoundsSummary(); }
+  absl::Status Merge(const BoundsSummary& bounds_summary) override {
+    return absl::OkStatus();
+  }
+  ClampedCalculationPtr CreateClampedCalculationWithoutBounds() const override {
+    return approx_bounds_->CreateClampedCalculationWithoutBounds();
+  }
+
+ private:
+  BoundsResult<T> bounds_;
+  int64_t num_inputs_ = 0;
+  std::unique_ptr<ApproxBounds<T>> approx_bounds_;
+};
+
+TEST(BoundedMeanTest, EqualNearZeroBoundsWidenedToZeroAndOne) {
+  auto bm =
+      BoundedMean<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetBoundsProvider(std::make_unique<ConstantBoundsProvider<double>>(
+              BoundsResult<double>{1e-9, 1e-9}, /*scale=*/1.0))
+          .Build();
+  ASSERT_OK(bm);
+  for (int i = 0; i < 10; ++i) {
+    (*bm)->AddEntry(0.0);
+  }
+
+  absl::StatusOr<Output> output = (*bm)->PartialResult();
+  ASSERT_OK(output);
+  EXPECT_THAT(GetValue<double>(output->elements(0).value()), DoubleEq(0.0));
+  EXPECT_THAT(
+      GetValue<double>(output->error_report().bounding_report().lower_bound()),
+      DoubleEq(0.0));
+  EXPECT_THAT(
+      GetValue<double>(output->error_report().bounding_report().upper_bound()),
+      DoubleEq(1.0));
+}
+
 }  //  namespace
 }  // namespace differential_privacy

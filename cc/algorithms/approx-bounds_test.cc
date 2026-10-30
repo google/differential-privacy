@@ -1187,7 +1187,7 @@ TYPED_TEST(ApproxBoundsTest,
           bounds.value()->CreateClampedCalculationWithoutBounds();
 
   EXPECT_THAT(clamped_calculation->GetNumBins(), Eq(5));
-  EXPECT_THAT(clamped_calculation->GetScaleForTesting(), Eq(2.0));
+  EXPECT_THAT(clamped_calculation->GetScale(), Eq(2.0));
   EXPECT_THAT(clamped_calculation->GetBaseForTesting(), Eq(3));
 }
 

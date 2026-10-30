@@ -98,6 +98,20 @@ inline const T& Clamp(const T& low, const T& high, const T& value) {
   return value;
 }
 
+// Returns true if `a` and `b` are equal (for integral types) or within a small
+// error margin scaled by `scale` (for floating-point types), so that small
+// fractional values (e.g. 2^-63) are not treated as 0.
+template <typename T>
+inline bool IsNearlyEqual(T a, T b, T scale = T{1}) {
+  if constexpr (std::is_floating_point_v<T>) {
+    const T error_margin = std::max(scale * static_cast<T>(1e-6),
+                                    std::numeric_limits<T>::denorm_min());
+    return std::abs(a - b) < error_margin;
+  } else {
+    return a == b;
+  }
+}
+
 // Return value for the Safe* operation functions below, including the cast
 // resulting value of the operation and whether or not the operation caused an
 // overflow.

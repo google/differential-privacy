@@ -200,6 +200,19 @@ TEST(ClampTest, DefaultTest) {
   EXPECT_EQ(Clamp(1.0, 3.0, -2.0), 1);
 }
 
+TEST(IsNearlyEqualTest, ComparesIntegersAndScaledFloats) {
+  EXPECT_TRUE(IsNearlyEqual<int64_t>(5, 5, 1));
+  EXPECT_FALSE(IsNearlyEqual<int64_t>(5, 6, 1));
+
+  EXPECT_TRUE(IsNearlyEqual<double>(1.0, 1.0 + 1e-7, 1.0));
+  EXPECT_FALSE(IsNearlyEqual<double>(1.0, 1.0 + 1e-5, 1.0));
+
+  constexpr double kSmallScale = 0x1p-63;
+  EXPECT_FALSE(IsNearlyEqual<double>(kSmallScale, 0.0, kSmallScale));
+  EXPECT_TRUE(IsNearlyEqual<double>(kSmallScale, kSmallScale * (1.0 + 1e-7),
+                                    kSmallScale));
+}
+
 TEST(SafeOperationsTest, SafeAddInt) {
   SafeOpResult<int64_t> safe_add_result;
 
