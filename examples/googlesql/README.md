@@ -19,8 +19,8 @@ using
 [Bazelisk](https://docs.bazel.build/versions/main/updating-bazel.html#managing-bazel-versions-with-bazelisk)
 to manage different versions of Bazel.
 
-Once you've installed Bazelisk and Git, open a Terminal and clone the differential
-privacy directory into a local folder:
+Once you've installed Bazelisk and Git, open a Terminal and clone the
+differential privacy directory into a local folder:
 ```sh
 git clone https://github.com/google/differential-privacy.git
 ```
@@ -30,7 +30,7 @@ Alternatively, you could download the source code via:
 https://github.com/google/differential-privacy/archive/main.zip
 ```
 
-Navigate into the `differential-privacy/examples/zetasql` folder that was
+Navigate into the `differential-privacy/examples/googlesql` folder that was
 just created, and build the GoogleSQL DP CLI and dependencies using Bazel:
 ```shell
 bazelisk build //:execute_query
@@ -41,14 +41,14 @@ Once built, the GoogleSQL DP CLI should be ready to use.
 ## Usage
 
 The GoogleSQL DP CLI can be run from the
-`differential-privacy/examples/zetasql` folder with the following command:
+`differential-privacy/examples/googlesql` folder with the following command:
 
 ```shell
 bazelisk run //:execute_query -- <sql_statement>
 ```
 
 The last argument should be the SQL statement to execute on the pre-defined
-sample data stored in CSV files under the [./data](data/) folder.  See the
+sample data stored in CSV files under the [./data](data/) folder. See the
 [GoogleSQL
 documentation](https://github.com/google/googlesql/blob/master/docs/differential-privacy.md)
 for more information on the query syntax and the [codelab](codelab.md) for
