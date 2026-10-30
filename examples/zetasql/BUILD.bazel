@@ -47,8 +47,8 @@ filegroup(
 sh_binary(
     name = "execute_query",
     srcs = select({
-        ":linux_x86_64": ["@zetasql_execute_query_linux//file"],
-        ":macos_x86_64": ["@zetasql_execute_query_macos//file"],
+        ":linux_x86_64": ["@googlesql_execute_query_linux//file"],
+        ":macos_x86_64": ["@googlesql_execute_query_macos//file"],
         "//conditions:default": [":unsupported_platform_script"],
     }),
     args = [

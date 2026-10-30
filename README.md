@@ -25,7 +25,7 @@ private (DP) statistics over datasets. It contains the following tools:
 *   A [differential privacy accounting library](python/dp_accounting), used for
     tracking privacy budget.
 *   A [command line interface](examples/zetasql) for running differentially
-    private SQL queries with [ZetaSQL](https://github.com/google/zetasql).
+    private SQL queries with [GoogleSQL](https://github.com/google/googlesql).
 *   [DP Auditorium](python/dp_auditorium) is a library for auditing differential
     privacy guarantees.
 

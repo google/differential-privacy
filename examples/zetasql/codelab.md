@@ -1,4 +1,4 @@
-# Example using differential privacy with ZetaSQL
+# Example using differential privacy with GoogleSQL
 
 ## Restaurant
 
@@ -174,7 +174,7 @@ visit a restaurant on average, and assumed that the value is around 3 instead of
 scaling the noise by the factor of 7 (which would have required adding more
 noise).
 
-ZetaSQL processes the input data and discards all exceeding contributions
+GoogleSQL processes the input data and discards all exceeding contributions
 (visits) automatically, so no action is required from the user.
 
 ## Sum the revenue per day of the week
@@ -257,13 +257,13 @@ input values are clamped more aggressively, which can decrease utility as well.
 ### Automatic Bounds Approximation (Approx Bounds)
 
 In case `contribution_bounds_per_group` (i.e., `lower` and `upper` bounds on
-input values) is not provided to DP aggregations, ZetaSQL will infer the bounds
-automatically in a differentially private way from the data. See
+input values) is not provided to DP aggregations, GoogleSQL will infer the
+bounds automatically in a differentially private way from the data. See
 [this](https://arxiv.org/abs/1909.01917) paper or
 [the C++ code](https://github.com/google/differential-privacy/blob/main/cc/algorithms/approx-bounds.h)
 for details.
 
-Note that ZetaSQL uses a portion of the privacy budget for automatic bounds
+Note that GoogleSQL uses a portion of the privacy budget for automatic bounds
 determination, meaning that it would need to add more noise to the aggregation
 output to compensate for this.
 
@@ -357,7 +357,8 @@ There are 2 approaches for doing this:
   partition, if the statistic value is less than the threshold, then the
   partition will be excluded from the final result.
 
-ZetaSQL only supports pre-aggregation partition selection.
+GoogleSQL only supports pre-aggregation partition selection.
 
-Note that ZetaSQL takes care of partition selection automatically when you do an
-`SELECT WITH DIFFERENTIAL_PRIVACY` query, so no action is needed on your side.
+Note that GoogleSQL takes care of partition selection automatically when you do
+an `SELECT WITH DIFFERENTIAL_PRIVACY` query, so no action is needed on your
+side.

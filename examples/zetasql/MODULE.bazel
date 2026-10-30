@@ -20,16 +20,16 @@ bazel_dep(name = "bazel_skylib", version = "1.9.0")
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
 http_file(
-    name = "zetasql_execute_query_linux",
+    name = "googlesql_execute_query_linux",
     executable = True,
-    sha256 = "dd9d121b000b58d31550dbd1091e109e589fa8272a9221867203d8307faef570",
-    urls = ["https://github.com/google/zetasql/releases/download/2025.12.1/execute_query_linux"],
+    sha256 = "2ae22e017e31badcffc77cf51662b281315bf6a0991df107d89422bf837ca912",
+    urls = ["https://github.com/google/googlesql/releases/download/2026.10.3/execute_query_linux"],
 )
 
 # The Mac OS version only works for x86_64 (not arm64) in the current version.
 http_file(
-    name = "zetasql_execute_query_macos",
+    name = "googlesql_execute_query_macos",
     executable = True,
-    sha256 = "0a9a60198c2be089a8aa00b21c8ed8742095fea47f1dbfbd9b6a2097e1742799",
-    urls = ["https://github.com/google/zetasql/releases/download/2025.12.1/execute_query_macos"],
+    sha256 = "d54ef2cb6dacf626d0291c679d0173a2d66608b84179de933fa43171e002ed08",
+    urls = ["https://github.com/google/googlesql/releases/download/2026.10.3/execute_query_macos"],
 )
