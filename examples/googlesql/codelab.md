@@ -24,11 +24,11 @@ timestamp of when the visitor entered the restaurant, the duration of the
 visitor's visit to the restaurant (in minutes), and the money the visitor spent
 at the restaurant.
 
-Navigate to the `examples/zetasql` folder, build the code, and run it with the
+Navigate to the `examples/googlesql` folder, build the code, and run it with the
 following query.
 
 ```shell
-$ cd examples/zetasql
+$ cd examples/googlesql
 $ bazelisk run //:execute_query -- '
 SELECT WITH DIFFERENTIAL_PRIVACY OPTIONS(
     epsilon=1, delta=1e-5, max_groups_contributed=1, privacy_unit_column=VisitorId)
@@ -45,7 +45,7 @@ For illustration purposes, you can run the same query in a non-differentially
 private way:
 
 ```shell
-$ cd examples/zetasql
+$ cd examples/googlesql
 $ bazelisk run //:execute_query -- '
 SELECT
   TIME_TRUNC(PARSE_TIME("%I:%M%p", `Time entered`), HOUR) AS `Hour entered`,
@@ -116,11 +116,11 @@ The file `data/week_data.csv` contains visit data for a week. It includes the
 visitor’s ID, the visit duration (in minutes), the money spent at the
 restaurant, and the day of the visit.
 
-Navigate to the `examples/zetasql` folder, build the code, and run it with the
+Navigate to the `examples/googlesql` folder, build the code, and run it with the
 following query.
 
 ```shell
-$ cd examples/zetasql
+$ cd examples/googlesql
 $ bazelisk run //:execute_query -- '
 SELECT WITH DIFFERENTIAL_PRIVACY OPTIONS(
     epsilon = 1, delta = 1e-5, max_groups_contributed = 3, privacy_unit_column=VisitorId)
@@ -137,7 +137,7 @@ For illustration purposes, you can run the same query in a non-differentially
 private way:
 
 ```shell
-$ cd examples/zetasql
+$ cd examples/googlesql
 $ bazelisk run //:execute_query -- '
 SELECT
   `Day`,
@@ -191,11 +191,11 @@ The `data/week_data.csv` file contains visit data for a week. It includes the
 visitor’s ID, the visit duration (in minutes), the money spent at the
 restaurant, and the day of the visit.
 
-Navigate to the `examples/zetasql` folder, build the code and run it with the
+Navigate to the `examples/googlesql` folder, build the code and run it with the
 following query.
 
 ```shell
-$ cd examples/zetasql
+$ cd examples/googlesql
 $ bazelisk run //:execute_query -- '
 SELECT WITH DIFFERENTIAL_PRIVACY OPTIONS(
     epsilon=1, delta=1e-5, kappa=3, privacy_unit_column=VisitorId)
@@ -212,7 +212,7 @@ For illustration purposes, you can run the same query in a non-differentially
 private way:
 
 ```shell
-$ cd examples/zetasql
+$ cd examples/googlesql
 $ bazelisk run //:execute_query -- '
 SELECT
   `Day`,
@@ -285,11 +285,11 @@ The `data/outliers_week_data.csv` file contains visit data for a week. It
 includes the visitor’s ID, the visit duration (in minutes), the money spent at
 the restaurant, and the day of the visit.
 
-Navigate to the `examples/zetasql` folder, build the code and run it with the
+Navigate to the `examples/googlesql` folder, build the code and run it with the
 following query.
 
 ```shell
-$ cd examples/zetasql
+$ cd examples/googlesql
 $ bazelisk run //:execute_query -- '
 SELECT WITH DIFFERENTIAL_PRIVACY OPTIONS(
     epsilon=1, delta=1e-5, max_groups_contributed=1, privacy_unit_column=VisitorId)
@@ -306,7 +306,7 @@ For illustration purposes, you can run the same query in a non-differentially
 private way:
 
 ```shell
-$ cd examples/zetasql
+$ cd examples/googlesql
 $ bazelisk run //:execute_query -- '
 SELECT
   CAST(SAFE_MULTIPLY(CEIL(SAFE_DIVIDE(CAST (`Time spent (minutes)` AS DOUBLE), 10.0)), 10.0) AS INT32) AS `Time Spent`,
