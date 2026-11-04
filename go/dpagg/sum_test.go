@@ -65,6 +65,7 @@ func compareBoundedSumInt64(bs1, bs2 *BoundedSumInt64) bool {
 		bs1.lInfSensitivity == bs2.lInfSensitivity &&
 		bs1.lower == bs2.lower &&
 		bs1.upper == bs2.upper &&
+		bs1.maxContributions == bs2.maxContributions &&
 		bs1.Noise == bs2.Noise &&
 		bs1.noiseKind == bs2.noiseKind &&
 		bs1.sum == bs2.sum &&
@@ -91,6 +92,12 @@ func TestBoundedSumInt64Serialization(t *testing.T) {
 			Lower:                    0,
 			Upper:                    1,
 			Noise:                    noise.Gaussian(),
+		}},
+		{"MaxContributions options", &BoundedSumInt64Options{
+			Epsilon:          ln3,
+			Delta:            1e-5,
+			MaxContributions: 3,
+			Noise:            noise.Gaussian(),
 		}},
 	} {
 		bs, err := NewBoundedSumInt64(tc.opts)
@@ -431,6 +438,67 @@ func TestNewBoundedSumInt64(t *testing.T) {
 			},
 			nil,
 			true},
+		{"MaxContributions is set",
+			&BoundedSumInt64Options{
+				Epsilon:          ln3,
+				Delta:            0,
+				MaxContributions: 3,
+				Noise:            noNoise{},
+			},
+			&BoundedSumInt64{
+				epsilon:          ln3,
+				delta:            0,
+				l0Sensitivity:    1,
+				lInfSensitivity:  3,
+				lower:            0,
+				upper:            3,
+				maxContributions: 3,
+				Noise:            noNoise{},
+				noiseKind:        noise.Unrecognised,
+				sum:              0,
+				state:            defaultState,
+			},
+			false},
+		{"MaxContributions and MaxPartitionsContributed are both set",
+			&BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				Delta:                    0,
+				MaxContributions:         3,
+				MaxPartitionsContributed: 1,
+				Noise:                    noNoise{},
+			},
+			nil,
+			true},
+		{"MaxContributions and Lower are both set",
+			&BoundedSumInt64Options{
+				Epsilon:          ln3,
+				Delta:            0,
+				MaxContributions: 3,
+				Lower:            -1,
+				Noise:            noNoise{},
+			},
+			nil,
+			true},
+		{"MaxContributions and Upper are both set",
+			&BoundedSumInt64Options{
+				Epsilon:          ln3,
+				Delta:            0,
+				MaxContributions: 3,
+				Upper:            5,
+				Noise:            noNoise{},
+			},
+			nil,
+			true},
+		{"MaxContributions and maxContributionsPerPartition are both set",
+			&BoundedSumInt64Options{
+				Epsilon:                      ln3,
+				Delta:                        0,
+				MaxContributions:             3,
+				maxContributionsPerPartition: 2,
+				Noise:                        noNoise{},
+			},
+			nil,
+			true},
 	} {
 		bs, err := NewBoundedSumInt64(tc.opt)
 		if (err != nil) != tc.wantErr {
@@ -721,16 +789,12 @@ func TestCheckMergeBoundedSumInt64Compatibility(t *testing.T) {
 			&BoundedSumInt64Options{
 				Epsilon:          ln3,
 				Delta:            tenten,
-				Lower:            -1,
-				Upper:            5,
 				Noise:            noise.Gaussian(),
 				MaxContributions: 2,
 			},
 			&BoundedSumInt64Options{
 				Epsilon:          ln3,
 				Delta:            tenten,
-				Lower:            -1,
-				Upper:            5,
 				Noise:            noise.Gaussian(),
 				MaxContributions: 2,
 			},
@@ -752,14 +816,10 @@ func TestCheckMergeBoundedSumInt64Compatibility(t *testing.T) {
 		{"same options, only required fields filled while using MaxContributions",
 			&BoundedSumInt64Options{
 				Epsilon:          ln3,
-				Lower:            -1,
-				Upper:            5,
 				MaxContributions: 2,
 			},
 			&BoundedSumInt64Options{
 				Epsilon:          ln3,
-				Lower:            -1,
-				Upper:            5,
 				MaxContributions: 2,
 			},
 			false},
@@ -828,15 +888,23 @@ func TestCheckMergeBoundedSumInt64Compatibility(t *testing.T) {
 		{"different MaxContributions",
 			&BoundedSumInt64Options{
 				Epsilon:          ln3,
-				Lower:            -1,
-				Upper:            5,
 				MaxContributions: 2,
 			},
 			&BoundedSumInt64Options{
 				Epsilon:          ln3,
-				Lower:            -1,
-				Upper:            5,
 				MaxContributions: 5,
+			},
+			true},
+		{"MaxContributions vs MaxPartitionsContributed with equivalent bounds and sensitivity",
+			&BoundedSumInt64Options{
+				Epsilon:          ln3,
+				MaxContributions: 5,
+			},
+			&BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				MaxPartitionsContributed: 1,
+				Lower:                    0,
+				Upper:                    5,
 			},
 			true},
 		{"different lower bound",
@@ -1133,6 +1201,29 @@ func TestBSClampInt64(t *testing.T) {
 	}
 }
 
+func TestBSClampInt64WithMaxContributions(t *testing.T) {
+	bsi, err := NewBoundedSumInt64(&BoundedSumInt64Options{
+		Epsilon:          ln3,
+		Delta:            tenten,
+		MaxContributions: 5,
+		Noise:            noNoise{},
+	})
+	if err != nil {
+		t.Fatalf("Couldn't get noiseless BSI with MaxContributions: %v", err)
+	}
+	bsi.Add(4)  // not clamped
+	bsi.Add(8)  // clamped to 5
+	bsi.Add(-7) // clamped to 0
+	got, err := bsi.Result()
+	if err != nil {
+		t.Fatalf("Couldn't compute dp result: %v", err)
+	}
+	const want = 9
+	if got != want {
+		t.Errorf("Add: when 4, 8, -7 were added with MaxContributions=5 got %d, want %d", got, want)
+	}
+}
+
 func TestBSClampFloat64(t *testing.T) {
 	bsf := getNoiselessBSF(t)
 	bsf.Add(3.5)  // not clamped
@@ -1209,6 +1300,21 @@ func TestThresholdedResultInt64(t *testing.T) {
 	}
 	if got != nil {
 		t.Errorf("ThresholdedResult(0.1): when 2,3 were added got %v, want nil", got)
+	}
+
+	// ThresholdedResult returns an error when MaxContributions is set.
+	bs4, err := NewBoundedSumInt64(&BoundedSumInt64Options{
+		Epsilon:          ln3,
+		Delta:            tenten,
+		MaxContributions: 5,
+		Noise:            noNoise{},
+	})
+	if err != nil {
+		t.Fatalf("Couldn't initialize bs4: %v", err)
+	}
+	bs4.Add(10)
+	if _, err := bs4.ThresholdedResult(0.1); err == nil {
+		t.Errorf("ThresholdedResult(0.1): when MaxContributions is set got nil, want error")
 	}
 }
 
@@ -1547,6 +1653,32 @@ func TestBSEquallyInitializedInt64(t *testing.T) {
 				upper:           2,
 				sum:             0,
 				state:           defaultState},
+			false,
+		},
+		{
+			"different maxContributions",
+			&BoundedSumInt64{
+				epsilon:          ln3,
+				delta:            0,
+				l0Sensitivity:    1,
+				lInfSensitivity:  1,
+				noiseKind:        noise.LaplaceNoise,
+				lower:            0,
+				upper:            1,
+				maxContributions: 1,
+				sum:              0,
+				state:            defaultState},
+			&BoundedSumInt64{
+				epsilon:          ln3,
+				delta:            0,
+				l0Sensitivity:    1,
+				lInfSensitivity:  1,
+				noiseKind:        noise.LaplaceNoise,
+				lower:            0,
+				upper:            1,
+				maxContributions: 0,
+				sum:              0,
+				state:            defaultState},
 			false,
 		},
 		{
