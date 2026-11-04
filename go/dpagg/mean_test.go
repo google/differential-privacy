@@ -170,6 +170,16 @@ func TestNewBoundedMean(t *testing.T) {
 			},
 			nil,
 			true},
+		{"Infinite bounds with default (nil) Noise",
+			&BoundedMeanOptions{
+				Epsilon:                      ln3,
+				Lower:                        math.Inf(-1),
+				Upper:                        math.Inf(1),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
 	} {
 		bm, err := NewBoundedMean(tc.opt)
 		if (err != nil) != tc.wantErr {

@@ -192,6 +192,118 @@ func TestBoundedSumInt64FnSetup(t *testing.T) {
 	}
 }
 
+func TestBoundedSumInt64FnCreateAccumulatorWithMaxContributions(t *testing.T) {
+	for _, tc := range []struct {
+		desc     string
+		testMode TestMode
+		want     *int64
+	}{
+		{"TestModeDisabled", TestModeDisabled, testutils.Int64Ptr(10)},
+		{"TestModeWithoutContributionBounding", TestModeWithoutContributionBounding, testutils.Int64Ptr(30)},
+	} {
+		spec := privacySpec(t, PrivacySpecParams{
+			AggregationEpsilon:        1e50,
+			PartitionSelectionEpsilon: 1e50,
+			PartitionSelectionDelta:   0.5,
+			TestMode:                  tc.testMode,
+		})
+		fn, err := newBoundedSumInt64Fn(
+			*spec,
+			SumParams{
+				AggregationEpsilon:       1e50,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1e50, Delta: 0.5},
+				maxContributions:         10,
+			},
+			noise.LaplaceNoise,
+			false,
+		)
+		if err != nil {
+			t.Fatalf("newBoundedSumInt64Fn(%s) failed: %v", tc.desc, err)
+		}
+		fn.Setup()
+
+		accum, err := fn.CreateAccumulator()
+		if err != nil {
+			t.Fatalf("CreateAccumulator(%s) failed: %v", tc.desc, err)
+		}
+		if fn.Lower != 0 || fn.Upper != 0 || fn.MaxContributions != 10 {
+			t.Errorf("CreateAccumulator(%s) mutated fn fields: got (Lower=%d, Upper=%d, MaxContributions=%d), want (0, 0, 10)",
+				tc.desc, fn.Lower, fn.Upper, fn.MaxContributions)
+		}
+
+		if accum, err = fn.AddInput(accum, -20); err != nil {
+			t.Fatalf("AddInput(%s, -20) failed: %v", tc.desc, err)
+		}
+		if accum, err = fn.AddInput(accum, 50); err != nil {
+			t.Fatalf("AddInput(%s, 50) failed: %v", tc.desc, err)
+		}
+		got, err := fn.ExtractOutput(accum)
+		if err != nil {
+			t.Fatalf("ExtractOutput(%s) failed: %v", tc.desc, err)
+		}
+		if diff := cmp.Diff(tc.want, got); diff != "" {
+			t.Errorf("ExtractOutput(%s) mismatch (-want +got):\n%s", tc.desc, diff)
+		}
+	}
+}
+
+func TestBoundedSumFloat64FnCreateAccumulator(t *testing.T) {
+	for _, tc := range []struct {
+		desc     string
+		testMode TestMode
+		want     *float64
+	}{
+		{"TestModeDisabled", TestModeDisabled, testutils.Float64Ptr(10)},
+		{"TestModeWithoutContributionBounding", TestModeWithoutContributionBounding, testutils.Float64Ptr(30)},
+	} {
+		spec := privacySpec(t, PrivacySpecParams{
+			AggregationEpsilon:        1e50,
+			PartitionSelectionEpsilon: 1e50,
+			PartitionSelectionDelta:   0.5,
+			TestMode:                  tc.testMode,
+		})
+		fn, err := newBoundedSumFloat64Fn(
+			*spec,
+			SumParams{
+				AggregationEpsilon:       1e50,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 1e50, Delta: 0.5},
+				MaxPartitionsContributed: 1,
+				MinValue:                 0,
+				MaxValue:                 10,
+			},
+			noise.LaplaceNoise,
+			false,
+		)
+		if err != nil {
+			t.Fatalf("newBoundedSumFloat64Fn(%s) failed: %v", tc.desc, err)
+		}
+		fn.Setup()
+
+		accum, err := fn.CreateAccumulator()
+		if err != nil {
+			t.Fatalf("CreateAccumulator(%s) failed: %v", tc.desc, err)
+		}
+		if fn.Lower != 0 || fn.Upper != 10 {
+			t.Errorf("CreateAccumulator(%s) mutated fn fields: got (Lower=%v, Upper=%v), want (0, 10)",
+				tc.desc, fn.Lower, fn.Upper)
+		}
+
+		if accum, err = fn.AddInput(accum, -20); err != nil {
+			t.Fatalf("AddInput(%s, -20) failed: %v", tc.desc, err)
+		}
+		if accum, err = fn.AddInput(accum, 50); err != nil {
+			t.Fatalf("AddInput(%s, 50) failed: %v", tc.desc, err)
+		}
+		got, err := fn.ExtractOutput(accum)
+		if err != nil {
+			t.Fatalf("ExtractOutput(%s) failed: %v", tc.desc, err)
+		}
+		if diff := cmp.Diff(tc.want, got, cmpopts.EquateApprox(0, testutils.LaplaceTolerance(23, 10, 1e50))); diff != "" {
+			t.Errorf("ExtractOutput(%s) mismatch (-want +got):\n%s", tc.desc, diff)
+		}
+	}
+}
+
 func TestBoundedSumInt64FnAddInput(t *testing.T) {
 	// Since δ=0.5 and 2 entries are added, PreAggPartitionSelection always emits.
 	// Since AggregationEpsilon=1e50, the noise is added with probability in the order of exp(-1e50),
