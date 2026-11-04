@@ -305,7 +305,7 @@ func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) (*int64, er
 	}
 	// Rounding up the threshold when converting it to int64 to ensure that no DP guarantees
 	// are violated due to a result being returned that is less than the fractional threshold.
-	if result < int64(math.Ceil(threshold)) {
+	if belowInt64Threshold(result, 0, threshold) {
 		return nil, nil
 	}
 	return &result, nil
@@ -622,7 +622,7 @@ func (bs *BoundedSumFloat64) ThresholdedResult(thresholdDelta float64) (*float64
 	if err != nil {
 		return nil, err
 	}
-	if result < threshold {
+	if math.IsNaN(threshold) || math.IsInf(threshold, 1) || result < threshold {
 		return nil, nil
 	}
 	return &result, nil

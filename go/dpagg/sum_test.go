@@ -1212,6 +1212,87 @@ func TestThresholdedResultInt64(t *testing.T) {
 	}
 }
 
+func TestBoundedSumInt64ThresholdedResultStrictGaussianDeltaSuppressesSingleton(t *testing.T) {
+	const numTrials = 100
+	opts := &BoundedSumInt64Options{
+		Epsilon:                  1.0,
+		Delta:                    5e-16,
+		MaxPartitionsContributed: 20,
+		Lower:                    0,
+		Upper:                    1,
+		Noise:                    noise.Gaussian(),
+	}
+	for trial := 0; trial < numTrials; trial++ {
+		bs, err := NewBoundedSumInt64(opts)
+		if err != nil {
+			t.Fatalf("Couldn't initialize BoundedSumInt64: %v", err)
+		}
+		if err := bs.Add(1); err != nil {
+			t.Fatalf("Couldn't add to BoundedSumInt64: %v", err)
+		}
+		got, err := bs.ThresholdedResult(5e-16)
+		if err != nil {
+			t.Fatalf("ThresholdedResult failed: %v", err)
+		}
+		if got != nil {
+			t.Fatalf("BoundedSumInt64.ThresholdedResult retained singleton sum (%d) on trial %d with strict Gaussian delta", *got, trial)
+		}
+	}
+}
+
+func TestBoundedSumThresholdOverflowGuards(t *testing.T) {
+	for _, tc := range []struct {
+		desc      string
+		threshold float64
+		wantNil   bool
+	}{
+		{desc: "positive infinity threshold suppresses result", threshold: math.Inf(1), wantNil: true},
+		{desc: "NaN threshold suppresses result", threshold: math.NaN(), wantNil: true},
+		{desc: "2^63 threshold suppresses result", threshold: float64(math.MaxInt64), wantNil: true},
+		{desc: "negative infinity threshold retains result", threshold: math.Inf(-1), wantNil: false},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			bsi, err := NewBoundedSumInt64(&BoundedSumInt64Options{
+				Epsilon:                  ln3,
+				MaxPartitionsContributed: 1,
+				Lower:                    0,
+				Upper:                    10,
+				Noise:                    fixedThresholdNoise{threshold: tc.threshold},
+			})
+			if err != nil {
+				t.Fatalf("NewBoundedSumInt64 failed: %v", err)
+			}
+			bsi.Add(10)
+			gotInt, err := bsi.ThresholdedResult(0.1)
+			if err != nil {
+				t.Fatalf("BoundedSumInt64.ThresholdedResult failed: %v", err)
+			}
+			if (gotInt == nil) != tc.wantNil {
+				t.Errorf("BoundedSumInt64.ThresholdedResult with threshold=%v: got=%v, wantNil=%t", tc.threshold, gotInt, tc.wantNil)
+			}
+
+			bsf, err := NewBoundedSumFloat64(&BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				MaxPartitionsContributed: 1,
+				Lower:                    0,
+				Upper:                    10,
+				Noise:                    fixedThresholdNoise{threshold: tc.threshold},
+			})
+			if err != nil {
+				t.Fatalf("NewBoundedSumFloat64 failed: %v", err)
+			}
+			bsf.Add(10)
+			gotFloat, err := bsf.ThresholdedResult(0.1)
+			if err != nil {
+				t.Fatalf("BoundedSumFloat64.ThresholdedResult failed: %v", err)
+			}
+			if (gotFloat == nil) != tc.wantNil {
+				t.Errorf("BoundedSumFloat64.ThresholdedResult with threshold=%v: got=%v, wantNil=%t", tc.threshold, gotFloat, tc.wantNil)
+			}
+		})
+	}
+}
+
 func TestThresholdedResultFloat64(t *testing.T) {
 	// ThresholdedResult outputs the result when it is more than the threshold (5.5 using noNoise)
 	bs1 := getNoiselessBSF(t)

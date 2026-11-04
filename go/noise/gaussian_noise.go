@@ -92,7 +92,8 @@ func (gaussian) Threshold(l0Sensitivity int64, lInfSensitivity, epsilon, noiseDe
 
 	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, noiseDelta)
 	noiseDist := distuv.Normal{Mu: 0, Sigma: sigma}
-	return lInfSensitivity + noiseDist.Quantile(math.Pow(1-thresholdDelta, 1.0/float64(l0Sensitivity))), nil
+	perPartitionDelta := -math.Expm1(math.Log1p(-thresholdDelta) / float64(l0Sensitivity))
+	return lInfSensitivity - noiseDist.Quantile(perPartitionDelta), nil
 }
 
 // DeltaForThreshold is the inverse operation of Threshold. Specifically, given
@@ -105,7 +106,8 @@ func (gaussian) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon,
 	}
 	sigma := SigmaForGaussian(l0Sensitivity, lInfSensitivity, epsilon, delta)
 	noiseDist := distuv.Normal{Mu: 0, Sigma: sigma}
-	return 1 - math.Pow(noiseDist.CDF(threshold-lInfSensitivity), float64(l0Sensitivity)), nil
+	perPartitionDelta := noiseDist.CDF(lInfSensitivity - threshold)
+	return -math.Expm1(float64(l0Sensitivity) * math.Log1p(-perPartitionDelta)), nil
 }
 
 // ComputeConfidenceIntervalInt64 computes a confidence interval that contains the raw integer value x from which int64 noisedX
