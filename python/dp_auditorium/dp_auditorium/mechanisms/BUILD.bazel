@@ -38,7 +38,7 @@ py_library(
     srcs = ["mean.py"],
     deps = [
         "//dp_auditorium/configs",
-        "@pypi//numpy",
+        "@auditorium_py_pip_deps//numpy",
     ],
 )
 
@@ -48,9 +48,9 @@ py_test(
     deps = [
         ":mean",
         ":mechanisms_utils",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 
@@ -59,7 +59,7 @@ py_library(
     srcs = ["noisy_max.py"],
     deps = [
         "//dp_auditorium/configs",
-        "@pypi//numpy",
+        "@auditorium_py_pip_deps//numpy",
     ],
 )
 
@@ -69,9 +69,9 @@ py_test(
     deps = [
         ":noisy_max",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 
@@ -80,8 +80,8 @@ py_library(
     srcs = ["sparse_vector_technique.py"],
     deps = [
         "//dp_auditorium/configs",
-        "@pypi//numpy",
-        "@pypi//typing_extensions",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//typing_extensions",
     ],
 )
 
@@ -91,9 +91,9 @@ py_test(
     deps = [
         ":sparse_vector_technique",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 

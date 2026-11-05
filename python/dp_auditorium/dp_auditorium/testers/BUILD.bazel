@@ -39,9 +39,9 @@ py_library(
         ":divergence_tester",
         ":property_tester_utils",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 
@@ -51,9 +51,9 @@ py_test(
     deps = [
         ":hockey_stick_tester",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 
@@ -64,7 +64,7 @@ py_library(
         ":property_tester_utils",
         "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
-        "@pypi//numpy",
+        "@auditorium_py_pip_deps//numpy",
     ],
 )
 
@@ -74,9 +74,9 @@ py_test(
     deps = [
         ":mmd_tester",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 
@@ -87,9 +87,9 @@ py_library(
         ":divergence_tester",
         ":property_tester_utils",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 
@@ -99,9 +99,9 @@ py_test(
     deps = [
         ":renyi_tester",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 
@@ -112,8 +112,8 @@ py_library(
         ":property_tester_utils",
         "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
-        "@pypi//numpy",
-        "@pypi//typing_extensions",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//typing_extensions",
     ],
 )
 
@@ -123,9 +123,9 @@ py_test(
     deps = [
         ":histogram_tester",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 
@@ -135,9 +135,9 @@ py_library(
     deps = [
         ":property_tester_utils",
         "//dp_auditorium:interfaces",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
-        "@pypi//typing_extensions",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
+        "@auditorium_py_pip_deps//typing_extensions",
     ],
 )
 
@@ -147,9 +147,9 @@ py_test(
     deps = [
         ":divergence_tester",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 
@@ -158,10 +158,10 @@ py_library(
     srcs = ["property_tester_utils.py"],
     deps = [
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//etils",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//etils",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )
 
@@ -171,8 +171,8 @@ py_test(
     deps = [
         ":property_tester_utils",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )

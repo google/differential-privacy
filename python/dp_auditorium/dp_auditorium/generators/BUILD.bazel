@@ -37,7 +37,7 @@ py_library(
     srcs = ["constant_dataset_generator.py"],
     deps = [
         "//dp_auditorium:interfaces",
-        "@pypi//numpy",
+        "@auditorium_py_pip_deps//numpy",
     ],
 )
 
@@ -46,8 +46,8 @@ py_test(
     srcs = ["constant_dataset_generator_test.py"],
     deps = [
         ":constant_dataset_generator",
-        "@pypi//absl_py",
-        "@pypi//numpy",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
     ],
 )
 
@@ -55,16 +55,16 @@ py_library(
     name = "vizier_dataset_generator",
     srcs = ["vizier_dataset_generator.py"],
     deps = [
-        "@pypi//absl_py",
-        "@pypi//google_vizier",
-        "@pypi//numpy",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//google_vizier",
+        "@auditorium_py_pip_deps//numpy",
         # Needed to fix strange dependency bugs in Vizier. Order is important!
-        "@pypi//equinox",
-        "@pypi//flax",
-        "@pypi//googleapis_common_protos",
-        "@pypi//jax",
-        "@pypi//jaxlib",
-        "@pypi//pysqlite3",
+        "@auditorium_py_pip_deps//equinox",
+        "@auditorium_py_pip_deps//flax",
+        "@auditorium_py_pip_deps//googleapis_common_protos",
+        "@auditorium_py_pip_deps//jax",
+        "@auditorium_py_pip_deps//jaxlib",
+        "@auditorium_py_pip_deps//pysqlite3",
         "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
     ],
@@ -74,17 +74,17 @@ py_test(
     name = "vizier_dataset_generator_test",
     srcs = ["vizier_dataset_generator_test.py"],
     deps = [
-        "@pypi//absl_py",
-        "@pypi//google_vizier",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//google_vizier",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
         # Needed to fix strange dependency bugs in Vizier. Order is important!
-        "@pypi//equinox",
-        "@pypi//flax",
-        "@pypi//googleapis_common_protos",
-        "@pypi//jax",
-        "@pypi//jaxlib",
-        "@pypi//pysqlite3",
+        "@auditorium_py_pip_deps//equinox",
+        "@auditorium_py_pip_deps//flax",
+        "@auditorium_py_pip_deps//googleapis_common_protos",
+        "@auditorium_py_pip_deps//jax",
+        "@auditorium_py_pip_deps//jaxlib",
+        "@auditorium_py_pip_deps//pysqlite3",
         ":vizier_dataset_generator",
         "//dp_auditorium:interfaces",
     ],
@@ -97,7 +97,7 @@ py_library(
         ":vizier_dataset_generator",
         "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
-        "@pypi//numpy",
+        "@auditorium_py_pip_deps//numpy",
     ],
 )
 
@@ -106,9 +106,9 @@ py_test(
     srcs = ["pipeline_dp_vizier_dataset_generator_test.py"],
     deps = [
         # Needed to fix strange dependency bugs in Vizier. Order is important!
-        "@pypi//absl_py",
-        "@pypi//google_vizier",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//google_vizier",
+        "@auditorium_py_pip_deps//tensorflow",
         ":pipeline_dp_vizier_dataset_generator",
         "//dp_auditorium/configs",
     ],
@@ -121,8 +121,8 @@ py_library(
         ":vizier_dataset_generator",
         "//dp_auditorium:interfaces",
         "//dp_auditorium/configs",
-        "@pypi//google_vizier",
-        "@pypi//numpy",
+        "@auditorium_py_pip_deps//google_vizier",
+        "@auditorium_py_pip_deps//numpy",
     ],
 )
 
@@ -132,8 +132,8 @@ py_test(
     deps = [
         ":classification_dataset_generator",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//google_vizier",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//google_vizier",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )

@@ -38,7 +38,7 @@ py_library(
     srcs = ["interfaces.py"],
     deps = [
         "//dp_auditorium/configs",
-        "@pypi//numpy",
+        "@auditorium_py_pip_deps//numpy",
     ],
 )
 
@@ -48,8 +48,8 @@ py_library(
     deps = [
         ":interfaces",
         "//dp_auditorium/configs",
-        "@pypi//numpy",
-        "@pypi//scipy",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//scipy",
     ],
 )
 
@@ -60,8 +60,8 @@ py_test(
         ":interfaces",
         ":privacy_test_runner",
         "//dp_auditorium/configs",
-        "@pypi//absl_py",
-        "@pypi//numpy",
-        "@pypi//tensorflow",
+        "@auditorium_py_pip_deps//absl_py",
+        "@auditorium_py_pip_deps//numpy",
+        "@auditorium_py_pip_deps//tensorflow",
     ],
 )

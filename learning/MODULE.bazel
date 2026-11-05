@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+module(name = "google_dp_learning_py")
+
 bazel_dep(name = "rules_python", version = "2.4.5")
 
 rules_python_config = use_extension("@rules_python//python/extensions:config.bzl", "config")

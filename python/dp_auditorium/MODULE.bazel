@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+module(name = "google_dp_auditorium_py")
+
 bazel_dep(name = "rules_python", version = "2.4.5")
 
 rules_python_config = use_extension("@rules_python//python/extensions:config.bzl", "config")
@@ -27,8 +29,8 @@ python.toolchain(
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
-    hub_name = "pypi",
+    hub_name = "auditorium_py_pip_deps",
     python_version = "3.10",
     requirements_lock = "//:requirements.txt",
 )
-use_repo(pip, "pypi")
+use_repo(pip, "auditorium_py_pip_deps")
