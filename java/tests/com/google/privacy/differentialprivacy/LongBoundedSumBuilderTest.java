@@ -313,6 +313,48 @@ public class LongBoundedSumBuilderTest {
   }
 
   @Test
+  public void lower_minLongValue_throwsException() {
+    // |Long.MIN_VALUE| = 2^63 cannot be represented as a long, which would otherwise wrap the LInf
+    // sensitivity around to the upper bound and under-calibrate the noise.
+    builder.lower(Long.MIN_VALUE);
+    builder.upper(100);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void lower_minLongValue_laplaceNoise_throwsException() {
+    builder.noise(new LaplaceNoise());
+    builder.delta(0.0);
+    builder.lower(Long.MIN_VALUE);
+    builder.upper(100);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void lower_minLongValue_discreteLaplaceNoise_throwsException() {
+    builder.noise(new DiscreteLaplaceNoise());
+    builder.delta(0.0);
+    builder.lower(Long.MIN_VALUE);
+    builder.upper(100);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void lower_minLongValue_unrecognizedNoise_throwsException() {
+    builder.noise(unrecognizedNoise);
+    builder.lower(Long.MIN_VALUE);
+    builder.upper(100);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void lower_minLongValuePlusOne_buildsInstance() {
+    builder.lower(Long.MIN_VALUE + 1);
+    builder.upper(0);
+    assertThat(builder.build()).isNotNull();
+  }
+
+  @Test
   public void bounds_equal_buildsInstance() {
     builder.lower(1);
     builder.upper(1);
@@ -338,6 +380,34 @@ public class LongBoundedSumBuilderTest {
   }
 
   @Test
+  public void parametersResultInLInfSensitivityMultiplicationOverflow_throwsException() {
+    LongBoundedSum.Params.Builder builder =
+        LongBoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .noise(new LaplaceNoise())
+            .maxPartitionsContributed(1)
+            .maxContributionsPerPartition(4)
+            .lower(-(1L << 62))
+            .upper(1);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void
+      parametersResultInLInfSensitivityMultiplicationOverflow_unrecognizedNoise_throwsException() {
+    LongBoundedSum.Params.Builder builder =
+        LongBoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .delta(DEFAULT_DELTA)
+            .noise(unrecognizedNoise)
+            .maxPartitionsContributed(1)
+            .maxContributionsPerPartition(4)
+            .lower(-(1L << 62))
+            .upper(1);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
   public void parametersResultInL1SensitivityOverflow_throwsException() {
     LongBoundedSum.Params.Builder builder =
         LongBoundedSum.builder()
@@ -352,6 +422,71 @@ public class LongBoundedSumBuilderTest {
     // = 1 * 4 * Long.MAX_VALUE / 2
     // = 2 * Long.MAX_VALUE
     assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void parametersResultInL1SensitivityOverflow_discreteLaplace_throwsException() {
+    LongBoundedSum.Params.Builder builder =
+        LongBoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .noise(new DiscreteLaplaceNoise())
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(4)
+            .lower(-Long.MAX_VALUE / 2)
+            .upper(Long.MAX_VALUE / 2);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void parametersResultInL1SensitivityExact2Pow63Overflow_laplace_throwsException() {
+    LongBoundedSum.Params.Builder builder =
+        LongBoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .noise(new LaplaceNoise())
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(2)
+            .lower(0)
+            .upper(1L << 62);
+    // Exact L_1 sensitivity is 2 * 2^62 = 2^63 = Long.MAX_VALUE + 1, which rounds to the same
+    // IEEE-754 double as Long.MAX_VALUE (2.0^63) and must still be rejected.
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void parametersResultInL1SensitivityExact2Pow63Overflow_discreteLaplace_throwsException() {
+    LongBoundedSum.Params.Builder builder =
+        LongBoundedSum.builder()
+            .epsilon(DEFAULT_EPSILON)
+            .noise(new DiscreteLaplaceNoise())
+            .maxContributionsPerPartition(1)
+            .maxPartitionsContributed(2)
+            .lower(0)
+            .upper(1L << 62);
+    assertThrows(IllegalArgumentException.class, builder::build);
+  }
+
+  @Test
+  public void parametersAtMaxRepresentableL1Sensitivity_buildsInstance() {
+    assertThat(
+            LongBoundedSum.builder()
+                .epsilon(DEFAULT_EPSILON)
+                .noise(new LaplaceNoise())
+                .maxContributionsPerPartition(1)
+                .maxPartitionsContributed(1)
+                .lower(Long.MIN_VALUE + 1)
+                .upper(Long.MAX_VALUE)
+                .build())
+        .isNotNull();
+    assertThat(
+            LongBoundedSum.builder()
+                .epsilon(DEFAULT_EPSILON)
+                .noise(new DiscreteLaplaceNoise())
+                .maxContributionsPerPartition(1)
+                .maxPartitionsContributed(1)
+                .lower(Long.MIN_VALUE + 1)
+                .upper(Long.MAX_VALUE)
+                .build())
+        .isNotNull();
   }
 
   @Test

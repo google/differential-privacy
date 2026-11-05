@@ -290,6 +290,43 @@ public final class DiscreteLaplaceNoiseTest {
   }
 
   @Test
+  public void addNoise_l1SensitivityOverflowsLongMaxValue_throwsException() {
+    // Use epsilon = 100.0 so epsilon / Long.MAX_VALUE > 2^-59 (satisfying SamplingUtil's lambda
+    // precondition); without an exact overflow check, (long) getL1Sensitivity(...) saturates to
+    // Long.MAX_VALUE and silently returns under-calibrated noise.
+    double epsilon = 100.0;
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            NOISE.addNoise(
+                DEFAULT_X,
+                /* l0Sensitivity= */ 2,
+                /* lInfSensitivity= */ 1L << 62,
+                epsilon,
+                /* delta= */ 0.0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            NOISE.addNoise(
+                DEFAULT_X,
+                /* l0Sensitivity= */ 10000,
+                /* lInfSensitivity= */ Long.MAX_VALUE / 400,
+                epsilon,
+                /* delta= */ 0.0));
+  }
+
+  @Test
+  public void addNoise_maxRepresentableL1Sensitivity_succeeds() {
+    var unused =
+        NOISE.addNoise(
+            DEFAULT_X,
+            /* l0Sensitivity= */ 1,
+            /* lInfSensitivity= */ Long.MAX_VALUE,
+            /* epsilon= */ 100.0,
+            /* delta= */ 0.0);
+  }
+
+  @Test
   public void getMechanismType_returnsDiscreteLaplace() {
     assertThat(NOISE.getMechanismType()).isEqualTo(DISCRETE_LAPLACE);
   }

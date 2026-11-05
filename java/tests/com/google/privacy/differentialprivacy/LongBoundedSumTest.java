@@ -74,7 +74,8 @@ public class LongBoundedSumTest {
             .maxPartitionsContributed(1)
             .maxContributionsPerPartition(1)
             // The lower and upper bounds are arbitrarily chosen negative and positive values.
-            .lower(Long.MIN_VALUE)
+            // Long.MIN_VALUE is not a valid lower bound because |Long.MIN_VALUE| overflows.
+            .lower(Long.MIN_VALUE + 1)
             .upper(Long.MAX_VALUE)
             .build();
   }
@@ -253,10 +254,18 @@ public class LongBoundedSumTest {
 
   @Test
   public void getSerializableSummary_copiesMinDoubleSumCorrectly() {
+    sum.addEntry(Long.MIN_VALUE + 1);
+
+    LongBoundedSumSummary summary = getSummary(sum);
+    assertThat(summary.getPartialSum().getIntValue()).isEqualTo(Long.MIN_VALUE + 1);
+  }
+
+  @Test
+  public void addEntry_belowLowerBound_isClampedToLowerBound() {
     sum.addEntry(Long.MIN_VALUE);
 
     LongBoundedSumSummary summary = getSummary(sum);
-    assertThat(summary.getPartialSum().getIntValue()).isEqualTo(Long.MIN_VALUE);
+    assertThat(summary.getPartialSum().getIntValue()).isEqualTo(Long.MIN_VALUE + 1);
   }
 
   @Test

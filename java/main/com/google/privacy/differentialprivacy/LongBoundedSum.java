@@ -16,9 +16,10 @@
 
 package com.google.privacy.differentialprivacy;
 
-import static java.lang.Math.abs;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static java.lang.Math.multiplyExact;
+import static java.lang.Math.negateExact;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
@@ -224,8 +225,17 @@ public class LongBoundedSum {
         params.lower(), params.upper(), params.maxContributionsPerPartition());
   }
 
+  private static long absExact(long a) {
+    // Equivalent to JDK 15+ Math.absExact(long), kept compatible with Java 11 (.bazelrc).
+    return a < 0 ? negateExact(a) : a;
+  }
+
   private static long getLInfSensitivity(long lower, long upper, int maxContributionsPerPartition) {
-    return max(abs(lower), abs(upper)) * maxContributionsPerPartition;
+    // Math.abs(Long.MIN_VALUE) == Long.MIN_VALUE and the product below can wrap around, either of
+    // which would silently under-calibrate the noise. Params.Builder.build() rejects such
+    // parameters, and the exact arithmetic here guarantees that no wrapped value is ever used.
+    return multiplyExact(
+        max(absExact(lower), absExact(upper)), (long) maxContributionsPerPartition);
   }
 
   @AutoValue
@@ -246,11 +256,33 @@ public class LongBoundedSum {
 
     @AutoValue.Builder
     public abstract static class Builder {
+      private static void checkLowerBound(long lower) {
+        // |Long.MIN_VALUE| = 2^63 cannot be represented as a long, so the LInf sensitivity of
+        // such a sum would silently wrap around (Math.abs(Long.MIN_VALUE) == Long.MIN_VALUE) and
+        // the noise would be calibrated to the upper bound only. This matches the C++
+        // (BoundedSum::CheckLowerBound) and Go (checks.CheckBoundsInt64) libraries.
+        Preconditions.checkArgument(
+            lower != Long.MIN_VALUE,
+            "Lower bound cannot be Long.MIN_VALUE because its magnitude cannot be represented as a"
+                + " long. If bounding manually, please increase it by at least 1. Provided value:"
+                + " lower bound = %s",
+            lower);
+      }
+
+      private static boolean lInfSensitivityOverflows(
+          long lower, long upper, int maxContributionsPerPartition) {
+        try {
+          // getLInfSensitivity uses exact arithmetic and is never negative unless it overflows.
+          return getLInfSensitivity(lower, upper, maxContributionsPerPartition) < 0;
+        } catch (ArithmeticException e) {
+          return true;
+        }
+      }
+
       private static void checkLInfSensitivityOverflow(
           long lower, long upper, int maxContributionsPerPartition) {
-        long lInfSensitivity = getLInfSensitivity(lower, upper, maxContributionsPerPartition);
         Preconditions.checkArgument(
-            Long.compare(lInfSensitivity, Long.MAX_VALUE) <= 0,
+            !lInfSensitivityOverflows(lower, upper, maxContributionsPerPartition),
             "bounds and maxContributionsPerPartition are too high - the LInfSensitivity "
                 + " overflows. Provided values: lower bound = %s, upper bound = %s,"
                 + " maxContributionsPerPartition = %s",
@@ -259,13 +291,21 @@ public class LongBoundedSum {
             maxContributionsPerPartition);
       }
 
+      private static boolean l1SensitivityOverflows(
+          long lower, long upper, int maxContributionsPerPartition, int maxPartitionsContributed) {
+        try {
+          long lInfSensitivity = getLInfSensitivity(lower, upper, maxContributionsPerPartition);
+          return multiplyExact((long) maxPartitionsContributed, lInfSensitivity) < 0;
+        } catch (ArithmeticException e) {
+          return true;
+        }
+      }
+
       private static void checkL1SensitivityOverflow(
           long lower, long upper, int maxContributionsPerPartition, int maxPartitionsContributed) {
-        long lInfSensitivity = getLInfSensitivity(lower, upper, maxContributionsPerPartition);
-        double l1Sensitivity =
-            Noise.getL1Sensitivity(maxPartitionsContributed, (double) lInfSensitivity);
         Preconditions.checkArgument(
-            Double.compare(l1Sensitivity, Long.MAX_VALUE) <= 0,
+            !l1SensitivityOverflows(
+                lower, upper, maxContributionsPerPartition, maxPartitionsContributed),
             "bounds and maxContributionsPerPartition are too high - the L1Sensitivity "
                 + " overflows. Provided values: lower bound = %s, upper bound = %s,"
                 + " maxContributionsPerPartition = %s",
@@ -360,9 +400,14 @@ public class LongBoundedSum {
         DpPreconditions.checkMaxPartitionsContributed(params.maxPartitionsContributed());
         DpPreconditions.checkMaxContributionsPerPartition(params.maxContributionsPerPartition());
         DpPreconditions.checkBounds(params.lower(), params.upper());
+        checkLowerBound(params.lower());
+        // Must run before the L1/L2 checks below, which use the LInf sensitivity.
+        checkLInfSensitivityOverflow(
+            params.lower(), params.upper(), params.maxContributionsPerPartition());
 
         switch (params.noise().getMechanismType()) {
           case LAPLACE:
+          case DISCRETE_LAPLACE:
             checkL1SensitivityOverflow(
                 params.lower(),
                 params.upper(),
@@ -379,8 +424,6 @@ public class LongBoundedSum {
           default:
             break;
         }
-        checkLInfSensitivityOverflow(
-            params.lower(), params.upper(), params.maxContributionsPerPartition());
 
         return new LongBoundedSum(params);
       }

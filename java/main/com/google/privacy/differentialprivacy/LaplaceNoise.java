@@ -120,9 +120,18 @@ public class LaplaceNoise implements Noise {
   public long addNoise(
       long x, int l0Sensitivity, long lInfSensitivity, double epsilon, double delta) {
     DpPreconditions.checkSensitivities(l0Sensitivity, lInfSensitivity);
-
-    return addNoise(
-        x, (long) Noise.getL1Sensitivity(l0Sensitivity, lInfSensitivity), epsilon, delta);
+    long l1Sensitivity;
+    try {
+      l1Sensitivity = Math.multiplyExact((long) l0Sensitivity, lInfSensitivity);
+    } catch (ArithmeticException e) {
+      throw new IllegalArgumentException(
+          String.format(
+              "l0Sensitivity and lInfSensitivity are too high - the l1Sensitivity overflows."
+                  + " Provided values: l0Sensitivity = %s, lInfSensitivity = %s",
+              l0Sensitivity, lInfSensitivity),
+          e);
+    }
+    return addNoise(x, l1Sensitivity, epsilon, delta);
   }
 
   /**

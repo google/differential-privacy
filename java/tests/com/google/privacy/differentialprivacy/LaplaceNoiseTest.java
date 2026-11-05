@@ -320,6 +320,40 @@ public final class LaplaceNoiseTest {
   }
 
   @Test
+  public void addNoise_integralX_l1SensitivityOverflowsLongMaxValue_throwsException() {
+    // 2 * 2^62 = 2^63 = Long.MAX_VALUE + 1 overflows signed 64-bit long.
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            NOISE.addNoise(
+                /* x= */ 0L,
+                /* l0Sensitivity= */ 2,
+                /* lInfSensitivity= */ 1L << 62,
+                DEFAULT_EPSILON,
+                /* delta= */ 0.0));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            NOISE.addNoise(
+                /* x= */ 0L,
+                /* l0Sensitivity= */ 10000,
+                /* lInfSensitivity= */ Long.MAX_VALUE / 400,
+                DEFAULT_EPSILON,
+                /* delta= */ 0.0));
+  }
+
+  @Test
+  public void addNoise_integralX_maxRepresentableL1Sensitivity_succeeds() {
+    var unused =
+        NOISE.addNoise(
+            /* x= */ 0L,
+            /* l0Sensitivity= */ 1,
+            /* lInfSensitivity= */ Long.MAX_VALUE,
+            DEFAULT_EPSILON,
+            /* delta= */ 0.0);
+  }
+
+  @Test
   public void addNoise_returnsMultipleOfGranularity() {
     SecureRandom random = new SecureRandom();
     for (int i = 0; i < NUM_SAMPLES; i++) {
