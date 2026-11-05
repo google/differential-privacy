@@ -489,21 +489,78 @@ func TestBudgetFullyConsumed(t *testing.T) {
 		{1, 1},
 		{2, 2},
 	}
-	p, s, col := ptest.CreateList(values)
-	colKV := beam.ParDo(s, testutils.PairToKV, col)
-	spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1, PartitionSelectionEpsilon: 1, PartitionSelectionDelta: 1e-30})
-	pcol := MakePrivate(s, colKV, spec)
-	got := Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
-	passert.Empty(s, got)
-	if err := ptest.Run(p); err != nil {
-		t.Errorf("expected no error but got error: %v", err)
-	}
-	// Try consuming 1% of the initial budget.
-	if eps, del, err := spec.aggregationBudget.consume(0.01, 0); err == nil {
-		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
-	}
-	if eps, del, err := spec.partitionSelectionBudget.consume(0.01, 1e-32); err == nil {
-		t.Errorf("expected spec to be out of budget, but could consume (%f,%e) without any error", eps, del)
+	for _, tc := range []struct {
+		name string
+		op   func(s beam.Scope, pcol, pcolKV PrivatePCollection) beam.PCollection
+	}{
+		{
+			name: "count",
+			op: func(s beam.Scope, pcol, _ PrivatePCollection) beam.PCollection {
+				return Count(s, pcol, CountParams{MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
+			},
+		},
+		{
+			name: "distinct_per_key",
+			op: func(s beam.Scope, _, pcolKV PrivatePCollection) beam.PCollection {
+				return DistinctPerKey(s, pcolKV, DistinctPerKeyParams{MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, NoiseKind: LaplaceNoise{}})
+			},
+		},
+		{
+			name: "sum_per_key",
+			op: func(s beam.Scope, _, pcolKV PrivatePCollection) beam.PCollection {
+				return SumPerKey(s, pcolKV, SumParams{MinValue: 0, MaxValue: 1, MaxPartitionsContributed: 1, NoiseKind: LaplaceNoise{}})
+			},
+		},
+		{
+			name: "mean_per_key",
+			op: func(s beam.Scope, _, pcolKV PrivatePCollection) beam.PCollection {
+				return MeanPerKey(s, pcolKV, MeanParams{MinValue: 0, MaxValue: 1, MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, NoiseKind: LaplaceNoise{}})
+			},
+		},
+		{
+			name: "mean_statistics_per_key",
+			op: func(s beam.Scope, _, pcolKV PrivatePCollection) beam.PCollection {
+				return MeanStatisticsPerKey(s, pcolKV, MeanParams{MinValue: 0, MaxValue: 1, MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, NoiseKind: LaplaceNoise{}})
+			},
+		},
+		{
+			name: "variance_per_key",
+			op: func(s beam.Scope, _, pcolKV PrivatePCollection) beam.PCollection {
+				return VariancePerKey(s, pcolKV, VarianceParams{MinValue: 0, MaxValue: 1, MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, NoiseKind: LaplaceNoise{}})
+			},
+		},
+		{
+			name: "variance_statistics_per_key",
+			op: func(s beam.Scope, _, pcolKV PrivatePCollection) beam.PCollection {
+				return VarianceStatisticsPerKey(s, pcolKV, VarianceParams{MinValue: 0, MaxValue: 1, MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, NoiseKind: LaplaceNoise{}})
+			},
+		},
+		{
+			name: "quantiles_per_key",
+			op: func(s beam.Scope, _, pcolKV PrivatePCollection) beam.PCollection {
+				return QuantilesPerKey(s, pcolKV, QuantilesParams{MinValue: 0, MaxValue: 1, MaxPartitionsContributed: 1, MaxContributionsPerPartition: 1, Ranks: []float64{0.5}, NoiseKind: LaplaceNoise{}})
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, s, col := ptest.CreateList(values)
+			colKV := beam.ParDo(s, testutils.PairToKV, col)
+			spec := privacySpec(t, PrivacySpecParams{AggregationEpsilon: 1, PartitionSelectionEpsilon: 1, PartitionSelectionDelta: 1e-30})
+			pcol := MakePrivate(s, colKV, spec)
+			pcolKV := ParDo(s, addZeroIntKeyFn, pcol)
+			got := tc.op(s, pcol, pcolKV)
+			passert.Empty(s, got)
+			if err := ptest.Run(p); err != nil {
+				t.Errorf("expected no error but got error: %v", err)
+			}
+			// Try consuming 1% of the initial budget.
+			if eps, del, err := spec.aggregationBudget.consume(0.01, 0); err == nil {
+				t.Errorf("expected spec to be out of aggregation budget, but could consume (%f,%e) without any error", eps, del)
+			}
+			if eps, del, err := spec.partitionSelectionBudget.consume(0.01, 1e-32); err == nil {
+				t.Errorf("expected spec to be out of partition selection budget, but could consume (%f,%e) without any error", eps, del)
+			}
+		})
 	}
 }
 

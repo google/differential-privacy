@@ -158,12 +158,12 @@ func QuantilesPerKey(s beam.Scope, pcol PrivatePCollection, params QuantilesPara
 	spec := pcol.privacySpec
 	var err error
 
-	params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.get(params.AggregationEpsilon, params.AggregationDelta)
+	params.AggregationEpsilon, params.AggregationDelta, err = spec.aggregationBudget.consume(params.AggregationEpsilon, params.AggregationDelta)
 	if err != nil {
 		log.Fatalf("Couldn't consume aggregation budget for Quantiles: %v", err)
 	}
 	if params.PublicPartitions == nil {
-		params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.get(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
+		params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta, err = spec.partitionSelectionBudget.consume(params.PartitionSelectionParams.Epsilon, params.PartitionSelectionParams.Delta)
 		if err != nil {
 			log.Fatalf("Couldn't consume partition selection budget for Quantiles: %v", err)
 		}
