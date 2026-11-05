@@ -24,6 +24,7 @@ licenses(["notice"])
 py_library(
     name = "configs",
     srcs = [
+        "__init__.py",
         "dataset_generator_config.py",
         "mechanism_config.py",
         "privacy_property.py",
