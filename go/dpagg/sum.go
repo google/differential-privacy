@@ -47,14 +47,15 @@ import (
 
 type BoundedSumInt64 struct {
 	// Parameters
-	epsilon         float64
-	delta           float64
-	l0Sensitivity   int64
-	lInfSensitivity int64
-	lower           int64
-	upper           int64
-	Noise           noise.Noise
-	noiseKind       noise.Kind // necessary for serializing noise.Noise information
+	epsilon          float64
+	delta            float64
+	l0Sensitivity    int64
+	lInfSensitivity  int64
+	lower            int64
+	upper            int64
+	maxContributions int64
+	Noise            noise.Noise
+	noiseKind        noise.Kind // necessary for serializing noise.Noise information
 
 	// State variables
 	sum       int64
@@ -69,6 +70,7 @@ func bsEquallyInitializedint64(s1, s2 *BoundedSumInt64) bool {
 		s1.lInfSensitivity == s2.lInfSensitivity &&
 		s1.lower == s2.lower &&
 		s1.upper == s2.upper &&
+		s1.maxContributions == s2.maxContributions &&
 		s1.noiseKind == s2.noiseKind &&
 		s1.state == s2.state
 }
@@ -88,10 +90,13 @@ type BoundedSumInt64Options struct {
 	// Defaults to 1. This is only needed for other aggregation functions using BoundedSum;
 	// which is why the option is not exported.
 	//
-	// maxContributionsPerPartition is mutually exclusive with MaxContributions. This option has no effect if MaxContributions is set.
+	// maxContributionsPerPartition is mutually exclusive with MaxContributions.
 	maxContributionsPerPartition int64
 	// How many times may a single privacy unit contribute in total to all partitions?
-	// Currently only used for Count aggregation function.
+	// Currently only used for Count aggregation function. Each input passed to Add is clamped
+	// to [0, MaxContributions]. Callers must pre-aggregate each privacy unit's contributions per
+	// partition into a single Add call and bound total contributions across partitions to
+	// MaxContributions. ThresholdedResult is not supported when MaxContributions is set.
 	//
 	// Mutually exclusive with set of {MaxPartitionsContributed, Lower, Upper}. Required when {MaxPartitionsContributed, Lower, Upper} are not set.
 	MaxContributions int64
@@ -101,10 +106,6 @@ type BoundedSumInt64Options struct {
 func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	if opt == nil {
 		opt = &BoundedSumInt64Options{} // Prevents panicking due to a nil pointer dereference.
-	}
-	err := checks.CheckContributionBoundingOptions(opt.MaxContributions, opt.MaxPartitionsContributed)
-	if err != nil {
-		return nil, fmt.Errorf("NewBoundedSumInt64: %w", err)
 	}
 
 	l0, err := getL0Int(opt.MaxContributions, opt.MaxPartitionsContributed)
@@ -126,6 +127,18 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	if opt.MaxPartitionsContributed > 0 && lower == 0 && upper == 0 {
 		return nil, fmt.Errorf("NewBoundedSumInt64: When using MaxPartitionsContributed, Lower and Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
+	if opt.MaxContributions > 0 {
+		if opt.maxContributionsPerPartition != 0 {
+			return nil, fmt.Errorf("NewBoundedSumInt64: When using MaxContributions, maxContributionsPerPartition must not be set (was %d)", opt.maxContributionsPerPartition)
+		}
+		if lower != 0 || upper != 0 {
+			return nil, fmt.Errorf("NewBoundedSumInt64: When using MaxContributions, Lower and Upper must not be set (was Lower = %d, Upper = %d)", lower, upper)
+		}
+		// When using MaxContributions, a single privacy unit can contribute at most
+		// MaxContributions times (each with value 1) to a partition, so each privacy unit's
+		// contribution to the partition is bounded by [0, MaxContributions].
+		upper = opt.MaxContributions
+	}
 	switch noise.ToKind(opt.Noise) {
 	case noise.Unrecognised:
 		err = checks.CheckBoundsInt64IgnoreOverflows(lower, upper)
@@ -142,10 +155,6 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 		// the L1 sensitivity (MaxContributions) in the form expected by the noise layer (l0 * lInf).
 		// This does not hold for privacy-ID count aggregations, where l0=MaxContributions and lInf=1.
 		lInf = opt.MaxContributions
-		// When using MaxContributions, no per-partition contribution bounding is performed.
-		// upper is set to a default of match.MaxInt64 because it is being used in the Add function below,
-		// making it a no-op.
-		upper = math.MaxInt64
 	} else {
 		lInf, err = getLInfInt(lower, upper, maxContributionsPerPartition)
 	}
@@ -166,16 +175,17 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 	}
 
 	return &BoundedSumInt64{
-		epsilon:         eps,
-		delta:           del,
-		l0Sensitivity:   l0,
-		lInfSensitivity: lInf,
-		lower:           lower,
-		upper:           upper,
-		Noise:           n,
-		noiseKind:       noise.ToKind(n),
-		sum:             0,
-		state:           defaultState,
+		epsilon:          eps,
+		delta:            del,
+		l0Sensitivity:    l0,
+		lInfSensitivity:  lInf,
+		lower:            lower,
+		upper:            upper,
+		maxContributions: opt.MaxContributions,
+		Noise:            n,
+		noiseKind:        noise.ToKind(n),
+		sum:              0,
+		state:            defaultState,
 	}, nil
 }
 
@@ -294,7 +304,12 @@ func (bs *BoundedSumInt64) Result() (int64, error) {
 //
 // Note that the nil results should not be published when the existence of a
 // partition in the output depends on private data.
+//
+// ThresholdedResult is not supported when MaxContributions is set.
 func (bs *BoundedSumInt64) ThresholdedResult(thresholdDelta float64) (*int64, error) {
+	if bs.maxContributions > 0 {
+		return nil, fmt.Errorf("BoundedSumInt64's thresholded result cannot be computed: ThresholdedResult is not supported when MaxContributions is set")
+	}
 	threshold, err := bs.Noise.Threshold(bs.l0Sensitivity, float64(bs.lInfSensitivity), bs.epsilon, bs.delta, thresholdDelta)
 	if err != nil {
 		return nil, err
@@ -341,14 +356,15 @@ func (bs *BoundedSumInt64) ComputeConfidenceInterval(alpha float64) (noise.Confi
 
 // encodableBoundedSumFloat64 can be encoded by the gob package.
 type encodableBoundedSumInt64 struct {
-	Epsilon         float64
-	Delta           float64
-	L0Sensitivity   int64
-	LInfSensitivity int64
-	Lower           int64
-	Upper           int64
-	NoiseKind       noise.Kind
-	Sum             int64
+	Epsilon          float64
+	Delta            float64
+	L0Sensitivity    int64
+	LInfSensitivity  int64
+	Lower            int64
+	Upper            int64
+	MaxContributions int64
+	NoiseKind        noise.Kind
+	Sum              int64
 }
 
 // GobEncode encodes BoundedSumInt64.
@@ -357,14 +373,15 @@ func (bs *BoundedSumInt64) GobEncode() ([]byte, error) {
 		return nil, fmt.Errorf("BoundedSumInt64 object cannot be serialized: %s", bs.state.errorMessage())
 	}
 	enc := encodableBoundedSumInt64{
-		Epsilon:         bs.epsilon,
-		Delta:           bs.delta,
-		L0Sensitivity:   bs.l0Sensitivity,
-		LInfSensitivity: bs.lInfSensitivity,
-		Lower:           bs.lower,
-		Upper:           bs.upper,
-		NoiseKind:       noise.ToKind(bs.Noise),
-		Sum:             bs.sum,
+		Epsilon:          bs.epsilon,
+		Delta:            bs.delta,
+		L0Sensitivity:    bs.l0Sensitivity,
+		LInfSensitivity:  bs.lInfSensitivity,
+		Lower:            bs.lower,
+		Upper:            bs.upper,
+		MaxContributions: bs.maxContributions,
+		NoiseKind:        noise.ToKind(bs.Noise),
+		Sum:              bs.sum,
 	}
 	bs.state = serialized
 	return encode(enc)
@@ -378,16 +395,17 @@ func (bs *BoundedSumInt64) GobDecode(data []byte) error {
 		return fmt.Errorf("couldn't decode BoundedSumInt64 from bytes")
 	}
 	*bs = BoundedSumInt64{
-		epsilon:         enc.Epsilon,
-		delta:           enc.Delta,
-		l0Sensitivity:   enc.L0Sensitivity,
-		lInfSensitivity: enc.LInfSensitivity,
-		lower:           enc.Lower,
-		upper:           enc.Upper,
-		noiseKind:       enc.NoiseKind,
-		Noise:           noise.ToNoise(enc.NoiseKind),
-		sum:             enc.Sum,
-		state:           defaultState,
+		epsilon:          enc.Epsilon,
+		delta:            enc.Delta,
+		l0Sensitivity:    enc.L0Sensitivity,
+		lInfSensitivity:  enc.LInfSensitivity,
+		lower:            enc.Lower,
+		upper:            enc.Upper,
+		maxContributions: enc.MaxContributions,
+		noiseKind:        enc.NoiseKind,
+		Noise:            noise.ToNoise(enc.NoiseKind),
+		sum:              enc.Sum,
+		state:            defaultState,
 	}
 	return nil
 }

@@ -192,6 +192,45 @@ func TestBoundedSumInt64FnSetup(t *testing.T) {
 	}
 }
 
+func TestBoundedSumInt64FnCreateAccumulatorWithMaxContributions(t *testing.T) {
+	for _, tc := range []struct {
+		desc     string
+		testMode TestMode
+	}{
+		{"TestModeDisabled", TestModeDisabled},
+		{"TestModeWithoutContributionBounding", TestModeWithoutContributionBounding},
+	} {
+		spec := privacySpec(t, PrivacySpecParams{
+			AggregationEpsilon:        0.5,
+			PartitionSelectionEpsilon: 0.5,
+			PartitionSelectionDelta:   1e-5,
+			TestMode:                  tc.testMode,
+		})
+		fn, err := newBoundedSumInt64Fn(
+			*spec,
+			SumParams{
+				AggregationEpsilon:       0.5,
+				PartitionSelectionParams: PartitionSelectionParams{Epsilon: 0.5, Delta: 1e-5},
+				maxContributions:         10,
+			},
+			noise.LaplaceNoise,
+			false,
+		)
+		if err != nil {
+			t.Fatalf("newBoundedSumInt64Fn(%s) failed: %v", tc.desc, err)
+		}
+		fn.Setup()
+
+		if _, err := fn.CreateAccumulator(); err != nil {
+			t.Fatalf("CreateAccumulator(%s) failed: %v", tc.desc, err)
+		}
+		if fn.Lower != 0 || fn.Upper != 0 || fn.MaxContributions != 10 {
+			t.Errorf("CreateAccumulator(%s) mutated fn fields: got (Lower=%d, Upper=%d, MaxContributions=%d), want (0, 0, 10)",
+				tc.desc, fn.Lower, fn.Upper, fn.MaxContributions)
+		}
+	}
+}
+
 func TestBoundedSumInt64FnAddInput(t *testing.T) {
 	// Since δ=0.5 and 2 entries are added, PreAggPartitionSelection always emits.
 	// Since AggregationEpsilon=1e50, the noise is added with probability in the order of exp(-1e50),

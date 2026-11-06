@@ -343,19 +343,26 @@ func (fn *boundedSumInt64Fn) Setup() {
 }
 
 func (fn *boundedSumInt64Fn) CreateAccumulator() (boundedSumAccumInt64, error) {
+	lower, upper := fn.Lower, fn.Upper
+	maxPartitionsContributed := fn.MaxPartitionsContributed
+	maxContributions := fn.MaxContributions
 	if fn.TestMode == TestModeWithoutContributionBounding {
-		fn.Lower = math.MinInt64
-		fn.Upper = math.MaxInt64
+		lower = math.MinInt64
+		upper = math.MaxInt64
+		if maxContributions > 0 {
+			maxPartitionsContributed = 1
+			maxContributions = 0
+		}
 	}
 	var bs *dpagg.BoundedSumInt64
 	var err error
 	bs, err = dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 		Epsilon:                  fn.NoiseEpsilon,
 		Delta:                    fn.NoiseDelta,
-		MaxPartitionsContributed: fn.MaxPartitionsContributed,
-		Lower:                    fn.Lower,
-		Upper:                    fn.Upper,
-		MaxContributions:         fn.MaxContributions,
+		MaxPartitionsContributed: maxPartitionsContributed,
+		Lower:                    lower,
+		Upper:                    upper,
+		MaxContributions:         maxContributions,
 		Noise:                    fn.noise,
 	})
 	if err != nil {
@@ -479,9 +486,10 @@ func (fn *boundedSumFloat64Fn) Setup() {
 }
 
 func (fn *boundedSumFloat64Fn) CreateAccumulator() (boundedSumAccumFloat64, error) {
+	lower, upper := fn.Lower, fn.Upper
 	if fn.TestMode == TestModeWithoutContributionBounding {
-		fn.Lower = math.Inf(-1)
-		fn.Upper = math.Inf(1)
+		lower = math.Inf(-1)
+		upper = math.Inf(1)
 	}
 	var bs *dpagg.BoundedSumFloat64
 	var err error
@@ -489,8 +497,8 @@ func (fn *boundedSumFloat64Fn) CreateAccumulator() (boundedSumAccumFloat64, erro
 		Epsilon:                  fn.NoiseEpsilon,
 		Delta:                    fn.NoiseDelta,
 		MaxPartitionsContributed: fn.MaxPartitionsContributed,
-		Lower:                    fn.Lower,
-		Upper:                    fn.Upper,
+		Lower:                    lower,
+		Upper:                    upper,
 		Noise:                    fn.noise,
 	})
 	if err != nil {
