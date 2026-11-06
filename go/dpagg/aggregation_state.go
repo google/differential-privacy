@@ -19,16 +19,18 @@ package dpagg
 type aggregationState int
 
 var errorMessages = map[int]string{
-	defaultState:   "",
-	merged:         "Object has been already merged",
-	serialized:     "Object has been already serialized",
-	resultReturned: "DP result was already computed and returned.",
+	defaultState:     "",
+	merged:           "Object has been already merged",
+	serialized:       "Object has been already serialized",
+	resultReturned:   "DP result was already computed and returned.",
+	resultSuppressed: "Result was already suppressed by pre-thresholding.",
 }
 var stateName = map[int]string{
-	defaultState:   "Default",
-	merged:         "Merged",
-	serialized:     "Serialized",
-	resultReturned: "ResultReturned",
+	defaultState:     "Default",
+	merged:           "Merged",
+	serialized:       "Serialized",
+	resultReturned:   "ResultReturned",
+	resultSuppressed: "ResultSuppressed",
 }
 
 const (
@@ -36,6 +38,7 @@ const (
 	merged
 	serialized
 	resultReturned
+	resultSuppressed // Pre-thresholding consumed the aggregation without computing a noisy result.
 )
 
 func (s aggregationState) errorMessage() string {
