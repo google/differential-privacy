@@ -131,12 +131,13 @@ public class BoundedQuantiles {
    * nodes partition the range between lower and upper into intervals of equal size.
    */
   private int getIndex(double value) {
-    return leftmostLeafIndex
-        + (value == params.upper()
-            ? numberOfLeaves - 1
-            : (int)
-                Math.floor(
-                    (value - params.lower()) / (params.upper() - params.lower()) * numberOfLeaves));
+    double range = params.upper() - params.lower();
+    double proportion =
+        Double.isInfinite(range)
+            ? (value * 0.5 - params.lower() * 0.5) / (params.upper() * 0.5 - params.lower() * 0.5)
+            : (value - params.lower()) / range;
+    int leafOffset = min(numberOfLeaves - 1, max(0, (int) Math.floor(proportion * numberOfLeaves)));
+    return leftmostLeafIndex + leafOffset;
   }
 
   /**
@@ -149,9 +150,12 @@ public class BoundedQuantiles {
     while (index < leftmostLeafIndex) {
       index = getLeftmostChild(index);
     }
-    return (params.upper() - params.lower())
-            * ((index - leftmostLeafIndex) / (double) numberOfLeaves)
-        + params.lower();
+    double fraction = (index - leftmostLeafIndex) / (double) numberOfLeaves;
+    double range = params.upper() - params.lower();
+    if (Double.isInfinite(range)) {
+      return (1.0 - fraction) * params.lower() + fraction * params.upper();
+    }
+    return range * fraction + params.lower();
   }
 
   /**
@@ -167,9 +171,12 @@ public class BoundedQuantiles {
     // The returned value bounds the range of values for which getIndex returns the specified index.
     // This bound is not itself contained in that range, i.e., getIndex will return the next index
     // when called for the bound.
-    return (params.upper() - params.lower())
-            * ((index - leftmostLeafIndex + 1) / (double) numberOfLeaves)
-        + params.lower();
+    double fraction = (index - leftmostLeafIndex + 1) / (double) numberOfLeaves;
+    double range = params.upper() - params.lower();
+    if (Double.isInfinite(range)) {
+      return (1.0 - fraction) * params.lower() + fraction * params.upper();
+    }
+    return range * fraction + params.lower();
   }
 
   /**

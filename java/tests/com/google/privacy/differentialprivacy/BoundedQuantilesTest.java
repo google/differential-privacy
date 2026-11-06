@@ -23,6 +23,7 @@ import static java.lang.Math.abs;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -676,6 +677,75 @@ public class BoundedQuantilesTest {
     quantiles1.getSerializableSummary();
     byte[] summary = quantiles2.getSerializableSummary();
     assertThrows(IllegalStateException.class, () -> quantiles1.mergeWith(summary));
+  }
+
+  @Test
+  public void addEntry_valueRoundingToUpper_incrementsOnlyTreeHeightNodesOnRightmostPath() {
+    // With treeHeight = 4 and branchingFactor = 16, leaves are indexed 4369 to 69904. For
+    // -1e-20 on [-1000, 0], (value - lower) / (upper - lower) rounds to exactly 1.0 even though
+    // value < upper.
+    BoundedQuantiles quantiles =
+        builder.lower(-1000.0).upper(0.0).treeHeight(4).branchingFactor(16).build();
+    quantiles.addEntry(-1e-20);
+
+    BoundedQuantilesSummary summary = getSummary(quantiles);
+
+    // Exactly one node per tree level (excluding the root) must be incremented.
+    assertThat(summary.getQuantileTreeCount()).isEqualTo(4);
+    assertThat(summary.getQuantileTreeMap()).containsExactly(16, 1L, 272, 1L, 4368, 1L, 69904, 1L);
+  }
+
+  @Test
+  public void computeResult_valuesRoundingToUpper_returnsValueNearUpper() {
+    BoundedQuantiles quantiles =
+        builder.lower(-1000.0).upper(0.0).treeHeight(4).branchingFactor(16).build();
+    for (int i = 0; i < 100; i++) {
+      quantiles.addEntry(-1e-20);
+    }
+
+    // The leaf width is 1000 / 16^4 < 0.016, so the median must lie in the rightmost leaf.
+    double result = quantiles.computeResult(0.5);
+    assertThat(result).isAtLeast(-0.016);
+    assertThat(result).isAtMost(0.0);
+  }
+
+  @Test
+  public void computeResult_boundsWhoseRangeOverflowsDouble_returnsFiniteQuantiles() {
+    // upper - lower overflows to Infinity for these bounds.
+    BoundedQuantiles quantiles =
+        builder.lower(-1e308).upper(1e308).treeHeight(4).branchingFactor(16).build();
+    for (int i = 0; i < 100; i++) {
+      quantiles.addEntry(0.0);
+    }
+
+    double leafWidth = 2.0 * (1e308 / Math.pow(16, 4));
+    double median = quantiles.computeResult(0.5);
+    assertThat(median).isAtLeast(0.0);
+    assertThat(median).isAtMost(leafWidth);
+    double minimum = quantiles.computeResult(0.0);
+    assertThat(minimum).isNotNaN();
+    assertThat(minimum).isAtLeast(-1e308);
+    assertThat(minimum).isAtMost(leafWidth);
+  }
+
+  @Test
+  public void computeConfidenceInterval_boundsWhoseRangeOverflowsDouble_returnsFiniteBounds() {
+    when(noise.computeConfidenceInterval(
+            anyDouble(), anyInt(), anyDouble(), anyDouble(), any(), anyDouble()))
+        .thenReturn(ConfidenceInterval.create(0.0, 0.0));
+    BoundedQuantiles quantiles =
+        builder.lower(-1e308).upper(1e308).treeHeight(4).branchingFactor(16).build();
+    for (int i = 0; i < 100; i++) {
+      quantiles.addEntry(0.0);
+    }
+
+    quantiles.computeResult(0.5);
+    ConfidenceInterval interval = quantiles.computeConfidenceInterval(0.5, 0.05);
+
+    double leafWidth = 2.0 * (1e308 / Math.pow(16, 4));
+    assertThat(interval.lowerBound()).isAtLeast(0.0);
+    assertThat(interval.upperBound()).isAtMost(leafWidth);
+    assertThat(interval.lowerBound()).isAtMost(interval.upperBound());
   }
 
   /**
