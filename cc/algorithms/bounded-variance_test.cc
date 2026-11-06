@@ -56,6 +56,12 @@ class BoundedVarianceTestPeer {
                                  BoundedVariance<T>* bv) {
     bv->AddMultipleEntries(t, num_of_entries);
   }
+
+  template <typename T,
+            std::enable_if_t<std::is_arithmetic<T>::value>* = nullptr>
+  static double MidpointOfSquares(T lower, T upper) {
+    return BoundedVariance<T>::MidpointOfSquares(lower, upper);
+  }
 };
 
 namespace {
@@ -64,6 +70,7 @@ using test_utils::ZeroNoiseMechanism;
 using ::testing::_;
 using ::testing::DoubleEq;
 using ::testing::DoubleNear;
+using ::testing::ElementsAre;
 using ::differential_privacy::base::testing::EqualsProto;
 using ::testing::HasSubstr;
 using ::testing::NotNull;
@@ -1085,6 +1092,201 @@ TEST(BoundedVarianceTest, ApproxBoundsMechanismHasExpectedVariance) {
                   ->GetMechanismForTesting()
                   ->GetVariance(),
               DoubleEq(expected_variance));
+}
+
+class RecordingZeroNoiseMechanism : public ZeroNoiseMechanism {
+ public:
+  class Builder : public ZeroNoiseMechanism::Builder {
+   public:
+    explicit Builder(std::vector<double>* double_inputs)
+        : double_inputs_(double_inputs) {}
+
+    absl::StatusOr<std::unique_ptr<NumericalMechanism>> Build() override {
+      return absl::StatusOr<std::unique_ptr<NumericalMechanism>>(
+          absl::make_unique<RecordingZeroNoiseMechanism>(
+              GetEpsilon().value_or(1.0), GetL1Sensitivity().value_or(1.0),
+              double_inputs_));
+    }
+
+    std::unique_ptr<NumericalMechanismBuilder> Clone() const override {
+      return absl::make_unique<Builder>(double_inputs_);
+    }
+
+   private:
+    std::vector<double>* double_inputs_;
+  };
+
+  RecordingZeroNoiseMechanism(double epsilon, double sensitivity,
+                              std::vector<double>* double_inputs)
+      : ZeroNoiseMechanism(epsilon, sensitivity),
+        double_inputs_(double_inputs) {}
+
+  double AddDoubleNoise(double result) override {
+    double_inputs_->push_back(result);
+    return result;
+  }
+
+ private:
+  std::vector<double>* double_inputs_;
+};
+
+TEST(BoundedVarianceTest, MidpointOfSquaresIntegerOddWidthDoesNotTruncate) {
+  EXPECT_DOUBLE_EQ(BoundedVarianceTestPeer::MidpointOfSquares<int64_t>(0, 1),
+                   0.5);
+  EXPECT_DOUBLE_EQ(BoundedVarianceTestPeer::MidpointOfSquares<int64_t>(-1, 1),
+                   0.5);
+  EXPECT_DOUBLE_EQ(BoundedVarianceTestPeer::MidpointOfSquares<int64_t>(-3, 1),
+                   4.5);
+  EXPECT_DOUBLE_EQ(BoundedVarianceTestPeer::MidpointOfSquares<int64_t>(1, 2),
+                   2.5);
+}
+
+TEST(BoundedVarianceWithFixedBoundsTest,
+     OddWidthIntegerBoundsUseExactMidpoints) {
+  {
+    auto mock_count = std::make_unique<test_utils::MockLaplaceMechanism>();
+    auto mock_sum = std::make_unique<test_utils::MockLaplaceMechanism>();
+    auto mock_sos = std::make_unique<test_utils::MockLaplaceMechanism>();
+    EXPECT_CALL(*mock_count, AddInt64Noise(1)).WillOnce(::testing::Return(2));
+    // On [0, 1], sum_midpoint = 0.5 and MidpointOfSquares = 0.5, so a single
+    // entry x = 1 shifts both normalized sums by +0.5 (not +1.0).
+    EXPECT_CALL(*mock_sum, AddDoubleNoise(DoubleEq(0.5)))
+        .WillOnce(::testing::Return(0.5));
+    EXPECT_CALL(*mock_sos, AddDoubleNoise(DoubleEq(0.5)))
+        .WillOnce(::testing::Return(0.5));
+
+    BoundedVarianceWithFixedBounds<int64_t> bv(
+        /*epsilon=*/1.0, /*lower=*/0, /*upper=*/1, std::move(mock_count),
+        std::move(mock_sum), std::move(mock_sos));
+    bv.AddEntry(1);
+    EXPECT_OK(bv.PartialResult());
+  }
+
+  {
+    auto mock_count = std::make_unique<test_utils::MockLaplaceMechanism>();
+    auto mock_sum = std::make_unique<test_utils::MockLaplaceMechanism>();
+    auto mock_sos = std::make_unique<test_utils::MockLaplaceMechanism>();
+    EXPECT_CALL(*mock_count, AddInt64Noise(1)).WillOnce(::testing::Return(2));
+    // On [-1, 1], sum_midpoint = 0.0 and MidpointOfSquares = 0.5, so x = 1
+    // shifts normalized sum by +1.0 and normalized sum-of-squares by +0.5.
+    EXPECT_CALL(*mock_sum, AddDoubleNoise(DoubleEq(1.0)))
+        .WillOnce(::testing::Return(1.0));
+    EXPECT_CALL(*mock_sos, AddDoubleNoise(DoubleEq(0.5)))
+        .WillOnce(::testing::Return(0.5));
+
+    BoundedVarianceWithFixedBounds<int64_t> bv(
+        /*epsilon=*/1.0, /*lower=*/-1, /*upper=*/1, std::move(mock_count),
+        std::move(mock_sum), std::move(mock_sos));
+    bv.AddEntry(1);
+    EXPECT_OK(bv.PartialResult());
+  }
+
+  // Verify low-count (noised_count <= 1) midpoint fallback variance via
+  // Builder.
+  absl::StatusOr<std::unique_ptr<BoundedVariance<int64_t>>> bv_zero_one =
+      BoundedVariance<int64_t>::Builder()
+          .SetEpsilon(1.0)
+          .SetLower(0)
+          .SetUpper(1)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(bv_zero_one);
+  (*bv_zero_one)->AddEntry(0);
+  absl::StatusOr<Output> out_zero_one = (*bv_zero_one)->PartialResult();
+  ASSERT_OK(out_zero_one);
+  EXPECT_DOUBLE_EQ(GetValue<double>(*out_zero_one), 0.25);
+
+  absl::StatusOr<std::unique_ptr<BoundedVariance<int64_t>>> bv_neg_one_pos_one =
+      BoundedVariance<int64_t>::Builder()
+          .SetEpsilon(1.0)
+          .SetLower(-1)
+          .SetUpper(1)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
+          .Build();
+  ASSERT_OK(bv_neg_one_pos_one);
+  (*bv_neg_one_pos_one)->AddEntry(0);
+  absl::StatusOr<Output> out_neg_one_pos_one =
+      (*bv_neg_one_pos_one)->PartialResult();
+  ASSERT_OK(out_neg_one_pos_one);
+  EXPECT_DOUBLE_EQ(GetValue<double>(*out_neg_one_pos_one), 0.5);
+}
+
+TEST(BoundedVarianceWithApproxBoundsTest,
+     OddWidthIntegerBoundsUseExactMidpoints) {
+  // Case 1: Single entry {0} yields equal ApproxBounds [0, 0], widened to [0,
+  // 1].
+  {
+    std::vector<double> recorded_double_inputs;
+    absl::StatusOr<std::unique_ptr<ApproxBounds<int64_t>>> bounds =
+        ApproxBounds<int64_t>::Builder()
+            .SetEpsilon(0.5)
+            .SetNumBins(4)
+            .SetBase(2)
+            .SetScale(1)
+            .SetThresholdForTest(0.5)
+            .SetLaplaceMechanism(
+                std::make_unique<ZeroNoiseMechanism::Builder>())
+            .Build();
+    ASSERT_OK(bounds);
+    absl::StatusOr<std::unique_ptr<BoundedVariance<int64_t>>> bv =
+        BoundedVariance<int64_t>::Builder()
+            .SetEpsilon(1.0)
+            .SetApproxBounds(std::move(bounds).value())
+            .SetLaplaceMechanism(
+                std::make_unique<RecordingZeroNoiseMechanism::Builder>(
+                    &recorded_double_inputs))
+            .Build();
+    ASSERT_OK(bv);
+    (*bv)->AddEntry(0);
+
+    absl::StatusOr<Output> output = (*bv)->PartialResult();
+    ASSERT_OK(output);
+    EXPECT_EQ(GetValue<int64_t>(
+                  output->error_report().bounding_report().lower_bound()),
+              0);
+    EXPECT_EQ(GetValue<int64_t>(
+                  output->error_report().bounding_report().upper_bound()),
+              1);
+    EXPECT_THAT(recorded_double_inputs, ElementsAre(-0.5, -0.5));
+    EXPECT_DOUBLE_EQ(GetValue<double>(*output), 0.25);
+  }
+
+  // Case 2: Entries {-1, 1, 1} yield ApproxBounds [-1, 1].
+  {
+    std::vector<double> recorded_double_inputs;
+    absl::StatusOr<std::unique_ptr<ApproxBounds<int64_t>>> bounds =
+        ApproxBounds<int64_t>::Builder()
+            .SetEpsilon(0.5)
+            .SetNumBins(4)
+            .SetBase(2)
+            .SetScale(1)
+            .SetThresholdForTest(0.5)
+            .SetLaplaceMechanism(
+                std::make_unique<ZeroNoiseMechanism::Builder>())
+            .Build();
+    ASSERT_OK(bounds);
+    absl::StatusOr<std::unique_ptr<BoundedVariance<int64_t>>> bv =
+        BoundedVariance<int64_t>::Builder()
+            .SetEpsilon(1.0)
+            .SetApproxBounds(std::move(bounds).value())
+            .SetLaplaceMechanism(
+                std::make_unique<RecordingZeroNoiseMechanism::Builder>(
+                    &recorded_double_inputs))
+            .Build();
+    ASSERT_OK(bv);
+    const std::vector<int64_t> entries = {-1, 1, 1};
+    absl::StatusOr<Output> output =
+        (*bv)->Result(entries.begin(), entries.end());
+    ASSERT_OK(output);
+    EXPECT_EQ(GetValue<int64_t>(
+                  output->error_report().bounding_report().lower_bound()),
+              -1);
+    EXPECT_EQ(GetValue<int64_t>(
+                  output->error_report().bounding_report().upper_bound()),
+              1);
+    EXPECT_THAT(recorded_double_inputs, ElementsAre(1.0, 1.5));
+    EXPECT_NEAR(GetValue<double>(*output), 8.0 / 9.0, 1e-12);
+  }
 }
 
 }  //  namespace

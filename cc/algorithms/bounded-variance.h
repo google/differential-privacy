@@ -159,9 +159,20 @@ class BoundedVariance : public Algorithm<T> {
   static double MidpointOfSquares(T lower, T upper) {
     DCHECK_GE(upper, lower);
     if (0 > lower && 0 < upper) {
-      return std::max(lower * lower, upper * upper) / 2;
+      // The interval contains 0, so the range of x^2 is
+      // [0, max(lower^2, upper^2)] and its midpoint is max(lower^2, upper^2)/2.
+      // Divide in double rather than in T: for integer T, integer division
+      // would truncate odd values (e.g., [-1, 1] would yield 0 instead of 0.5)
+      // and bias the normalized sum of squares.
+      return static_cast<double>(std::max(lower * lower, upper * upper)) / 2.0;
     }
-    return lower * lower + (upper * upper - lower * lower) / 2;
+    // The interval does not straddle 0, so x^2 is monotonic on [lower, upper]
+    // and the midpoint of its range is (lower^2 + upper^2) / 2. We compute it
+    // as lower^2 + (upper^2 - lower^2) / 2 and halve the difference in double
+    // for the same reason as above: integer division would truncate for
+    // integer T (e.g., [1, 2] would yield 2 instead of 2.5).
+    return lower * lower +
+           static_cast<double>(upper * upper - lower * lower) / 2.0;
   }
 
   // Friend class for testing only
@@ -245,7 +256,8 @@ class BoundedVarianceWithFixedBounds : public BoundedVariance<T> {
 
  protected:
   absl::StatusOr<Output> GenerateResult(double noise_interval_level) override {
-    const double sum_midpoint = lower_ + ((upper_ - lower_) / 2);
+    const double sum_midpoint =
+        lower_ + (static_cast<double>(upper_ - lower_) / 2.0);
     const double sum_of_squares_midpoint =
         BoundedVariance<T>::MidpointOfSquares(lower_, upper_);
 
@@ -503,7 +515,8 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     const double noised_count = count_mechanism_->AddNoise(partial_count_);
 
     // Calculate noised normalized sum
-    const T sum_midpoint = lower + ((upper - lower) / 2);
+    const double sum_midpoint =
+        lower + (static_cast<double>(upper - lower) / 2.0);
     ASSIGN_OR_RETURN(
         std::unique_ptr<NumericalMechanism> sum_mechanism,
         BoundedVariance<T>::BuildSumMechanism(
