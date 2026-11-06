@@ -1070,6 +1070,46 @@ class LocalApiTest {
     assertEquals(result, expected)
   }
 
+  @Test
+  fun run_vectorSizeMismatch_throwsException() {
+    for (actualSize in listOf(1, 3)) {
+      val data =
+        createInputData(
+          listOf(
+            TestDataRow("group1", "pid1", 1.0, 2.0),
+          )
+        )
+      val publicGroups = createPublicGroups(listOf("group1"))
+      val query =
+        LocalQueryBuilder.from(
+            data,
+            { it.privacyUnit },
+            ContributionBoundingLevel.DATASET_LEVEL(
+              maxGroupsContributed = 1,
+              maxContributionsPerGroup = 1,
+            ),
+          )
+          .groupBy({ it.groupKey }, GroupsType.PublicGroups.create(publicGroups))
+          .aggregateVector(
+            { row -> List(actualSize) { row.value } },
+            vectorSize = 2,
+            VectorAggregationsBuilder().vectorSum("vectorSumResult"),
+            VectorContributionBounds(
+              maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 3.0)
+            ),
+          )
+          .build(TotalBudget(epsilon = 1.0), NoiseKind.LAPLACE)
+
+      val e =
+        assertFailsWith<IllegalArgumentException> {
+          query.run(testMode = TestMode.FULL).toList()
+        }
+      assertThat(e)
+        .hasMessageThat()
+        .contains("Extracted vector has size $actualSize, but vectorSize is 2.")
+    }
+  }
+
   // When sum without mean or variance is requested then total value bounds are used.
   @Test
   fun run_sumOnly_calculatesStatisticsCorrectly() {
