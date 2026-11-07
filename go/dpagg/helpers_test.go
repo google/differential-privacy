@@ -17,6 +17,7 @@
 package dpagg
 
 import (
+	"math"
 	"testing"
 )
 
@@ -126,6 +127,22 @@ func TestClampFloat64(t *testing.T) {
 			lower:        5,
 			upper:        2,
 			want:         0,
+			wantErr:      true,
+		},
+		{
+			desc:         "NaN value is clamped to lower bound with error",
+			valueToClamp: math.NaN(),
+			lower:        0,
+			upper:        10,
+			want:         0,
+			wantErr:      true,
+		},
+		{
+			desc:         "NaN value with negative lower bound",
+			valueToClamp: math.NaN(),
+			lower:        -5,
+			upper:        5,
+			want:         -5,
 			wantErr:      true,
 		},
 	} {
