@@ -439,6 +439,9 @@ func (s *PreAggSelectPartition) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode PreAggSelectPartition from bytes")
 	}
+	if err := checks.CheckL0Sensitivity(enc.L0Sensitivity); err != nil {
+		return fmt.Errorf("GobDecode PreAggSelectPartition: %v", err)
+	}
 	*s = PreAggSelectPartition{
 		epsilon:       enc.Epsilon,
 		delta:         enc.Delta,

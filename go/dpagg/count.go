@@ -305,13 +305,23 @@ func (c *Count) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode Count from bytes")
 	}
+	n := noise.ToNoise(enc.NoiseKind)
+	if n == nil {
+		return fmt.Errorf("GobDecode: invalid NoiseKind %d", enc.NoiseKind)
+	}
+	if err := checks.CheckL0Sensitivity(enc.L0Sensitivity); err != nil {
+		return fmt.Errorf("GobDecode Count: %v", err)
+	}
+	if enc.LInfSensitivity <= 0 {
+		return fmt.Errorf("GobDecode Count: lInfSensitivity must be positive, got %d", enc.LInfSensitivity)
+	}
 	*c = Count{
 		epsilon:         enc.Epsilon,
 		delta:           enc.Delta,
 		l0Sensitivity:   enc.L0Sensitivity,
 		lInfSensitivity: enc.LInfSensitivity,
 		noiseKind:       enc.NoiseKind,
-		Noise:           noise.ToNoise(enc.NoiseKind),
+		Noise:           n,
 		count:           enc.Count,
 		state:           defaultState,
 	}
