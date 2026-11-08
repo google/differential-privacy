@@ -108,7 +108,7 @@ func NewBoundedVariance(opt *BoundedVarianceOptions) (*BoundedVariance, error) {
 	if lower == 0 && upper == 0 {
 		return nil, fmt.Errorf("NewBoundedVariance: Lower and  Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
-	switch noise.ToKind(opt.Noise) {
+	switch noise.ToKind(n) {
 	case noise.Unrecognised:
 		if err := checks.CheckBoundsFloat64IgnoreOverflows(lower, upper); err != nil {
 			return nil, fmt.Errorf("NewBoundedVariance: CheckBoundFloat64IgnoreOverflows: %w", err)
