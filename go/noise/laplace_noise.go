@@ -17,6 +17,7 @@
 package noise
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/google/differential-privacy/go/v4/checks"
@@ -68,7 +69,7 @@ func (laplace) AddNoiseFloat64(x float64, l0Sensitivity int64, lInfSensitivity, 
 // output is ε-differentially private given the L_0 and L_∞ sensitivities of the
 // database.
 func (laplace) AddNoiseInt64(x, l0Sensitivity, lInfSensitivity int64, epsilon, delta float64) (int64, error) {
-	if err := checkArgsLaplace(l0Sensitivity, float64(lInfSensitivity), epsilon, delta); err != nil {
+	if err := checkArgsLaplaceInt64(l0Sensitivity, lInfSensitivity, epsilon, delta); err != nil {
 		return 0, err
 	}
 	return addLaplaceInt64(x, epsilon, lInfSensitivity*l0Sensitivity /* l1Sensitivity */), nil
@@ -160,7 +161,7 @@ func (laplace) DeltaForThreshold(l0Sensitivity int64, lInfSensitivity, epsilon, 
 //
 // See https://github.com/google/differential-privacy/tree/main/common_docs/confidence_intervals.md.
 func (laplace) ComputeConfidenceIntervalInt64(noisedX, l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) (ConfidenceInterval, error) {
-	err := checkArgsConfidenceIntervalLaplace(l0Sensitivity, float64(lInfSensitivity), epsilon, delta, alpha)
+	err := checkArgsConfidenceIntervalLaplaceInt64(l0Sensitivity, lInfSensitivity, epsilon, delta, alpha)
 	if err != nil {
 		return ConfidenceInterval{}, err
 	}
@@ -200,10 +201,23 @@ func checkArgsLaplace(l0Sensitivity int64, lInfSensitivity, epsilon, delta float
 	if err := checks.CheckLInfSensitivity(lInfSensitivity); err != nil {
 		return err
 	}
+	if math.IsInf(lInfSensitivity*float64(l0Sensitivity), 0) {
+		return fmt.Errorf("l0Sensitivity (%d) and lInfSensitivity (%f) are too high - the l1 sensitivity overflows", l0Sensitivity, lInfSensitivity)
+	}
 	if err := checks.CheckEpsilonVeryStrict(epsilon); err != nil {
 		return err
 	}
 	return checks.CheckNoDelta(delta)
+}
+
+func checkArgsLaplaceInt64(l0Sensitivity, lInfSensitivity int64, epsilon, delta float64) error {
+	if err := checkArgsLaplace(l0Sensitivity, float64(lInfSensitivity), epsilon, delta); err != nil {
+		return err
+	}
+	if l0Sensitivity > math.MaxInt64/lInfSensitivity {
+		return fmt.Errorf("l0Sensitivity (%d) and lInfSensitivity (%d) are too high - the l1 sensitivity overflows", l0Sensitivity, lInfSensitivity)
+	}
+	return nil
 }
 
 func checkArgsConfidenceIntervalLaplace(l0Sensitivity int64, lInfSensitivity, epsilon, delta, alpha float64) error {
@@ -211,6 +225,13 @@ func checkArgsConfidenceIntervalLaplace(l0Sensitivity int64, lInfSensitivity, ep
 		return err
 	}
 	return checkArgsLaplace(l0Sensitivity, lInfSensitivity, epsilon, delta)
+}
+
+func checkArgsConfidenceIntervalLaplaceInt64(l0Sensitivity, lInfSensitivity int64, epsilon, delta, alpha float64) error {
+	if err := checks.CheckAlpha(alpha); err != nil {
+		return err
+	}
+	return checkArgsLaplaceInt64(l0Sensitivity, lInfSensitivity, epsilon, delta)
 }
 
 // addLaplaceFloat64 adds Laplace noise scaled to the given epsilon and l1Sensitivity to the
