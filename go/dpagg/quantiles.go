@@ -445,6 +445,19 @@ func (bq *BoundedQuantiles) GobDecode(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't decode BoundedQuantiles from bytes")
 	}
+	nObj, err := validateDecodedAggregation(enc.Epsilon, enc.Delta, enc.LInfSensitivity, enc.L0Sensitivity, enc.NoiseKind)
+	if err != nil {
+		return fmt.Errorf("couldn't decode BoundedQuantiles: %v", err)
+	}
+	if err := checks.CheckBoundsFloat64(enc.Lower, enc.Upper); err != nil {
+		return fmt.Errorf("couldn't decode BoundedQuantiles: %v", err)
+	}
+	if err := checks.CheckTreeHeight(enc.TreeHeight); err != nil {
+		return fmt.Errorf("couldn't decode BoundedQuantiles: %v", err)
+	}
+	if err := checks.CheckBranchingFactor(enc.BranchingFactor); err != nil {
+		return fmt.Errorf("couldn't decode BoundedQuantiles: %v", err)
+	}
 	*bq = BoundedQuantiles{
 		epsilon:           enc.Epsilon,
 		delta:             enc.Delta,
@@ -455,7 +468,7 @@ func (bq *BoundedQuantiles) GobDecode(data []byte) error {
 		lower:             enc.Lower,
 		upper:             enc.Upper,
 		noiseKind:         enc.NoiseKind,
-		Noise:             noise.ToNoise(enc.NoiseKind),
+		Noise:             nObj,
 		numLeaves:         enc.NumLeaves,
 		leftmostLeafIndex: enc.LeftmostLeafIndex,
 		tree:              enc.QuantileTree,
