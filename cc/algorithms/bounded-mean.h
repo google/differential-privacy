@@ -30,6 +30,7 @@
 #include "google/protobuf/any.pb.h"
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
+#include "absl/numeric/int128.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -109,6 +110,23 @@ class BoundedMean : public Algorithm<T> {
 
  protected:
   virtual void AddMultipleEntries(const T& input, int64_t num_of_entries) = 0;
+
+  // Computes `partial_sum - partial_count * ((lower + upper) / 2.0)` rounded to
+  // `double`. The value is evaluated exactly as
+  // `(2 * partial_sum - partial_count * (lower + upper)) / 2` in 128-bit
+  // integer arithmetic, which cannot overflow for 64-bit inputs with a
+  // non-negative count. This avoids intermediate `int64_t` overflow and
+  // floating-point cancellation on shifted bounds; only the final conversion to
+  // `double` rounds.
+  static double NormalizedIntegerSum(int64_t partial_sum, int64_t partial_count,
+                                     int64_t lower, int64_t upper) {
+    const absl::int128 twice_midpoint =
+        absl::int128(lower) + absl::int128(upper);
+    const absl::int128 twice_normalized_sum =
+        2 * absl::int128(partial_sum) -
+        absl::int128(partial_count) * twice_midpoint;
+    return static_cast<double>(twice_normalized_sum) * 0.5;
+  }
 
   // Friend class for testing only.
   friend class BoundedMeanTestPeer;
@@ -196,11 +214,18 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
     BoundedMeanResult result;
     result.noised_count = std::max(
         1.0, static_cast<double>(count_mechanism_->AddNoise(partial_count_)));
-    result.noised_sum = sum_mechanism_->AddNoise(partial_sum_);
-    if constexpr (!std::is_floating_point<T>::value) {
-      // Normalize the sum for integers. In floating point case, the sum is
-      // normalized, since each entry is normalized on addition.
-      result.noised_sum -= partial_count_ * GetMidPoint();
+    if constexpr (std::is_floating_point<T>()) {
+      result.noised_sum = sum_mechanism_->AddNoise(partial_sum_);
+    } else {
+      // Normalize the integer sum around the exact midpoint before adding
+      // noise (matching BoundedMeanWithApproxBounds). Subtracting
+      // partial_count_ * GetMidPoint() after adding integer noise would place
+      // the result on a coset that reveals partial_count_ mod 2 whenever the
+      // midpoint is a half-integer.
+      const double normalized_sum = BoundedMean<T>::NormalizedIntegerSum(
+          static_cast<int64_t>(partial_sum_), partial_count_,
+          static_cast<int64_t>(lower_), static_cast<int64_t>(upper_));
+      result.noised_sum = sum_mechanism_->AddNoise(normalized_sum);
     }
     result.noised_mean =
         (result.noised_sum / result.noised_count) + GetMidPoint();

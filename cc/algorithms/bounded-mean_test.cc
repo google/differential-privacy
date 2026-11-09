@@ -54,6 +54,12 @@ class BoundedMeanTestPeer {
                                  BoundedMean<T>* bm) {
     bm->AddMultipleEntries(t, num_of_entries);
   }
+
+  static double NormalizedIntegerSum(int64_t partial_sum, int64_t partial_count,
+                                     int64_t lower, int64_t upper) {
+    return BoundedMean<int64_t>::NormalizedIntegerSum(
+        partial_sum, partial_count, lower, upper);
+  }
 };
 
 namespace {
@@ -1435,6 +1441,124 @@ TEST(BoundedMeanTest, EqualNearZeroBoundsWidenedToZeroAndOne) {
   EXPECT_THAT(
       GetValue<double>(output->error_report().bounding_report().upper_bound()),
       DoubleEq(1.0));
+}
+
+TEST(BoundedMeanTest,
+     OddWidthIntegerMidpointNormalizationDoesNotLeakCountParity) {
+  constexpr int64_t kLower = 0;
+  constexpr int64_t kUpper = 101;
+
+  auto even_count = std::make_unique<test_utils::MockLaplaceMechanism>(1.0, 1);
+  auto even_sum = std::make_unique<test_utils::MockLaplaceMechanism>(1.0, 50.5);
+  test_utils::MockLaplaceMechanism* even_count_ptr = even_count.get();
+  test_utils::MockLaplaceMechanism* even_sum_ptr = even_sum.get();
+
+  // Even-count dataset {50, 51} around midpoint 50.5 has normalized sum
+  // (-0.5) + 0.5 = 0.0 and must use continuous double noise rather than
+  // integer noise.
+  EXPECT_CALL(*even_count_ptr, AddInt64Noise(2)).WillOnce(::testing::Return(2));
+  EXPECT_CALL(*even_sum_ptr, AddInt64Noise(_)).Times(0);
+  EXPECT_CALL(*even_sum_ptr, AddDoubleNoise(DoubleEq(0.0)))
+      .WillOnce(::testing::Return(0.25));
+
+  BoundedMeanWithFixedBounds<int64_t> even_bm(
+      /*epsilon=*/1.0, /*delta=*/0.0, kLower, kUpper, std::move(even_sum),
+      std::move(even_count));
+  even_bm.AddEntry(50);
+  even_bm.AddEntry(51);
+  absl::StatusOr<Output> even_out = even_bm.PartialResult();
+  ASSERT_OK(even_out);
+
+  auto odd_count = std::make_unique<test_utils::MockLaplaceMechanism>(1.0, 1);
+  auto odd_sum = std::make_unique<test_utils::MockLaplaceMechanism>(1.0, 50.5);
+  test_utils::MockLaplaceMechanism* odd_count_ptr = odd_count.get();
+  test_utils::MockLaplaceMechanism* odd_sum_ptr = odd_sum.get();
+
+  // Neighboring odd-count dataset {50, 51, 51} has normalized sum
+  // (-0.5) + 0.5 + 0.5 = 0.5. When both runs realize the same continuous
+  // (noised_count = 2, noised_sum = 0.25), they produce identical outputs
+  // (0.25 / 2 + 50.5 = 50.625) and confidence intervals instead of falling on
+  // disjoint parity lattices.
+  EXPECT_CALL(*odd_count_ptr, AddInt64Noise(3)).WillOnce(::testing::Return(2));
+  EXPECT_CALL(*odd_sum_ptr, AddInt64Noise(_)).Times(0);
+  EXPECT_CALL(*odd_sum_ptr, AddDoubleNoise(DoubleEq(0.5)))
+      .WillOnce(::testing::Return(0.25));
+
+  BoundedMeanWithFixedBounds<int64_t> odd_bm(
+      /*epsilon=*/1.0, /*delta=*/0.0, kLower, kUpper, std::move(odd_sum),
+      std::move(odd_count));
+  odd_bm.AddEntry(50);
+  odd_bm.AddEntry(51);
+  odd_bm.AddEntry(51);
+  absl::StatusOr<Output> odd_out = odd_bm.PartialResult();
+  ASSERT_OK(odd_out);
+
+  EXPECT_THAT(GetValue<double>(*even_out), DoubleEq(50.625));
+  EXPECT_THAT(*even_out, EqualsProto(*odd_out));
+}
+
+TEST(BoundedMeanTest, IntegerFixedBoundsNormalizesSumBeforeAddingDoubleNoise) {
+  auto mock_count = std::make_unique<test_utils::MockLaplaceMechanism>();
+  auto mock_sum = std::make_unique<test_utils::MockLaplaceMechanism>();
+  test_utils::MockLaplaceMechanism* mock_count_ptr = mock_count.get();
+  test_utils::MockLaplaceMechanism* mock_sum_ptr = mock_sum.get();
+
+  // On shifted odd-width bounds [10^18, 10^18 + 3], midpoint is 10^18 + 1.5.
+  // Entries {10^18, 10^18 + 3, 10^18 + 3} have exact midpoint-normalized sum
+  // (-1.5) + 1.5 + 1.5 = 1.5 without 53-bit double cancellation.
+  constexpr int64_t kBase = 1000000000000000000LL;
+  EXPECT_CALL(*mock_count_ptr, AddInt64Noise(3)).WillOnce(::testing::Return(3));
+  EXPECT_CALL(*mock_sum_ptr, AddInt64Noise(_)).Times(0);
+  EXPECT_CALL(*mock_sum_ptr, AddDoubleNoise(DoubleEq(1.5)))
+      .WillOnce(::testing::Return(1.5));
+
+  BoundedMeanWithFixedBounds<int64_t> bm(
+      /*epsilon=*/1.0, /*delta=*/0.0, /*lower=*/kBase, /*upper=*/kBase + 3,
+      std::move(mock_sum), std::move(mock_count));
+  bm.AddEntry(kBase);
+  bm.AddEntry(kBase + 3);
+  bm.AddEntry(kBase + 3);
+
+  absl::StatusOr<Output> output = bm.PartialResult();
+  ASSERT_OK(output);
+  EXPECT_GE(GetValue<double>(*output), static_cast<double>(kBase));
+  EXPECT_LE(GetValue<double>(*output), static_cast<double>(kBase + 3));
+}
+
+TEST(BoundedMeanTest, IntegerMidpointNormalizationIsExact) {
+  struct Case {
+    int64_t partial_sum;
+    int64_t partial_count;
+    int64_t lower;
+    int64_t upper;
+    double expected;
+  };
+  constexpr int64_t kMax = std::numeric_limits<int64_t>::max();
+  constexpr int64_t kMin = std::numeric_limits<int64_t>::lowest();
+  const std::vector<Case> cases = {
+      // Half-integer midpoints.
+      {50, 1, 0, 101, -0.5},
+      {101, 2, 0, 101, 0.0},
+      // Shifted bounds where a double computation would cancel.
+      {3000000000000000006LL, 3, 1000000000000000000LL, 1000000000000000003LL,
+       1.5},
+      {-3000000000000000006LL, 3, -1000000000000000003LL,
+       -1000000000000000000LL, -1.5},
+      // Intermediate values that overflow int64_t.
+      {0, 4, 0, kMax, -0x1p64},      // -(2^64 - 2), rounded.
+      {-2, 6, kMin + 1, 0, 0x3p63},  // 3 * 2^63 - 5, rounded.
+      {-2, kMax, -kMax / 2, kMax / 2, -2.0},
+      {kMax, kMax, kMax - 3, kMax, -0x1p126},  // ~ -2^126, rounded.
+      {kMin, kMax, kMin, kMin + 3, 0x1p126},   // ~ 2^126, rounded.
+  };
+  for (const Case& c : cases) {
+    EXPECT_DOUBLE_EQ(BoundedMeanTestPeer::NormalizedIntegerSum(
+                         c.partial_sum, c.partial_count, c.lower, c.upper),
+                     c.expected)
+        << "partial_sum=" << c.partial_sum
+        << " partial_count=" << c.partial_count << " lower=" << c.lower
+        << " upper=" << c.upper;
+  }
 }
 
 }  //  namespace
