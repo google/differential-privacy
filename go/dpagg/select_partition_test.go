@@ -701,6 +701,107 @@ func TestPreAggSelectPartitionResultSetsStateCorrectly(t *testing.T) {
 	}
 }
 
+func TestPreAggSelectPartitionStrictDeltaSuppressesSingleton(t *testing.T) {
+	for _, tc := range []struct {
+		name                     string
+		maxPartitionsContributed int64
+	}{
+		{name: "magic_partition_selection", maxPartitionsContributed: 3},
+		{name: "gaussian_thresholding", maxPartitionsContributed: 20},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const numTrials = 200
+			opts := &PreAggSelectPartitionOptions{
+				Epsilon:                  1.0,
+				Delta:                    1e-15,
+				MaxPartitionsContributed: tc.maxPartitionsContributed,
+			}
+			for trial := 0; trial < numTrials; trial++ {
+				s, err := NewPreAggSelectPartition(opts)
+				if err != nil {
+					t.Fatalf("Couldn't initialize PreAggSelectPartition: %v", err)
+				}
+				if err := s.Increment(); err != nil {
+					t.Fatalf("Couldn't increment PreAggSelectPartition: %v", err)
+				}
+				keep, err := s.ShouldKeepPartition()
+				if err != nil {
+					t.Fatalf("Couldn't compute ShouldKeepPartition: %v", err)
+				}
+				if keep {
+					t.Fatalf("ShouldKeepPartition kept singleton partition on trial %d with Delta=1e-15, MaxPartitionsContributed=%d",
+						trial, tc.maxPartitionsContributed)
+				}
+			}
+		})
+	}
+}
+
+func TestPreAggSelectPartitionKeepPartitionProbabilitySmallParameters(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		l0Sensitivity int64
+		epsilon       float64
+		delta         float64
+		want          map[int64]float64
+	}{
+		{
+			name:          "small epsilon and small delta without cancellation",
+			l0Sensitivity: 3,
+			epsilon:       1e-17,
+			delta:         1e-17,
+			want: map[int64]float64{
+				0:             0,
+				1:             1e-17 / 3,
+				2:             2e-17 / 3,
+				math.MaxInt64: 1,
+			},
+		},
+		{
+			name:          "subnormal per-partition epsilon underflow",
+			l0Sensitivity: 2,
+			epsilon:       math.SmallestNonzeroFloat64,
+			delta:         1e-5,
+			want: map[int64]float64{
+				0:             0,
+				1:             0.5e-5,
+				2:             1e-5,
+				200000:        1,
+				math.MaxInt64: 1,
+			},
+		},
+		{
+			name:          "crossover nCr exceeding MaxInt64",
+			l0Sensitivity: 3,
+			epsilon:       1e-18,
+			delta:         1e-100,
+			want: map[int64]float64{
+				0: 0,
+				1: 1e-100 / 3,
+				2: 2e-100 / 3,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for idCount, wantProb := range tc.want {
+				gotProb, err := keepPartitionProbability(idCount, tc.l0Sensitivity, tc.epsilon, tc.delta)
+				if err != nil {
+					t.Fatalf("keepPartitionProbability(%d, %d, %e, %e) unexpected error: %v",
+						idCount, tc.l0Sensitivity, tc.epsilon, tc.delta, err)
+				}
+				if gotProb < 0 || gotProb > 1 || math.IsNaN(gotProb) {
+					t.Fatalf("keepPartitionProbability(%d, %d, %e, %e) = %v, want in [0, 1]",
+						idCount, tc.l0Sensitivity, tc.epsilon, tc.delta, gotProb)
+				}
+				if !approxEqual(gotProb, wantProb) {
+					t.Errorf("keepPartitionProbability(%d, %d, %e, %e) = %e, want %e",
+						idCount, tc.l0Sensitivity, tc.epsilon, tc.delta, gotProb, wantProb)
+				}
+			}
+		})
+	}
+}
+
 func getTestPreAggSelectPartition(t *testing.T) *PreAggSelectPartition {
 	t.Helper()
 	s, err := NewPreAggSelectPartition(&PreAggSelectPartitionOptions{

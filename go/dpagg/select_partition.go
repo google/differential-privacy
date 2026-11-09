@@ -357,8 +357,21 @@ func keepPartitionProbability(idCount, l0Sensitivity int64, epsilon, delta float
 	// region of the domain, (2) on the second region of the domain, and (3)
 	// (i.e., the value 1) on the highest region of the domain. We denote by nCr
 	// the crossover point in the domain from (1) to (2).
-	nCr := int64(1 + math.Floor((1/pEpsilon)*math.Log(
-		(1+math.Exp(-pEpsilon)*(2*pDelta-1))/(pDelta*(1+math.Exp(-pEpsilon))))))
+	var nCrFloat float64
+	if negExpm1 := -math.Expm1(-pEpsilon); negExpm1 == 0 {
+		nCrFloat = 1 + math.Floor((1-pDelta)/(2*pDelta))
+	} else {
+		nCrFloat = 1 + math.Floor((1/pEpsilon)*math.Log1p(
+			(negExpm1*(1-pDelta))/(pDelta*(1+math.Exp(-pEpsilon)))))
+	}
+	var nCr int64
+	if nCrFloat >= float64(math.MaxInt64) {
+		nCr = math.MaxInt64
+	} else if nCrFloat < 1 || math.IsNaN(nCrFloat) {
+		nCr = 1
+	} else {
+		nCr = int64(nCrFloat)
+	}
 
 	if idCount <= nCr {
 		// Closed form solution of keepPartitionProbability(n) on [0, nCr].
@@ -366,7 +379,7 @@ func keepPartitionProbability(idCount, l0Sensitivity int64, epsilon, delta float
 		if err != nil {
 			return 0, err
 		}
-		return pDelta * sum, nil
+		return math.Min(math.Max(pDelta*sum, 0), 1), nil
 	}
 
 	sum, err := sumExpPowers(pEpsilon, 0, nCr)
@@ -381,7 +394,7 @@ func keepPartitionProbability(idCount, l0Sensitivity int64, epsilon, delta float
 		return 0, err
 	}
 	return math.Min(
-		1+math.Exp(-float64(m)*pEpsilon)*(selectPartitionPrNCr-1)+sum*pDelta,
+		math.Max(1+math.Exp(-float64(m)*pEpsilon)*(selectPartitionPrNCr-1)+sum*pDelta, 0),
 		1), nil
 }
 

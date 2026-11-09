@@ -202,10 +202,34 @@ func (c *Count) ThresholdedResult(thresholdDelta float64) (*int64, error) {
 	}
 	// Rounding up the threshold when converting it to int64 to ensure that no DP guarantees
 	// are violated due to a result being returned that is less than the fractional threshold.
-	if result < int64(math.Ceil(threshold)) {
+	if belowInt64Threshold(result, 0, threshold) {
 		return nil, nil
 	}
 	return &result, nil
+}
+
+// belowInt64Threshold reports whether result < math.Ceil(threshold) + offset
+// without float64-to-int64 conversion or int64 addition overflow (assumes offset >= 0).
+func belowInt64Threshold(result, offset int64, threshold float64) bool {
+	ceilThreshold := math.Ceil(threshold)
+	if math.IsNaN(ceilThreshold) || ceilThreshold >= float64(math.MaxInt64) {
+		return true
+	}
+	if ceilThreshold < float64(math.MinInt64) {
+		if offset == 0 || ceilThreshold < 2*float64(math.MinInt64) {
+			return false
+		}
+		rem := int64(ceilThreshold - float64(math.MinInt64))
+		if offset+rem <= 0 {
+			return false
+		}
+		return result < math.MinInt64+(offset+rem)
+	}
+	intThreshold := int64(ceilThreshold)
+	if intThreshold > math.MaxInt64-offset {
+		return true
+	}
+	return result < intThreshold+offset
 }
 
 // PreThresholdedResult is similar to ThresholdedResult() but applies a deterministic
@@ -241,7 +265,7 @@ func (c *Count) PreThresholdedResult(preThreshold int64, thresholdDelta float64)
 	}
 	// Rounding up the threshold when converting it to int64 to ensure that no DP guarantees
 	// are violated due to a result being returned that is less than the fractional threshold.
-	if result < int64(math.Ceil(threshold))+(preThreshold-1) {
+	if belowInt64Threshold(result, preThreshold-1, threshold) {
 		// PreThreshold is set to 1 as the default, we subtract it here so it has no effect.
 		// This subtraction also ensures that partition might be kept if preThreshold = count.
 		return nil, nil

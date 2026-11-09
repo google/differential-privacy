@@ -842,3 +842,140 @@ func TestCountIsUnbiased(t *testing.T) {
 		}
 	}
 }
+
+type fixedThresholdNoise struct {
+	noNoise
+	threshold float64
+}
+
+func (f fixedThresholdNoise) Threshold(_ int64, _, _, _, _ float64) (float64, error) {
+	return f.threshold, nil
+}
+
+func TestCountThresholdStrictDeltaAndOverflow(t *testing.T) {
+	t.Run("strict_gaussian_delta_suppresses_singleton", func(t *testing.T) {
+		const numTrials = 100
+		opts := &CountOptions{
+			Epsilon:                  1.0,
+			Delta:                    5e-16,
+			MaxPartitionsContributed: 20,
+			Noise:                    noise.Gaussian(),
+		}
+		for trial := 0; trial < numTrials; trial++ {
+			c, err := NewCount(opts)
+			if err != nil {
+				t.Fatalf("Couldn't initialize Count: %v", err)
+			}
+			if err := c.Increment(); err != nil {
+				t.Fatalf("Couldn't increment Count: %v", err)
+			}
+			got, err := c.ThresholdedResult(5e-16)
+			if err != nil {
+				t.Fatalf("ThresholdedResult failed: %v", err)
+			}
+			if got != nil {
+				t.Fatalf("ThresholdedResult retained singleton partition (%d) on trial %d with strict Gaussian delta", *got, trial)
+			}
+
+			cPre, err := NewCount(opts)
+			if err != nil {
+				t.Fatalf("Couldn't initialize Count for PreThresholdedResult: %v", err)
+			}
+			if err := cPre.IncrementBy(2); err != nil {
+				t.Fatalf("Couldn't increment Count for PreThresholdedResult: %v", err)
+			}
+			gotPre, err := cPre.PreThresholdedResult(2, 5e-16)
+			if err != nil {
+				t.Fatalf("PreThresholdedResult failed: %v", err)
+			}
+			if gotPre != nil {
+				t.Fatalf("PreThresholdedResult retained count=preThreshold partition (%d) on trial %d with strict Gaussian delta", *gotPre, trial)
+			}
+		}
+	})
+
+	t.Run("overflow_guards", func(t *testing.T) {
+		for _, tc := range []struct {
+			desc         string
+			rawCount     int64
+			preThreshold int64
+			threshold    float64
+			wantNil      bool
+		}{
+			{
+				desc:         "positive infinity threshold suppresses result",
+				rawCount:     1000,
+				preThreshold: 1,
+				threshold:    math.Inf(1),
+				wantNil:      true,
+			},
+			{
+				desc:         "NaN threshold suppresses result",
+				rawCount:     1000,
+				preThreshold: 1,
+				threshold:    math.NaN(),
+				wantNil:      true,
+			},
+			{
+				desc:         "2^63 threshold suppresses MaxInt64 result",
+				rawCount:     math.MaxInt64,
+				preThreshold: 1,
+				threshold:    float64(math.MaxInt64),
+				wantNil:      true,
+			},
+			{
+				desc:         "preThreshold addition near MaxInt64 does not overflow",
+				rawCount:     math.MaxInt64,
+				preThreshold: 2000,
+				threshold:    math.Nextafter(float64(math.MaxInt64), 0), // 2^63 - 1024
+				wantNil:      true,
+			},
+			{
+				desc:         "negative infinity threshold retains result",
+				rawCount:     5,
+				preThreshold: 2,
+				threshold:    math.Inf(-1),
+				wantNil:      false,
+			},
+		} {
+			t.Run(tc.desc, func(t *testing.T) {
+				if tc.preThreshold == 1 {
+					c, err := NewCount(&CountOptions{
+						Epsilon:                  ln3,
+						MaxPartitionsContributed: 1,
+						Noise:                    fixedThresholdNoise{threshold: tc.threshold},
+					})
+					if err != nil {
+						t.Fatalf("NewCount failed: %v", err)
+					}
+					c.IncrementBy(tc.rawCount)
+					got, err := c.ThresholdedResult(tenten)
+					if err != nil {
+						t.Fatalf("ThresholdedResult failed: %v", err)
+					}
+					if (got == nil) != tc.wantNil {
+						t.Errorf("ThresholdedResult with threshold=%v: got=%v, wantNil=%t", tc.threshold, got, tc.wantNil)
+					}
+				}
+
+				cPre, err := NewCount(&CountOptions{
+					Epsilon:                  ln3,
+					MaxPartitionsContributed: 1,
+					Noise:                    fixedThresholdNoise{threshold: tc.threshold},
+				})
+				if err != nil {
+					t.Fatalf("NewCount failed: %v", err)
+				}
+				cPre.IncrementBy(tc.rawCount)
+				gotPre, err := cPre.PreThresholdedResult(tc.preThreshold, tenten)
+				if err != nil {
+					t.Fatalf("PreThresholdedResult failed: %v", err)
+				}
+				if (gotPre == nil) != tc.wantNil {
+					t.Errorf("PreThresholdedResult with threshold=%v, preThreshold=%d: got=%v, wantNil=%t",
+						tc.threshold, tc.preThreshold, gotPre, tc.wantNil)
+				}
+			})
+		}
+	})
+}

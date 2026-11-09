@@ -552,6 +552,59 @@ func TestDeltaForThresholdGaussian(t *testing.T) {
 	}
 }
 
+func TestThresholdAndDeltaForThresholdGaussianSmallPerPartitionDelta(t *testing.T) {
+	for _, tc := range []struct {
+		desc            string
+		l0Sensitivity   int64
+		lInfSensitivity float64
+		epsilon         float64
+		noiseDelta      float64
+		thresholdDelta  float64
+	}{
+		{
+			desc:            "per-partition thresholdDelta below float64 unit roundoff near 1",
+			l0Sensitivity:   20,
+			lInfSensitivity: 1,
+			epsilon:         1.0,
+			noiseDelta:      5e-16,
+			thresholdDelta:  5e-16,
+		},
+		{
+			desc:            "deep tail thresholdDelta",
+			l0Sensitivity:   100,
+			lInfSensitivity: 2.5,
+			epsilon:         0.5,
+			noiseDelta:      1e-20,
+			thresholdDelta:  1e-50,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			gotThreshold, err := gauss.Threshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.thresholdDelta)
+			if err != nil {
+				t.Fatalf("Couldn't compute threshold: %v", err)
+			}
+			if math.IsNaN(gotThreshold) || math.IsInf(gotThreshold, 0) {
+				t.Fatalf("Threshold(%d, %g, %g, %g, %g) = %v, want finite value",
+					tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.thresholdDelta, gotThreshold)
+			}
+			if gotThreshold <= tc.lInfSensitivity {
+				t.Errorf("Threshold(%d, %g, %g, %g, %g) = %v, want > %v",
+					tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, tc.thresholdDelta, gotThreshold, tc.lInfSensitivity)
+			}
+
+			gotDelta, err := gauss.(gaussian).DeltaForThreshold(tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, gotThreshold)
+			if err != nil {
+				t.Fatalf("Couldn't compute delta for threshold: %v", err)
+			}
+			relErr := math.Abs(gotDelta-tc.thresholdDelta) / tc.thresholdDelta
+			if math.IsNaN(relErr) || relErr > 1e-12 {
+				t.Errorf("DeltaForThreshold(%d, %g, %g, %g, %g) = %e, want %e (relErr=%e)",
+					tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.noiseDelta, gotThreshold, gotDelta, tc.thresholdDelta, relErr)
+			}
+		})
+	}
+}
+
 func TestInverseCDFGaussian(t *testing.T) {
 	for _, tc := range []struct {
 		desc           string
