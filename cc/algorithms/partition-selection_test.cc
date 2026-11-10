@@ -538,6 +538,40 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionThreshold) {
   EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
 }
 
+// When the initial delta is greater than 0.5 but the delta adjusted for
+// max_partitions_contributed is at most 0.5, the threshold must be computed
+// with the formula for adjusted_delta <= 0.5. Selecting the formula based on
+// the initial delta instead would underestimate the threshold.
+TEST(PartitionSelectionTest,
+     LaplacePartitionSelectionThresholdDeltaGreaterThanHalf) {
+  LaplacePartitionSelection::Builder test_builder;
+  test_builder
+      .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
+      .SetEpsilon(1.0)
+      .SetDelta(0.51)
+      .SetMaxPartitionsContributed(10);
+  auto built_strategy = test_builder.Build();
+  ASSERT_OK(built_strategy);
+  auto strategy = std::move(built_strategy.value());
+  LaplacePartitionSelection* laplace =
+      dynamic_cast<LaplacePartitionSelection*>(strategy.get());
+  ASSERT_THAT(laplace, testing::NotNull());
+
+  // The initial delta is greater than 0.5, but the delta adjusted for
+  // max_partitions_contributed, 1 - (1 - 0.51)^(1/10) ~= 0.0689, is not.
+  const double adjusted_delta = laplace->GetAdjustedDelta();
+  ASSERT_THAT(adjusted_delta, DoubleNear(0.06885008, 1e-7));
+  ASSERT_LE(adjusted_delta, 0.5);
+
+  // For adjusted_delta <= 0.5, the threshold is
+  // 1 - diversity * log(2 * adjusted_delta) ~= 20.827.
+  const double expected_threshold =
+      1 - laplace->GetDiversity() * std::log(2 * adjusted_delta);
+  EXPECT_THAT(laplace->GetThreshold(),
+              DoubleNear(expected_threshold, 1e-9));
+  EXPECT_THAT(laplace->GetThreshold(), DoubleNear(20.8267664, 0.001));
+}
+
 TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetBuilderThreshold) {
   LaplacePartitionSelection::Builder test_builder;
   auto built_strategy = test_builder.SetEpsilon(0.5)
