@@ -19,3 +19,8 @@ build --enable_platform_specific_config
 build:linux --copt="-Wno-sign-compare" --cxxopt="-std=c++17"
 build:macos --copt="-Wno-sign-compare" --cxxopt="-std=c++17"
 build:windows --copt="/wd4244" --cxxopt="/std:c++17"
+
+# Do not pick up a host ANDROID_HOME environment variable (for example, when an
+# older Android SDK is pre-installed on CI images) for transitive rules_android
+# repository rules.
+common --repo_env=ANDROID_HOME=
