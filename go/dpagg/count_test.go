@@ -502,6 +502,56 @@ func TestCount_CountGreaterThanPreThresholdReturnsResult(t *testing.T) {
 	}
 }
 
+// Tests that PreThresholdedResult consumes the Count even when the raw count is below the
+// pre-threshold, so that repeated calls cannot reveal the raw count.
+func TestCount_PreThresholdedResultTransitionsState(t *testing.T) {
+	c, err := NewCount(&CountOptions{Epsilon: ln3, MaxPartitionsContributed: 1, Noise: noise.Laplace()})
+	if err != nil {
+		t.Fatalf("NewCount() failed: %v", err)
+	}
+	if err := c.IncrementBy(9); err != nil {
+		t.Fatalf("IncrementBy(9) failed: %v", err)
+	}
+
+	// First call with preThreshold > raw count returns (nil, nil), and must still
+	// consume the Count state so callers cannot binary-search the exact raw count.
+	res, err := c.PreThresholdedResult(10, 1e-10)
+	if err != nil {
+		t.Fatalf("PreThresholdedResult(10, 1e-10) failed: %v", err)
+	}
+	if res != nil {
+		t.Errorf("PreThresholdedResult(10, 1e-10) = %d, want nil", *res)
+	}
+	if _, err := c.PreThresholdedResult(5, 1e-10); err == nil {
+		t.Errorf("second PreThresholdedResult(5, 1e-10) = nil error, want state error")
+	}
+	if _, err := c.Result(); err == nil {
+		t.Errorf("Result() after PreThresholdedResult() = nil error, want state error")
+	}
+}
+
+// Tests that PreThresholdedResult rejects merged, serialized or finalized Counts even when the
+// raw count is below the pre-threshold.
+func TestCount_PreThresholdedResultStateChecks(t *testing.T) {
+	for _, tc := range []struct {
+		desc  string
+		state aggregationState
+	}{
+		{"merged", merged},
+		{"serialized", serialized},
+		{"resultReturned", resultReturned},
+	} {
+		c := getNoiselessCount(t)
+		if err := c.IncrementBy(3); err != nil {
+			t.Fatalf("IncrementBy(3) failed: %v", err)
+		}
+		c.state = tc.state
+		if _, err := c.PreThresholdedResult(100, 1e-10); err == nil {
+			t.Errorf("PreThresholdedResult() in state %s got nil error, want state error", tc.desc)
+		}
+	}
+}
+
 type mockNoiseCount struct {
 	t *testing.T
 	noise.Noise

@@ -225,12 +225,6 @@ func (c *Count) PreThresholdedResult(preThreshold int64, thresholdDelta float64)
 	if preThreshold < 1 {
 		preThreshold = 1
 	}
-	// Pre-thresholding guarantees that at least this number of unique contributions are in the
-	// partition.
-	if c.count < preThreshold {
-		return nil, nil
-	}
-
 	threshold, err := c.Noise.Threshold(c.l0Sensitivity, float64(c.lInfSensitivity), c.epsilon, c.delta, thresholdDelta)
 	if err != nil {
 		return nil, err
@@ -238,6 +232,12 @@ func (c *Count) PreThresholdedResult(preThreshold int64, thresholdDelta float64)
 	result, err := c.Result()
 	if err != nil {
 		return nil, err
+	}
+	// Pre-thresholding guarantees that at least this number of unique contributions are in the
+	// partition. Check after c.Result() so the Count is consumed even when the partition is
+	// dropped; otherwise repeated calls would reveal how the raw count compares to preThreshold.
+	if c.count < preThreshold {
+		return nil, nil
 	}
 	// Rounding up the threshold when converting it to int64 to ensure that no DP guarantees
 	// are violated due to a result being returned that is less than the fractional threshold.
