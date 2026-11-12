@@ -239,6 +239,16 @@ GaussianMechanism::Builder::Build() {
       return absl::InvalidArgumentError(
           "Standard deviation must be finite and positive.");
     }
+    if (stddev_.value() > 0) {
+      double overflow_probability =
+          (1 - internal::GaussianDistribution::cdf(
+                   stddev_.value(), std::numeric_limits<double>::max())) +
+          internal::GaussianDistribution::cdf(
+              stddev_.value(), std::numeric_limits<double>::lowest());
+      if (overflow_probability >= kMaxOverflowProbability) {
+        return absl::InvalidArgumentError("Standard deviation is too high.");
+      }
+    }
     std::unique_ptr<NumericalMechanism> result =
         std::make_unique<GaussianMechanism>(stddev_.value(), std::move(distro));
     return result;
@@ -248,6 +258,17 @@ GaussianMechanism::Builder::Build() {
   RETURN_IF_ERROR(ValidateIsFiniteAndPositive(epsilon, "Epsilon"));
   RETURN_IF_ERROR(DeltaIsSetAndValid());
   ASSIGN_OR_RETURN(double l2, CalculateL2Sensitivity());
+
+  // Check that generated noise is not likely to overflow.
+  double stddev = CalculateStddev(epsilon.value(), GetDelta().value(), l2);
+  double overflow_probability =
+      (1 - internal::GaussianDistribution::cdf(
+               stddev, std::numeric_limits<double>::max())) +
+      internal::GaussianDistribution::cdf(
+          stddev, std::numeric_limits<double>::lowest());
+  if (overflow_probability >= kMaxOverflowProbability) {
+    return absl::InvalidArgumentError("Sensitivity is too high.");
+  }
 
   return absl::StatusOr<std::unique_ptr<NumericalMechanism>>(
       std::make_unique<GaussianMechanism>(epsilon.value(), GetDelta().value(),
