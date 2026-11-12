@@ -426,6 +426,24 @@ func TestBoundedQuantilesResultSetsStateCorrectly(t *testing.T) {
 	}
 }
 
+// Tests that a NaN rank is rejected and leaves the object usable.
+func TestBoundedQuantilesResultRejectsNaNRank(t *testing.T) {
+	bq := getNoiselessBQ(t, -5.0, 5.0)
+	if err := bq.Add(1.0); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+
+	if _, err := bq.Result(math.NaN()); err == nil {
+		t.Errorf("Result(NaN) should have failed, got no error")
+	}
+	if bq.state != defaultState {
+		t.Errorf("A rejected Result call should not change the state, got %v, want defaultState", bq.state)
+	}
+	if _, err := bq.Result(0.5); err != nil {
+		t.Errorf("Couldn't compute dp result for rank=0.5 after a rejected call: %v", err)
+	}
+}
+
 // getRanks returns 1001 ranks equally distributed between 0.0 and 1.0 (both inclusive).
 func getRanks() []float64 {
 	ranks := make([]float64, 1001)

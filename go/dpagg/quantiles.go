@@ -214,11 +214,17 @@ func (bq *BoundedQuantiles) Result(rank float64) (float64, error) {
 	if bq.state != defaultState && bq.state != resultReturned {
 		return 0, fmt.Errorf("BoundedQuantiles' noised result cannot be computed: %v", bq.state.errorMessage())
 	}
-	bq.state = resultReturned
 
-	if rank < 0.0 || rank > 1.0 {
+	// NaN needs to be rejected separately: it is neither less than 0 nor greater than 1, and it
+	// never compares greater than or equal to the accumulated count, so it would slip through the
+	// search below without ever selecting a child node.
+	if math.IsNaN(rank) || rank < 0.0 || rank > 1.0 {
 		return 0, fmt.Errorf("rank %f must be >= 0 and <= 1", rank)
 	}
+
+	// The state is only advanced once the arguments have been accepted, so that a rejected call
+	// leaves the object usable.
+	bq.state = resultReturned
 	rank = adjustRank(rank)
 
 	index := rootIndex
@@ -258,7 +264,7 @@ func (bq *BoundedQuantiles) Result(rank float64) (float64, error) {
 
 		// Determine the child node whose subtree contains the quantile.
 		partialCount := 0.0
-		for i := leftmostChildIndex; true; i++ {
+		for i := leftmostChildIndex; i <= rightmostChildIndex; i++ {
 			count, err := bq.getNoisedCount(i)
 			if err != nil {
 				return 0, fmt.Errorf("couldn't get noised count for node %d: %w", i, err)
