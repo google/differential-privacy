@@ -178,9 +178,10 @@ class RenyiPropertyTester(divergence_tester.DivergencePropertyTester):
     def scaled_tanh(x):
       return self._model_output_coordinate_bound * tf.keras.activations.tanh(x)
 
-    base_model.add(tf.keras.layers.Activation(scaled_tanh))
+    cloned_base_model = tf.keras.models.clone_model(base_model)
+    cloned_base_model.add(tf.keras.layers.Activation(scaled_tanh))
 
-    self._renyi_model = RenyiModel(base_model, self._alpha)
+    self._renyi_model = RenyiModel(cloned_base_model, self._alpha)
     self._renyi_model.compile(
         optimizer=tf.keras.optimizers.Adam(
             config.training_config.optimizer_learning_rate

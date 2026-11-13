@@ -354,6 +354,66 @@ class RenyiTesterUtilsTest(parameterized.TestCase):
     )
     self.assertAlmostEqual(result_error, expected_error, places=6)
 
+  def test_reused_base_model_is_not_mutated_or_contracted(self):
+    tf.keras.utils.set_random_seed(42)
+    rng = np.random.default_rng(42)
+    shared_base_model = tf.keras.Sequential([
+        tf.keras.layers.Dense(16, activation=tf.keras.activations.tanh),
+        tf.keras.layers.Dense(1),
+    ])
+    initial_layer_count = len(shared_base_model.layers)
+
+    coord_bound = 0.35
+    training_config = property_tester_config.TrainingConfig(
+        training_epochs=2,
+        batch_size=500,
+        optimizer_learning_rate=0.05,
+        model_output_coordinate_bound=coord_bound,
+        verbose=0,
+    )
+    testers = []
+    for alpha in (1.5, 2.0, 3.0, 2.0):
+      config = property_tester_config.RenyiPropertyTesterConfig(
+          alpha=alpha,
+          training_config=training_config,
+          privacy_property=privacy_property.PrivacyProperty(
+              renyi_dp=privacy_property.RenyiDp(alpha=alpha, epsilon=0.1)
+          ),
+      )
+      testers.append(
+          renyi_tester.RenyiPropertyTester(
+              config=config, base_model=shared_base_model
+          )
+      )
+
+    self.assertLen(shared_base_model.layers, initial_layer_count)
+    for tester in testers:
+      self.assertIsNot(tester._renyi_model.nn_model, shared_base_model)
+      self.assertLen(
+          tester._renyi_model.nn_model.layers, initial_layer_count + 1
+      )
+    tester = testers[-1]
+
+    num_samples = 20000
+    samples1 = rng.laplace(loc=-1.0, scale=0.6, size=(num_samples, 1)).astype(
+        np.float32
+    )
+    samples2 = rng.laplace(loc=1.0, scale=0.6, size=(num_samples, 1)).astype(
+        np.float32
+    )
+    lower_bound = tester.estimate_lower_bound(
+        samples1, samples2, failure_probability=0.05
+    )
+    # The tested property has threshold epsilon = 0.1, while the true Renyi
+    # divergence of Lap(-1.0, 0.6) vs. Lap(1.0, 0.6) at alpha = 2.0 exceeds 2.2.
+    # With a single uncontracted scaled_tanh output layer bounded by
+    # coord_bound = 0.35, the empirical variational lower bound exceeds 0.1 and
+    # rejects the property, whereas stacking 4 scaled_tanh layers without
+    # cloning contracts outputs to <= 0.35 * tanh(0.35)^3 ~= 0.014 and drives
+    # lower_bound negative.
+    self.assertGreater(lower_bound, 0.1)
+    self.assertTrue(tester.reject_property(lower_bound))
+
 
 if __name__ == '__main__':
   absltest.main()
