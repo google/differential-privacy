@@ -399,6 +399,10 @@ fun validateAggregationParams(
         require(params.vectorNormKind in listOf(NormKind.L_INF, NormKind.L2)) {
           "vectorNormKind must be L_INF or L2 for GAUSSIAN noise. Provided value: ${params.vectorNormKind}."
         }
+      NoiseKind.AUTO ->
+        require(params.vectorNormKind in listOf(NormKind.L_INF, NormKind.L1, NormKind.L2)) {
+          "vectorNormKind must be L_INF or L1 or L2 for AUTO noise. Provided value: ${params.vectorNormKind}."
+        }
     }
     require(params.vectorMaxTotalNorm != null) {
       "vectorMaxTotalNorm must be set for VECTOR_SUM metric."
@@ -592,6 +596,7 @@ sealed class MetricType : Serializable {
 enum class NoiseKind {
   LAPLACE,
   GAUSSIAN,
+  AUTO,
 }
 
 /**

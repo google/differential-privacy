@@ -556,6 +556,14 @@ class VectorSumCombiner(
             )
           vector.map { noise.addNoise(it, l2Sensitivity, budget.epsilon(), budget.delta()) }
         }
+        is AutoNoise -> {
+          require(aggregationParams.vectorNormKind == NormKind.L_INF) {
+            "Norm kind must be L_INF when AUTO mechanism is used. Provided norm kind: ${aggregationParams.vectorNormKind}."
+          }
+          val l0 = aggregationParams.maxPartitionsContributed!! * aggregationParams.vectorSize!!
+          val lInf = aggregationParams.vectorMaxTotalNorm!!
+          vector.map { noise.addNoise(it, l0, lInf, budget.epsilon(), budget.delta()) }
+        }
         is ZeroNoise -> vector.map { it }
         else -> throw IllegalArgumentException("Unsupported noise kind: ${noise.javaClass}.")
       }
