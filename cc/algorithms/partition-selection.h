@@ -395,7 +395,7 @@ class LaplacePartitionSelection : public PartitionSelectionStrategy {
     ASSIGN_OR_RETURN(double adjusted_delta,
                      CalculateAdjustedDelta(delta, max_partitions_contributed));
 
-    if (delta > 0.5) {
+    if (adjusted_delta > 0.5) {
       return 1 + CalculateDiversity(epsilon, max_partitions_contributed) *
                      std::log(2 * (1 - adjusted_delta));
     } else {

@@ -538,6 +538,85 @@ TEST(PartitionSelectionTest, LaplacePartitionSelectionThreshold) {
   EXPECT_THAT(laplace->GetThreshold(), DoubleNear(7.43775164974, 0.001));
 }
 
+// When the initial delta is greater than 0.5 but the delta adjusted for
+// max_partitions_contributed is at most 0.5, the threshold must be computed
+// with the formula for adjusted_delta <= 0.5. Selecting the formula based on
+// the initial delta instead would underestimate the threshold.
+TEST(PartitionSelectionTest,
+     LaplacePartitionSelectionThresholdDeltaGreaterThanHalf) {
+  LaplacePartitionSelection::Builder test_builder;
+  test_builder
+      .SetLaplaceMechanism(std::make_unique<LaplaceMechanism::Builder>())
+      .SetEpsilon(1.0)
+      .SetDelta(0.51)
+      .SetMaxPartitionsContributed(10);
+  auto built_strategy = test_builder.Build();
+  ASSERT_OK(built_strategy);
+  auto strategy = std::move(built_strategy.value());
+  LaplacePartitionSelection* laplace =
+      dynamic_cast<LaplacePartitionSelection*>(strategy.get());
+  ASSERT_THAT(laplace, testing::NotNull());
+
+  // The initial delta is greater than 0.5, but the delta adjusted for
+  // max_partitions_contributed, 1 - (1 - 0.51)^(1/10) ~= 0.0689, is not.
+  const double adjusted_delta = laplace->GetAdjustedDelta();
+  ASSERT_THAT(adjusted_delta, DoubleNear(0.06885008, 1e-7));
+  ASSERT_LE(adjusted_delta, 0.5);
+
+  // For adjusted_delta <= 0.5, the threshold is
+  // 1 - diversity * log(2 * adjusted_delta) ~= 20.827.
+  EXPECT_THAT(laplace->GetThreshold(), DoubleNear(20.8267664, 0.001));
+
+  // Round tripping the threshold through CalculateDelta, the exact inverse of
+  // CalculateThreshold, must recover the initial delta. (The threshold
+  // produced by the previous, incorrect branching round trips to a delta of
+  // ~= 0.956.)
+  absl::StatusOr<double> round_trip_delta =
+      LaplacePartitionSelection::CalculateDelta(1.0, laplace->GetThreshold(),
+                                                10);
+  ASSERT_OK(round_trip_delta);
+  EXPECT_THAT(round_trip_delta.value(), DoubleNear(0.51, 1e-6));
+}
+
+// Round trip delta through CalculateThreshold and its exact inverse
+// CalculateDelta for parameters on both sides of adjusted_delta = 0.5,
+// including the cases where the initial delta and the adjusted delta are on
+// opposite sides of 0.5. With the previous branching on the initial delta,
+// e.g. delta = 0.51 with max_partitions_contributed = 10 round trips to a
+// delta of ~= 0.956 instead of 0.51.
+TEST(PartitionSelectionTest,
+     LaplacePartitionSelectionThresholdDeltaRoundTrip) {
+  const double epsilon = std::log(3);
+  const std::vector<std::pair<double, int64_t>> delta_max_partitions_cases = {
+      {0.3, 1}, {0.3, 2}, {0.3, 10}, {0.51, 1}, {0.51, 2}, {0.51, 10},
+      {0.9, 1}, {0.9, 2}, {0.9, 10}};
+
+  for (const auto& delta_max_partitions : delta_max_partitions_cases) {
+    const double delta = delta_max_partitions.first;
+    const int64_t max_partitions_contributed = delta_max_partitions.second;
+    std::string test_case_string =
+        absl::StrCat("delta: ", delta,
+                     ", max_partitions_contributed: ", max_partitions_contributed);
+
+    absl::StatusOr<double> status_or_threshold =
+        LaplacePartitionSelection::CalculateThreshold(
+            epsilon, delta, max_partitions_contributed);
+    ASSERT_TRUE(status_or_threshold.ok())
+        << status_or_threshold.status() << "\n"
+        << test_case_string;
+
+    absl::StatusOr<double> status_or_delta =
+        LaplacePartitionSelection::CalculateDelta(
+            epsilon, status_or_threshold.value(), max_partitions_contributed);
+    ASSERT_TRUE(status_or_delta.ok())
+        << status_or_delta.status() << "\n"
+        << test_case_string;
+
+    EXPECT_THAT(status_or_delta.value(), DoubleNear(delta, 1e-6))
+        << test_case_string;
+  }
+}
+
 TEST(PartitionSelectionTest, LaplacePartitionSelectionUnsetBuilderThreshold) {
   LaplacePartitionSelection::Builder test_builder;
   auto built_strategy = test_builder.SetEpsilon(0.5)
