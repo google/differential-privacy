@@ -219,10 +219,14 @@ public class Count {
     // numerical issues. Instead, we look directly at the noise
     // nu_i = C_i - maxContributionsPerPartition that is added to the count C_i and compute the
     // quantile q'_r' for rank r' = thresholdDeltaPerPartition. Because the distribution of nu_i is
-    // symmetric around 0.0 it holds that
-    //   k = q_r = maxContributionsPerPartition - q'_r'.
+    // symmetric around 0.0 and computeResult() (above) returns an integer `long noisyCount` via
+    // Noise.addNoise(long, ...) (which rounds continuous noise to the nearest integer via
+    // Math.round when granularity <= 1.0, so an integer noisy count C_i >= m corresponds to
+    // unrounded count + noise >= m - 0.5), we add a 0.5 discrete rounding correction so that
+    //   k = q_r + 0.5 = maxContributionsPerPartition + 0.5 - q'_r'.
     double threshold =
         params.maxContributionsPerPartition()
+            + 0.5
             - params
                 .noise()
                 .computeQuantile(

@@ -511,12 +511,27 @@ public class CountTest {
             anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(quantile);
 
-    // threshold is equal to -1 * quantile + maxContributionsPerPartition = 11. Moreover, the (zero-
-    // noise) count is equal to 10, which doesn't pass the threshold and therefore the empty result
-    // should be returned.
+    // threshold is equal to -1 * quantile + maxContributionsPerPartition + 0.5 = 11.5. Moreover,
+    // the (zero-noise) count is equal to 10, which doesn't pass the threshold and therefore the
+    // empty result should be returned.
     count.incrementBy(10);
     Optional<Long> actualResult = count.computeThresholdedResult(THRESHOLD_DELTA);
     assertThat(actualResult.isPresent()).isFalse();
+  }
+
+  @Test
+  public void computeThresholdedResult_countAtUnadjustedContinuousThreshold_returnsEmptyResult() {
+    double quantile = -10.0;
+    when(noise.computeQuantile(
+            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
+        .thenReturn(quantile);
+
+    // Without the +0.5 discrete rounding correction, the continuous threshold is
+    // -1 * quantile + maxContributionsPerPartition = 11.0. Because noisy counts are rounded to the
+    // nearest integer, the threshold is 11.5, so a count of 11 must return an empty result.
+    count.incrementBy(11);
+    Optional<Long> actualResult = count.computeThresholdedResult(THRESHOLD_DELTA);
+    assertThat(actualResult).isEmpty();
   }
 
   @Test
@@ -526,8 +541,9 @@ public class CountTest {
             anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
         .thenReturn(quantile);
 
-    // threshold is equal to -1 * quantile + maxContributionsPerPartition = 11. Moreover, the (zero-
-    // noise) count is equal to 12, which passes the threshold and therefore 12 should be returned.
+    // threshold is equal to -1 * quantile + maxContributionsPerPartition + 0.5 = 11.5. Moreover,
+    // the (zero-noise) count is equal to 12, which passes the threshold and therefore 12 should be
+    // returned.
     count.incrementBy(12);
     Optional<Long> actualResult = count.computeThresholdedResult(THRESHOLD_DELTA);
     assertThat(actualResult).hasValue(12);
@@ -557,7 +573,7 @@ public class CountTest {
             .noise(noise);
 
     // For the given parameters and a thresholdDelta of 0.1, the threshold should be
-    //    k = mu - lambda * log(2 * thresholdDeltaPerPartition) ≈ 121.94708
+    //    k = mu + 0.5 - lambda * log(2 * thresholdDeltaPerPartition) ≈ 122.44708
     // where
     //    mu = maxContributionsPerPartition
     //    lambda = (maxContributionsPerPartition * maxPartitionsContributed) / epsilon
@@ -566,14 +582,14 @@ public class CountTest {
     // Using the floor and the ceil of this threshold as input to a zero-noise count, we expect
     // the floor to be thresholded but the ceil to pass.
     Count count = builder.build();
-    count.incrementBy(121);
+    count.incrementBy(122);
     Optional<Long> flooredThreshold = count.computeThresholdedResult(0.1);
     count = builder.build();
-    count.incrementBy(122);
+    count.incrementBy(123);
     Optional<Long> ceiledThreshold = count.computeThresholdedResult(0.1);
 
     assertThat(flooredThreshold).isEmpty();
-    assertThat(ceiledThreshold).hasValue(122);
+    assertThat(ceiledThreshold).hasValue(123);
   }
 
   @Test
@@ -600,8 +616,13 @@ public class CountTest {
             .maxPartitionsContributed(11)
             .noise(noise);
 
-    // For the given parameters and a thresholdDelta of 0.1, the threshold should be
-    //    k ≈ 71.42627.
+    // For the given parameters and a thresholdDelta of 0.1:
+    //    l2Sensitivity = sqrt(maxPartitionsContributed) * maxContributionsPerPartition ≈ 9.94987
+    //    sigma = GaussianNoise.getSigma(l2Sensitivity, epsilon, delta) ≈ 29.18889
+    //    thresholdDeltaPerPartition = 1 - (1 - thresholdDelta)^(1 / maxPartitionsContributed)
+    //                               ≈ 0.0095325
+    //    quantile = -sigma * sqrt(2) * erfcInv(2 * thresholdDeltaPerPartition) ≈ -68.42627
+    //    k = maxContributionsPerPartition + 0.5 - quantile ≈ 71.92627.
     //
     // Using the floor and the ceil of this threshold as input to a zero-noise count, we expect
     // the floor to be thresholded but the ceil to pass.
@@ -614,6 +635,48 @@ public class CountTest {
 
     assertThat(flooredThreshold).isEmpty();
     assertThat(ceiledThreshold).hasValue(72);
+  }
+
+  @Test
+  public void computeThresholdedResult_forGaussian_appliesDiscreteRoundingCorrection() {
+    when(noise.getMechanismType()).thenReturn(GAUSSIAN);
+    when(noise.computeQuantile(
+            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
+        .thenAnswer(
+            invocation ->
+                new GaussianNoise()
+                    .computeQuantile(
+                        (double) invocation.getArguments()[0],
+                        (double) invocation.getArguments()[1],
+                        (int) invocation.getArguments()[2],
+                        (double) invocation.getArguments()[3],
+                        (double) invocation.getArguments()[4],
+                        (double) invocation.getArguments()[5]));
+
+    Count.Params.Builder builder =
+        Count.builder()
+            .epsilon(Math.log(3))
+            .delta(0.0001)
+            .maxContributionsPerPartition(3)
+            .maxPartitionsContributed(11)
+            .noise(noise);
+
+    // Using the same parameters (sigma ≈ 29.18889) and thresholdDelta = 0.05:
+    //    thresholdDeltaPerPartition = 1 - (1 - 0.05)^(1 / 11) ≈ 0.0046522
+    //    quantile = -sigma * sqrt(2) * erfcInv(2 * thresholdDeltaPerPartition) ≈ -75.91050
+    // Without the +0.5 discrete rounding correction, the continuous threshold is
+    //    3 - quantile ≈ 78.91050 (ceil = 79).
+    // With the +0.5 correction, the threshold is k = 3 + 0.5 - quantile ≈ 79.41050, so a
+    // zero-noise count of 79 must be thresholded and 80 must pass.
+    Count count = builder.build();
+    count.incrementBy(79);
+    Optional<Long> flooredThreshold = count.computeThresholdedResult(0.05);
+    count = builder.build();
+    count.incrementBy(80);
+    Optional<Long> ceiledThreshold = count.computeThresholdedResult(0.05);
+
+    assertThat(flooredThreshold).isEmpty();
+    assertThat(ceiledThreshold).hasValue(80);
   }
 
   private Count.Params.Builder getCountBuilderWithFields() {

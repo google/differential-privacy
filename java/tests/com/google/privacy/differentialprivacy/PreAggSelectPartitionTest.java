@@ -468,10 +468,11 @@ public class PreAggSelectPartitionTest {
       preAggSelectPartition.incrementBy(55);
 
       // For epsilon = 5, noiseDelta = thresholdDelta = 1e-15, l0Sensitivity = 5
-      // the noise is at most +-24 with probability (1 - 1e-10) and the threshold is 30.
+      // the noise is at most +-24 with probability (1 - 1e-10) and the threshold is ~31.51
+      // (including maxContributionsPerPartition = 1 and the +0.5 discrete rounding correction).
       // Hence, in the majority of the cases, a partition with >= 55 privacy IDs should be
       // kept after noise addition.
-      // To compute the threshold value, use GaussianNoise.computeQuantile(...).
+      // To compute the threshold value, use 1 + 0.5 - GaussianNoise.computeQuantile(...).
       assertThat(preAggSelectPartition.shouldKeepPartition()).isTrue();
     }
 
@@ -495,11 +496,12 @@ public class PreAggSelectPartitionTest {
       preAggSelectPartition.incrementBy(60);
 
       // For epsilon = 5, noiseDelta = thresholdDelta = 1e-15, l0Sensitivity = 5
-      // the noise is at most +-24 with probability (1 - 1e-10) and the threshold is 30.
+      // the noise is at most +-24 with probability (1 - 1e-10) and the threshold is ~31.51
+      // (including maxContributionsPerPartition = 1 and the +0.5 discrete rounding correction).
       // Hence, in the majority of the cases, a partition with >= 55 privacy IDs should be
       // kept after noise addition.
       // With pre-thresholding = 6, contributions = (60 - (6 - 1)) = 55.
-      // To compute the threshold value, use GaussianNoise.computeQuantile(...).
+      // To compute the threshold value, use 1 + 0.5 - GaussianNoise.computeQuantile(...).
       assertThat(preAggSelectPartition.shouldKeepPartition()).isTrue();
     }
 
@@ -517,10 +519,11 @@ public class PreAggSelectPartitionTest {
       preAggSelectPartition.incrementBy(5);
 
       // For epsilon = 5, noiseDelta = thresholdDelta = 1e-15, l0Sensitivity = 5
-      // the noise is at most +-24 with probability (1 - 1e-10) and the threshold is 30.
+      // the noise is at most +-24 with probability (1 - 1e-10) and the threshold is ~31.51
+      // (including maxContributionsPerPartition = 1 and the +0.5 discrete rounding correction).
       // Hence, in the majority of the cases, a partition with <= 5 privacy IDs should be
       // dropped after noise addition.
-      // To compute the threshold value, use GaussianNoise.computeQuantile(...).
+      // To compute the threshold value, use 1 + 0.5 - GaussianNoise.computeQuantile(...).
       assertThat(preAggSelectPartition.shouldKeepPartition()).isFalse();
     }
 
@@ -544,11 +547,12 @@ public class PreAggSelectPartitionTest {
       preAggSelectPartition.incrementBy(10);
 
       // For epsilon = 5, noiseDelta = thresholdDelta = 1e-15, l0Sensitivity = 5
-      // the noise is at most +-24 with probability (1 - 1e-10) and the threshold is 30.
+      // the noise is at most +-24 with probability (1 - 1e-10) and the threshold is ~31.51
+      // (including maxContributionsPerPartition = 1 and the +0.5 discrete rounding correction).
       // Hence, in the majority of the cases, a partition with <= 5 privacy IDs should be
       // dropped after noise addition.
       // With pre-thresholding = 6, contributions = (10 - (6 - 1)) = 5.
-      // To compute the threshold value, use GaussianNoise.computeQuantile(...).
+      // To compute the threshold value, use 1 + 0.5 - GaussianNoise.computeQuantile(...).
       assertThat(preAggSelectPartition.shouldKeepPartition()).isFalse();
     }
 
