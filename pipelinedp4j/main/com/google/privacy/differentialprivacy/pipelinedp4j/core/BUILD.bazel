@@ -98,6 +98,15 @@ kt_jvm_library(
 )
 
 kt_jvm_library(
+    name = "auto_noise",
+    srcs = ["AutoNoise.kt"],
+    deps = [
+        ":dp_functions_params",
+        "@maven//:com_google_privacy_differentialprivacy_differentialprivacy",
+    ],
+)
+
+kt_jvm_library(
     name = "dp_engine",
     srcs = [
         "Combiners.kt",
@@ -107,6 +116,7 @@ kt_jvm_library(
         "PublicPartitions.kt",
     ],
     deps = [
+        ":auto_noise",
         ":contribution_sampler",
         ":core_types",
         ":data_extractors",
