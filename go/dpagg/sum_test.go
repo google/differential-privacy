@@ -707,6 +707,17 @@ func TestNewBoundedSumFloat64(t *testing.T) {
 			},
 			nil,
 			true},
+		{"l1 overflow",
+			&BoundedSumFloat64Options{
+				Epsilon:                  ln3,
+				Delta:                    0,
+				MaxPartitionsContributed: 2,
+				Lower:                    -1,
+				Upper:                    math.MaxFloat64,
+				Noise:                    noise.Laplace(),
+			},
+			nil,
+			true},
 	} {
 		bs, err := NewBoundedSumFloat64(tc.opt)
 		if (err != nil) != tc.wantErr {

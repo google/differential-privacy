@@ -618,6 +618,16 @@ func TestComputeConfidenceIntervalFloat64Laplace(t *testing.T) {
 			want:            ConfidenceInterval{},
 			wantErr:         true,
 		},
+		{
+			desc:            "L1 sensitivity overflow",
+			noisedX:         0,
+			l0Sensitivity:   2,
+			lInfSensitivity: math.MaxFloat64,
+			epsilon:         0.1,
+			alpha:           0.5,
+			want:            ConfidenceInterval{},
+			wantErr:         true,
+		},
 	} {
 		got, err := lap.ComputeConfidenceIntervalFloat64(tc.noisedX, tc.l0Sensitivity, tc.lInfSensitivity,
 			tc.epsilon, tc.delta, tc.alpha)
@@ -998,6 +1008,52 @@ func TestAddNoiseInt64LaplaceCheckArgs(t *testing.T) {
 	} {
 		if _, err := lap.AddNoiseInt64(0, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta); (err != nil) != tc.wantErr {
 			t.Errorf("AddNoiseInt64: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
+func TestAddNoiseFloat64LaplaceCheckArgs(t *testing.T) {
+	for _, tc := range []struct {
+		desc                            string
+		l0Sensitivity                   int64
+		lInfSensitivity, epsilon, delta float64
+		wantErr                         bool
+	}{
+		{
+			desc:            "Valid parameters",
+			l0Sensitivity:   2,
+			lInfSensitivity: 5.0,
+			epsilon:         ln3,
+			delta:           0,
+			wantErr:         false,
+		},
+		{
+			desc:            "Max representable L1 sensitivity (1 * MaxFloat64)",
+			l0Sensitivity:   1,
+			lInfSensitivity: math.MaxFloat64,
+			epsilon:         ln3,
+			delta:           0,
+			wantErr:         false,
+		},
+		{
+			desc:            "Near-max representable L1 sensitivity (2 * (MaxFloat64 / 2))",
+			l0Sensitivity:   2,
+			lInfSensitivity: math.MaxFloat64 / 2,
+			epsilon:         ln3,
+			delta:           0,
+			wantErr:         false,
+		},
+		{
+			desc:            "L1 sensitivity overflow (2 * MaxFloat64)",
+			l0Sensitivity:   2,
+			lInfSensitivity: math.MaxFloat64,
+			epsilon:         ln3,
+			delta:           0,
+			wantErr:         true,
+		},
+	} {
+		if _, err := lap.AddNoiseFloat64(0, tc.l0Sensitivity, tc.lInfSensitivity, tc.epsilon, tc.delta); (err != nil) != tc.wantErr {
+			t.Errorf("AddNoiseFloat64: when %s for err got %v, wantErr %t", tc.desc, err, tc.wantErr)
 		}
 	}
 }

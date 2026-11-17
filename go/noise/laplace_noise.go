@@ -202,6 +202,9 @@ func checkArgsLaplaceFloat64(l0Sensitivity int64, lInfSensitivity, epsilon, delt
 	if err := checks.CheckLInfSensitivity(lInfSensitivity); err != nil {
 		return err
 	}
+	if math.IsInf(lInfSensitivity*float64(l0Sensitivity), 0) {
+		return fmt.Errorf("l0Sensitivity (%d) and lInfSensitivity (%f) are too high - the l1 sensitivity overflows", l0Sensitivity, lInfSensitivity)
+	}
 	if err := checks.CheckEpsilonVeryStrict(epsilon); err != nil {
 		return err
 	}
