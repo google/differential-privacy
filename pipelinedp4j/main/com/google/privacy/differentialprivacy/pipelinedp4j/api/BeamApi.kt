@@ -342,15 +342,16 @@ internal constructor(
     noiseKind,
   ) {
   override fun run(testMode: TestMode): BeamPCollection<QueryPerGroupResult<GroupKeysT>> {
-    val beamResult =
-      (runWithDpEngine(testMode) as BeamFrameworkTable<GroupKeysT, DpAggregates>).data
+    val dpEngineResult: DpEngineResult<GroupKeysT> = runWithDpEngine(testMode)
+    val beamAggregationResults =
+      (dpEngineResult.aggregationResults as BeamFrameworkTable<GroupKeysT, DpAggregates>).data
     val coder = QueryPerGroupResultCoder(groupKeyEncoder.coder)
     val mapToResultFn =
       createConvertDpAggregatesToQueryPerGroupResultFn(
         aggregations.outputColumnNamesWithMetricTypes(),
         aggregations.outputColumnNameToFeatureIdMap(),
       )
-    return beamResult
+    return beamAggregationResults
       .apply(MapElements.into(coder.encodedTypeDescriptor).via(SerializableFunction(mapToResultFn)))
       .setCoder(coder)
   }

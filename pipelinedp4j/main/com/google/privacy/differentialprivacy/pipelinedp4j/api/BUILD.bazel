@@ -31,6 +31,7 @@ kt_jvm_library(
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:dp_functions_params",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:encoders",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core:framework_collections",
+        "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_allocation_details",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/core/budget:budget_spec",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/local:local_collections",
         "//main/com/google/privacy/differentialprivacy/pipelinedp4j/local:local_encoders",
