@@ -423,6 +423,7 @@ protected constructor(
       createDataExtractors(
         va?.valueExtractor,
         vea?.vectorExtractor,
+        vea?.vectorSize,
         featureAggregation?.getFeatureId(),
       )
     val params = createAggregationParams(aggregationSpecs, va, vea)
@@ -432,6 +433,7 @@ protected constructor(
   private fun createDataExtractors(
     valueExtractor: ((DataRowT) -> Double)?,
     vectorExtractor: ((DataRowT) -> List<Double>)?,
+    vectorSize: Int?,
     featureId: String?,
   ) =
     when {
@@ -470,9 +472,18 @@ protected constructor(
               FeatureValuesExtractor(
                 checkNotNull(featureId) {
                   "featureId must not be null when a vector extractor is provided."
-                },
-                vectorExtractor,
-              )
+                }
+              ) { row ->
+                val values = vectorExtractor(row)
+                val expectedSize =
+                  checkNotNull(vectorSize) {
+                    "vectorSize must not be null when a vector extractor is provided."
+                  }
+                require(values.size == expectedSize) {
+                  "Extracted vector has size ${values.size}, but vectorSize is $expectedSize."
+                }
+                values
+              }
             ),
         )
       else ->
