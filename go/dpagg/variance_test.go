@@ -182,6 +182,16 @@ func TestNewBoundedVariance(t *testing.T) {
 			},
 			nil,
 			true},
+		{"Infinite bounds with default (nil) Noise",
+			&BoundedVarianceOptions{
+				Epsilon:                      ln3,
+				Lower:                        math.Inf(-1),
+				Upper:                        math.Inf(1),
+				MaxContributionsPerPartition: 2,
+				MaxPartitionsContributed:     1,
+			},
+			nil,
+			true},
 	} {
 		bv, err := NewBoundedVariance(tc.opt)
 		if (err != nil) != tc.wantErr {

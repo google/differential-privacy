@@ -513,6 +513,53 @@ func TestCheckBoundsFloat64AsInt64(t *testing.T) {
 	}
 }
 
+func TestCheckContributionBoundingOptions(t *testing.T) {
+	for _, tc := range []struct {
+		desc                     string
+		maxContributions         int64
+		maxPartitionsContributed int64
+		wantErr                  bool
+	}{
+		{"both unset", 0, 0, true},
+		{"both set", 1, 1, true},
+		{"negative maxContributions", -1, 1, true},
+		{"negative maxPartitionsContributed", 1, -1, true},
+		{"both negative", -1, -1, true},
+		{"only maxContributions set", 1, 0, false},
+		{"only maxPartitionsContributed set", 0, 1, false},
+	} {
+		if err := CheckContributionBoundingOptions(tc.maxContributions, tc.maxPartitionsContributed); (err != nil) != tc.wantErr {
+			t.Errorf("CheckContributionBoundingOptions: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
+func TestCheckContributionBoundingOptionsWithMaxValue(t *testing.T) {
+	for _, tc := range []struct {
+		desc                     string
+		maxContributions         int64
+		maxPartitionsContributed int64
+		maxValue                 int64
+		wantErr                  bool
+	}{
+		{"all unset", 0, 0, 0, true},
+		{"all set", 1, 1, 1, true},
+		{"maxContributions and maxPartitionsContributed set", 1, 1, 0, true},
+		{"maxContributions and maxValue set", 1, 0, 1, true},
+		{"only maxPartitionsContributed set", 0, 1, 0, true},
+		{"only maxValue set", 0, 0, 1, true},
+		{"negative maxContributions", -1, 1, 1, true},
+		{"negative maxPartitionsContributed", 1, -1, 0, true},
+		{"negative maxValue", 1, 0, -1, true},
+		{"only maxContributions set", 1, 0, 0, false},
+		{"maxPartitionsContributed and maxValue set", 0, 1, 1, false},
+	} {
+		if err := CheckContributionBoundingOptionsWithMaxValue(tc.maxContributions, tc.maxPartitionsContributed, tc.maxValue); (err != nil) != tc.wantErr {
+			t.Errorf("CheckContributionBoundingOptionsWithMaxValue: when %s for err got %v, want %t", tc.desc, err, tc.wantErr)
+		}
+	}
+}
+
 func TestCheckAlpha(t *testing.T) {
 	for _, tc := range []struct {
 		desc    string

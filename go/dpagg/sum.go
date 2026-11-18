@@ -142,7 +142,7 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 		// contribution to the partition is bounded by [0, MaxContributions].
 		upper = opt.MaxContributions
 	}
-	switch noise.ToKind(opt.Noise) {
+	switch noise.ToKind(n) {
 	case noise.Unrecognised:
 		err = checks.CheckBoundsInt64IgnoreOverflows(lower, upper)
 	default:
@@ -162,7 +162,7 @@ func NewBoundedSumInt64(opt *BoundedSumInt64Options) (*BoundedSumInt64, error) {
 		lInf, err = getLInfInt(lower, upper, maxContributionsPerPartition)
 	}
 	if err != nil {
-		if noise.ToKind(opt.Noise) == noise.Unrecognised {
+		if noise.ToKind(n) == noise.Unrecognised {
 			// Ignore sensitivity overflows if noise is not recognised.
 			log.Warningf("NewBoundedSumInt64: getLInfInt failed with %q, using largest representable integer as lInf_sensitivity", err.Error())
 		} else {
@@ -497,7 +497,7 @@ func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) (*BoundedSumFloat64, er
 		return nil, fmt.Errorf("NewBoundedSumFloat64: Lower and Upper must be set (automatic bounds determination is not implemented yet). Lower and Upper cannot be both 0")
 	}
 	var err error
-	switch noise.ToKind(opt.Noise) {
+	switch noise.ToKind(n) {
 	case noise.Unrecognised:
 		err = checks.CheckBoundsFloat64IgnoreOverflows(lower, upper)
 	default:
@@ -508,7 +508,7 @@ func NewBoundedSumFloat64(opt *BoundedSumFloat64Options) (*BoundedSumFloat64, er
 	}
 	lInf, err := getLInfFloat(lower, upper, maxContributionsPerPartition)
 	if err != nil {
-		if noise.ToKind(opt.Noise) == noise.Unrecognised {
+		if noise.ToKind(n) == noise.Unrecognised {
 			// Ignore sensitivity overflows if noise is not recognised.
 			log.Warningf("NewBoundedSumFloat64: getLInfFloat failed with %q, using largest representable integer as lInf_sensitivity", err.Error())
 		} else {
