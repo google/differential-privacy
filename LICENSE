@@ -202,7 +202,9 @@
    limitations under the License.
 
 -------------------------------------------------------------------------------
-Files: third_party/cephes/*
+Files: third_party/cephes/*,
+       java/main/com/google/privacy/differentialprivacy/InverseGaussianCdf.java,
+       java/tests/com/google/privacy/differentialprivacy/InverseGaussianCdfTest.java
 
   Distributed under 3-clause BSD license with permission from the author,
   see https://lists.debian.org/debian-legal/2004/12/msg00295.html

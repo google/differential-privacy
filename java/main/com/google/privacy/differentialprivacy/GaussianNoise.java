@@ -24,7 +24,6 @@ import java.security.SecureRandom;
 import java.util.Random;
 import javax.annotation.Nullable;
 import org.apache.commons.math3.distribution.NormalDistribution;
-import org.apache.commons.math3.special.Erf;
 
 /**
  * Generates and adds Gaussian noise to a raw piece of numerical data such that the result is
@@ -254,7 +253,7 @@ public class GaussianNoise implements Noise {
 
     double l2Sensitivity = Noise.getL2Sensitivity(l0Sensitivity, lInfSensitivity);
     double sigma = getSigma(l2Sensitivity, epsilon, delta);
-    return x - sigma * Math.sqrt(2) * Erf.erfcInv(2 * rank);
+    return x + sigma * InverseGaussianCdf.compute(rank);
   }
 
   private void checkSensitivities(int l0Sensitivity, double lInfSensitivity) {

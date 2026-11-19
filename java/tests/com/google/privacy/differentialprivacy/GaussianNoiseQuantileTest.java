@@ -22,11 +22,12 @@ import static java.lang.Double.NaN;
 import static java.lang.Math.max;
 import static org.junit.Assert.assertThrows;
 
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
+@RunWith(TestParameterInjector.class)
 public final class GaussianNoiseQuantileTest {
   // Sigma computation is accurate to the 3 most significant digits, TOLERANCE is set accordingly.
   private static final double TOLERANCE = 1E-3;
@@ -581,8 +582,58 @@ public final class GaussianNoiseQuantileTest {
     assertThat(e).hasMessageThat().startsWith("l0Sensitivity must be");
   }
 
+  @Test
+  public void computeQuantile_extremeRanks_returnsAccurateResult(
+      @TestParameter ExtremeRankCase testCase) {
+    // Regression test for https://github.com/google/differential-privacy/issues/495:
+    // Previously, Erf.erfcInv(2 * rank) computed erfinv(1 - 2 * rank), losing precision around
+    // rank ~ 1e-16 and returning -Infinity once 1 - 2 * rank rounded to 1.0.
+    // We divide (quantile - x) by getSigma(...) so GAUSSIAN_SIGMA_ACCURACY (1e-3) does not mask
+    // quantile imprecision.
+    double sigma =
+        GaussianNoise.getSigma(
+            Noise.getL2Sensitivity(DEFAULT_L_0_SENSITIVITY, DEFAULT_L_INF_SENSITIVITY),
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA);
+
+    double actualQuantile =
+        NOISE.computeQuantile(
+            testCase.rank,
+            DEFAULT_X,
+            DEFAULT_L_0_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA);
+    double actualStandardQuantile = (actualQuantile - DEFAULT_X) / sigma;
+
+    assertWithMessage("rank = %s", testCase.rank)
+        .that(actualStandardQuantile)
+        .isWithin(1e-14 * Math.abs(testCase.expectedStandardQuantile))
+        .of(testCase.expectedStandardQuantile);
+  }
+
   private static boolean approxEqual(double a, double b) {
     double maxMagnitude = max(Math.abs(a), Math.abs(b));
     return Math.abs(a - b) <= TOLERANCE * maxMagnitude;
+  }
+
+  private enum ExtremeRankCase {
+    // Exact rank from delta = 1e-13, maxPartitionsContributed = 1000:
+    // -expm1(log1p(-1e-13) / 1000) ~= 1.00000000000005e-16.
+    RANK_1E_NEG_16(1.00000000000005e-16, -8.22208221613043),
+    RANK_1E_NEG_17(1e-17, -8.493793224109599),
+    RANK_1E_NEG_32(1e-32, -11.85613321721831),
+    RANK_1E_NEG_64(1e-64, -16.947738564553376),
+    RANK_1E_NEG_128(1e-128, -24.10923662265922),
+    RANK_1E_NEG_300(1e-300, -37.0470962993612),
+    ONE_MINUS_SCALB_NEG_50(1.0 - Math.scalb(1.0, -50), 7.956038125481531);
+
+    final double rank;
+    final double expectedStandardQuantile;
+
+    ExtremeRankCase(double rank, double expectedStandardQuantile) {
+      this.rank = rank;
+      this.expectedStandardQuantile = expectedStandardQuantile;
+    }
   }
 }

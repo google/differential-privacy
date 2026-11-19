@@ -744,6 +744,32 @@ public class GaussianNoiseConfidenceIntervalTest {
                 /* alpha= */ Double.NaN));
   }
 
+  @Test
+  public void computeConfidenceInterval_verySmallAlpha_returnsAccurateFiniteInterval() {
+    double expectedStandardQuantile = -8.493793224109599; // Phi^-1(1e-17)
+    double sigma =
+        GaussianNoise.getSigma(
+            Noise.getL2Sensitivity(DEFAULT_L_0_SENSITIVITY, DEFAULT_L_INF_SENSITIVITY),
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA);
+    ConfidenceInterval ci =
+        NOISE.computeConfidenceInterval(
+            DEFAULT_NOISED_X,
+            DEFAULT_L_0_SENSITIVITY,
+            DEFAULT_L_INF_SENSITIVITY,
+            DEFAULT_EPSILON,
+            DEFAULT_DELTA,
+            /* alpha= */ 2e-17);
+    assertWithMessage("alpha = 2e-17 lowerBound")
+        .that(ci.lowerBound() / sigma)
+        .isWithin(1e-14 * Math.abs(expectedStandardQuantile))
+        .of(expectedStandardQuantile);
+    assertWithMessage("alpha = 2e-17 upperBound")
+        .that(ci.upperBound() / sigma)
+        .isWithin(1e-14 * Math.abs(expectedStandardQuantile))
+        .of(-expectedStandardQuantile);
+  }
+
   private static boolean approxEqual(double a, double b) {
     double maxMagnitude = max(Math.abs(a), Math.abs(b));
     return Math.abs(a - b) <= TOLERANCE * maxMagnitude;

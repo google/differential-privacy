@@ -594,19 +594,7 @@ public class CountTest {
 
   @Test
   public void computeThresholdedResult_forGaussian_appliesCorrectThreshold() {
-    when(noise.getMechanismType()).thenReturn(GAUSSIAN);
-    when(noise.computeQuantile(
-            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
-        .thenAnswer(
-            invocation ->
-                new GaussianNoise()
-                    .computeQuantile(
-                        (double) invocation.getArguments()[0],
-                        (double) invocation.getArguments()[1],
-                        (int) invocation.getArguments()[2],
-                        (double) invocation.getArguments()[3],
-                        (double) invocation.getArguments()[4],
-                        (double) invocation.getArguments()[5]));
+    stubGaussianComputeQuantile();
 
     Count.Params.Builder builder =
         Count.builder()
@@ -639,19 +627,7 @@ public class CountTest {
 
   @Test
   public void computeThresholdedResult_forGaussian_appliesDiscreteRoundingCorrection() {
-    when(noise.getMechanismType()).thenReturn(GAUSSIAN);
-    when(noise.computeQuantile(
-            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
-        .thenAnswer(
-            invocation ->
-                new GaussianNoise()
-                    .computeQuantile(
-                        (double) invocation.getArguments()[0],
-                        (double) invocation.getArguments()[1],
-                        (int) invocation.getArguments()[2],
-                        (double) invocation.getArguments()[3],
-                        (double) invocation.getArguments()[4],
-                        (double) invocation.getArguments()[5]));
+    stubGaussianComputeQuantile();
 
     Count.Params.Builder builder =
         Count.builder()
@@ -677,6 +653,69 @@ public class CountTest {
 
     assertThat(flooredThreshold).isEmpty();
     assertThat(ceiledThreshold).hasValue(80);
+  }
+
+  @Test
+  public void computeThresholdedResult_forGaussian_smallThresholdDelta_appliesAccurateThreshold() {
+    stubGaussianComputeQuantile();
+    double delta = 1e-13;
+    // Regression test for https://github.com/google/differential-privacy/issues/495:
+    // For epsilon = 0.1, delta = 1e-13, maxPartitionsContributed = 1000, and thresholdDelta =
+    // 1e-13, the per-partition rank is ~1.00000000000005e-16, where Phi^-1(rank) ~= -8.2220822
+    // and GaussianNoise.getSigma(sqrt(1000), 0.1, 1e-13) ~= 2053.504, giving a threshold
+    // k = 1 + 0.5 - sigma * Phi^-1(rank) ~= 16885.579.
+    Count.Params.Builder builder =
+        createGaussianCountBuilder(/* epsilon= */ 0.1, delta, /* maxPartitionsContributed= */ 1000);
+    Count belowThreshold = builder.build();
+    belowThreshold.incrementBy(16885);
+    Count aboveThreshold = builder.build();
+    aboveThreshold.incrementBy(16886);
+
+    Optional<Long> belowResult = belowThreshold.computeThresholdedResult(delta);
+    Optional<Long> aboveResult = aboveThreshold.computeThresholdedResult(delta);
+
+    assertThat(belowResult).isEmpty();
+    assertThat(aboveResult).hasValue(16886L);
+  }
+
+  @Test
+  public void computeThresholdedResult_forGaussian_extremeThresholdDelta_returnsFiniteThreshold() {
+    stubGaussianComputeQuantile();
+    Count count =
+        createGaussianCountBuilder(
+                /* epsilon= */ 0.1, /* delta= */ 1e-13, /* maxPartitionsContributed= */ 1000)
+            .build();
+    count.incrementBy(1_000_000L);
+
+    // Previously returned +Infinity threshold (always empty) once rank < 2.78e-17.
+    Optional<Long> result = count.computeThresholdedResult(1e-20);
+
+    assertThat(result).hasValue(1_000_000L);
+  }
+
+  private void stubGaussianComputeQuantile() {
+    when(noise.getMechanismType()).thenReturn(GAUSSIAN);
+    when(noise.computeQuantile(
+            anyDouble(), anyDouble(), anyInt(), anyDouble(), anyDouble(), anyDouble()))
+        .thenAnswer(invocation ->
+            new GaussianNoise()
+                .computeQuantile(
+                    (double) invocation.getArguments()[0],
+                    (double) invocation.getArguments()[1],
+                    (int) invocation.getArguments()[2],
+                    (double) invocation.getArguments()[3],
+                    (double) invocation.getArguments()[4],
+                    (double) invocation.getArguments()[5]));
+  }
+
+  private Count.Params.Builder createGaussianCountBuilder(
+      double epsilon, double delta, int maxPartitionsContributed) {
+    return Count.builder()
+        .epsilon(epsilon)
+        .delta(delta)
+        .maxContributionsPerPartition(1)
+        .maxPartitionsContributed(maxPartitionsContributed)
+        .noise(noise);
   }
 
   private Count.Params.Builder getCountBuilderWithFields() {

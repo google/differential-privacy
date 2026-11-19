@@ -44,6 +44,7 @@ import org.junit.runners.Suite.SuiteClasses;
   GaussianNoiseConfidenceIntervalTest.class,
   GaussianNoiseQuantileTest.class,
   GaussianNoiseTest.class,
+  InverseGaussianCdfTest.class,
   LaplaceNoiseConfidenceIntervalTest.class,
   LaplaceNoiseQuantileTest.class,
   LaplaceNoiseTest.class,
