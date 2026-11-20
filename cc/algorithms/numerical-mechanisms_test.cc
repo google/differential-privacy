@@ -838,6 +838,39 @@ TEST(NumericalMechanismsTest, GaussianBuilderFailsCalculatedL2SensitivityZero) {
           "^The calculated L2 sensitivity must be positive and finite.*"));
 }
 
+TYPED_TEST(NumericalMechanismsTest, GaussianBuilderSensitivityTooHigh) {
+  GaussianMechanism::Builder test_builder;
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
+      test_builder.SetL2Sensitivity(std::numeric_limits<double>::max())
+          .SetEpsilon(1)
+          .SetDelta(0.5)
+          .Build();
+  EXPECT_THAT(test_mechanism, StatusIs(absl::StatusCode::kInvalidArgument,
+                                       HasSubstr("Sensitivity is too high.")));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderFailsL0AndLInfSensitivityTooHigh) {
+  GaussianMechanism::Builder test_builder;
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
+      test_builder.SetEpsilon(1)
+          .SetDelta(0.056977272033691406)
+          .SetL0Sensitivity(0.87748054946830134)
+          .SetLInfSensitivity(9.5985226707614337e+307)
+          .Build();
+  EXPECT_THAT(test_mechanism, StatusIs(absl::StatusCode::kInvalidArgument,
+                                       HasSubstr("Sensitivity is too high.")));
+}
+
+TEST(NumericalMechanismsTest, GaussianBuilderStandardDeviationTooHigh) {
+  GaussianMechanism::Builder test_builder;
+  absl::StatusOr<std::unique_ptr<NumericalMechanism>> test_mechanism =
+      test_builder.SetStandardDeviation(std::numeric_limits<double>::max())
+          .Build();
+  EXPECT_THAT(test_mechanism,
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Standard deviation is too high.")));
+}
+
 TEST(NumericalMechanismsTest, GaussianBuilderFailsWithStddevAndOtherParams) {
   GaussianMechanism::Builder test_builder;
   auto failed_build =
