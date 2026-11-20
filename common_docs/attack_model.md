@@ -84,9 +84,17 @@ contributions per privacy unit.
 
 The attacker can control the sequence in which user data is passed to the DP
 Library, including the case where this data is malicious and
-attacker-controlled.  The DP Library protects against attacks that target the
-non-associativity of floating point arithmetic and similar attacks using the
-order of events.
+attacker-controlled. Our integer implementations protect against attacks using
+the order of events.
+
+For floating-point implementations, while the library mitigates the specific
+mean attack in [Casacuberta et al., "Widespread Underestimation of Sensitivity
+in Differentially Private Libraries and How to
+Fix it"](https://arxiv.org/abs/2207.10635), protecting against general
+floating-point non-associativity and re-ordering attacks is out of scope. We
+recommend that systems using floating-point implementations prevent attackers
+from controlling the input data order (or use integer implementations where
+possible).
 
 ### Side channels
 
