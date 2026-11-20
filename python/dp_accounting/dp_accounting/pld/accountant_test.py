@@ -197,6 +197,30 @@ class AccountantTest(parameterized.TestCase):
           'total_delta': 0.26,
           'num_queries': 30,
           'expected_total_epsilon': None,
+      },
+      {
+          'testcase_name': 'large_num_queries_zero_epsilon',
+          'epsilon': 0,
+          'delta': 0,
+          'total_delta': 0,
+          'num_queries': 1024,
+          'expected_total_epsilon': 0,
+      },
+      {
+          'testcase_name': 'large_num_queries',
+          'epsilon': 0.01,
+          'delta': 0,
+          'total_delta': 1e-6,
+          'num_queries': 2000,
+          'expected_total_epsilon': 2,
+      },
+      {
+          'testcase_name': 'large_epsilon_times_num_queries',
+          'epsilon': 1,
+          'delta': 0,
+          'total_delta': 1e-6,
+          'num_queries': 800,
+          'expected_total_epsilon': 486,
       })
   def test_advanced_composition(self, epsilon, delta, num_queries, total_delta,
                                 expected_total_epsilon):
@@ -248,6 +272,14 @@ class AccountantTest(parameterized.TestCase):
           'delta': 0.01,
           'num_queries': 30,
           'expected_epsilon': None,
+      },
+      {
+          'testcase_name': 'large_num_queries',
+          'total_epsilon': 2,
+          'total_delta': 1e-6,
+          'delta': 0,
+          'num_queries': 2000,
+          'expected_epsilon': 0.01,
       })
   def test_get_smallest_epsilon_from_advanced_composition(
       self, total_epsilon, total_delta, num_queries, delta, expected_epsilon):

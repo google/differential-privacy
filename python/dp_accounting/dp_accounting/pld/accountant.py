@@ -260,12 +260,22 @@ def advanced_composition(
   k = num_queries
 
   # The calculation follows Theorem 3.3 of https://arxiv.org/pdf/1311.0776.pdf
+  # Each term binom(k, l) * (exp(epsilon * (k - l)) -
+  # exp(epsilon * (k - 2 * i + l))) / (1 + exp(epsilon))^k of delta_i is
+  # computed as probs[l] * (1 - exp(-2 * epsilon * (i - l))), where probs[l] is
+  # evaluated in log space. Computing (1 + exp(epsilon))^k and
+  # exp(epsilon * (k - l)) directly overflows when num_queries is large.
+  log_one_plus_exp_epsilon = epsilon + math.log1p(math.exp(-epsilon))
+  probs = [
+      math.exp(special.gammaln(k + 1) - special.gammaln(l + 1) -
+               special.gammaln(k - l + 1) + epsilon * (k - l) -
+               k * log_one_plus_exp_epsilon)
+      for l in range(k // 2)
+  ]
   for i in range(k // 2, -1, -1):
     delta_i = 0
     for l in range(i):
-      delta_i += special.binom(k, l) * (
-          math.exp(epsilon * (k - l)) - math.exp(epsilon * (k - 2 * i + l)))
-    delta_i /= ((1 + math.exp(epsilon))**k)
+      delta_i += probs[l] * -math.expm1(-2 * epsilon * (i - l))
     if 1 - ((1 - delta) ** k) * (1 - delta_i) <= total_delta:
       return epsilon * (k - 2 * i)
   return None
