@@ -50,7 +50,7 @@ each leaf of the tree:
 The distribution of noise added during different operations in the clustering
 algorithm can be controlled by passing in a custom
 `clustering_params.PrivacyCalculatorMultiplier`. This is used by the algorithm's
-[mechanism calibration](https://github.com/google/differential-privacy/blob/main/python/dp_accounting/mechanism_calibration.py).
+[mechanism calibration](https://github.com/google/differential-privacy/blob/main/python/dp_accounting/dp_accounting/mechanism_calibration.py).
 See `clustering_params.PrivacyCalculatorMultiplier` for details.
 
 > **Note:** `clustering_params.PrivacyBudgetSplit` is deprecated. Use
