@@ -16,6 +16,7 @@
 
 package com.google.privacy.differentialprivacy.pipelinedp4j.core.budget
 
+import com.google.errorprone.annotations.CanIgnoreReturnValue
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.budget.BudgetAccountingStrategy.NAIVE
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
@@ -40,12 +41,15 @@ interface BudgetAccountant {
   fun requestBudget(budgetRequest: BudgetRequest): AllocatedBudget
 
   /**
-   * Allocates budgets to all previously recorded [BudgetRequest]s. This method should only be
-   * called once.
+   * Allocates budgets to all previously recorded [BudgetRequest]s.
    *
+   * This method should only be called once.
+   *
+   * @return the allocation details for each requested budget (e.g. very useful to understand how
+   *   much budget was allocated to relative budget requests).
    * @throws IllegalStateException if budgets have already been allocated.
    */
-  fun allocateBudgets()
+  @CanIgnoreReturnValue fun allocateBudgets(): List<BudgetAllocationDetails>
 }
 
 /**
@@ -100,7 +104,8 @@ class NaiveBudgetAccountant(private val totalBudget: TotalBudget) : BudgetAccoun
     return allocatedBudget
   }
 
-  override fun allocateBudgets() {
+  @CanIgnoreReturnValue
+  override fun allocateBudgets(): List<BudgetAllocationDetails> {
     if (budgetsAllocated) {
       throw IllegalStateException("Budgets have already been allocated.")
     }
@@ -119,8 +124,11 @@ class NaiveBudgetAccountant(private val totalBudget: TotalBudget) : BudgetAccoun
     checkEnoughAbsoluteBudget(totalRequestedEpsilon, totalRequestedDelta)
     checkEnoughRelativeBudget(remainingEpsilon, remainingDelta)
 
-    allocateAbsoluteBudgets()
-    allocateRelativeBudgets(remainingEpsilon, remainingDelta)
+    initializeAbsoluteBudgets()
+    initializeRelativeBudgets(remainingEpsilon, remainingDelta)
+
+    return absoluteBudgets.map { it.toBudgetAllocationDetails() } +
+      relativeBudgets.map { it.toBudgetAllocationDetails() }
   }
 
   private fun checkEnoughAbsoluteBudget(requestedEpsilon: Double, requestedDelta: Double) {
@@ -147,7 +155,7 @@ class NaiveBudgetAccountant(private val totalBudget: TotalBudget) : BudgetAccoun
     return Math.abs(diff) > remaining / FLOATING_POINT_ARITHMETICS_TOLERANCE
   }
 
-  private fun allocateAbsoluteBudgets() {
+  private fun initializeAbsoluteBudgets() {
     for (requestedAndAllocated in absoluteBudgets) {
       val budgetSpec = requestedAndAllocated.requested.budgetSpec as AbsoluteBudgetPerOpSpec
       requestedAndAllocated.allocated.initialize(
@@ -157,7 +165,7 @@ class NaiveBudgetAccountant(private val totalBudget: TotalBudget) : BudgetAccoun
     }
   }
 
-  private fun allocateRelativeBudgets(remainingEpsilon: Double, remainingDelta: Double) {
+  private fun initializeRelativeBudgets(remainingEpsilon: Double, remainingDelta: Double) {
     var totalEpsilonWeight = 0.0
     var totalDeltaWeight = 0.0
     for (requestedAndAllocated in relativeBudgets) {
@@ -200,11 +208,13 @@ class NaiveBudgetAccountant(private val totalBudget: TotalBudget) : BudgetAccoun
     }
   }
 
-  private fun relativeEpsilonRequested(): Boolean =
-    relativeBudgets.any { it.requested.mechanism.usesEpsilon }
+  private fun relativeEpsilonRequested(): Boolean = relativeBudgets.any {
+    it.requested.mechanism.usesEpsilon
+  }
 
-  private fun relativeDeltaRequested(): Boolean =
-    relativeBudgets.any { it.requested.mechanism.usesDelta }
+  private fun relativeDeltaRequested(): Boolean = relativeBudgets.any {
+    it.requested.mechanism.usesDelta
+  }
 }
 
 /**
@@ -243,7 +253,23 @@ enum class AccountedMechanism(val usesEpsilon: Boolean, val usesDelta: Boolean) 
 internal data class RequestedAndAllocatedBudget(
   val requested: BudgetRequest,
   val allocated: AllocatedBudget,
-)
+) {
+  /** Converts a [RequestedAndAllocatedBudget] to a [BudgetAllocationDetails]. */
+  fun toBudgetAllocationDetails(): BudgetAllocationDetails {
+    val epsilon = allocated.epsilon()
+    val delta = allocated.delta()
+    return when (requested.mechanism) {
+      AccountedMechanism.GAUSSIAN_NOISE ->
+        BudgetAllocationDetails.GaussianAggregationAllocation(epsilon, delta)
+      AccountedMechanism.LAPLACE_NOISE ->
+        BudgetAllocationDetails.LaplaceAggregationAllocation(epsilon)
+      AccountedMechanism.PREAGGREGATED_PARTITION_SELECTION ->
+        BudgetAllocationDetails.PreaggregatedPartitionSelectionAllocation(epsilon, delta)
+      AccountedMechanism.POSTAGGREGATED_PARTITION_SELECTION ->
+        BudgetAllocationDetails.PostaggregatedPartitionSelectionAllocation(delta)
+    }
+  }
+}
 
 enum class BudgetAccountingStrategy {
   NAIVE

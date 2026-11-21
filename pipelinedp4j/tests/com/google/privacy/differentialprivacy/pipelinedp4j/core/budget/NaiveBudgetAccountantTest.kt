@@ -60,10 +60,15 @@ class NaiveBudgetAccountantTest {
         BudgetRequest(AbsoluteBudgetPerOpSpec(epsilon = 1.0, delta = 0.1), GAUSSIAN_NOISE)
       )
 
-    accountant.allocateBudgets()
+    val allocationDetails = accountant.allocateBudgets()
 
     assertThat(allocatedBudget.epsilon()).isEqualTo(1.0)
     assertThat(allocatedBudget.delta()).isEqualTo(0.1)
+
+    assertThat(allocationDetails)
+      .containsExactly(
+        BudgetAllocationDetails.GaussianAggregationAllocation(epsilon = 1.0, delta = 0.1)
+      )
   }
 
   @Test
@@ -110,7 +115,7 @@ class NaiveBudgetAccountantTest {
     val allocatedBudgetWeightThree =
       accountant.requestBudget(BudgetRequest(RelativeBudgetPerOpSpec(3.0), GAUSSIAN_NOISE))
 
-    accountant.allocateBudgets()
+    val allocationDetails = accountant.allocateBudgets()
 
     assertThat(allocatedBudgetWeightOne.epsilon()).isEqualTo(10.0)
     assertThat(allocatedBudgetWeightOne.delta()).isWithin(1e-13).of(0.1)
@@ -118,6 +123,18 @@ class NaiveBudgetAccountantTest {
     assertThat(allocatedBudgetWeightTwo.delta()).isWithin(1e-13).of(0.2)
     assertThat(allocatedBudgetWeightThree.epsilon()).isEqualTo(30.0)
     assertThat(allocatedBudgetWeightThree.delta()).isWithin(1e-13).of(0.3)
+
+    assertThat(allocationDetails).hasSize(3)
+    val details1 = allocationDetails[0] as BudgetAllocationDetails.GaussianAggregationAllocation
+    val details2 = allocationDetails[1] as BudgetAllocationDetails.GaussianAggregationAllocation
+    val details3 = allocationDetails[2] as BudgetAllocationDetails.GaussianAggregationAllocation
+
+    assertThat(details1.epsilon).isEqualTo(10.0)
+    assertThat(details1.delta).isWithin(1e-13).of(0.1)
+    assertThat(details2.epsilon).isEqualTo(20.0)
+    assertThat(details2.delta).isWithin(1e-13).of(0.2)
+    assertThat(details3.epsilon).isEqualTo(30.0)
+    assertThat(details3.delta).isWithin(1e-13).of(0.3)
   }
 
   @Test
@@ -142,6 +159,7 @@ class NaiveBudgetAccountantTest {
     val accountant = NaiveBudgetAccountant(TotalBudget(epsilon = 0.5, delta = 0.1))
     val allocatedBudget =
       accountant.requestBudget(BudgetRequest(RelativeBudgetPerOpSpec(1.0), GAUSSIAN_NOISE))
+
     accountant.allocateBudgets()
 
     assertThat(allocatedBudget.epsilon()).isEqualTo(0.5)
@@ -206,7 +224,7 @@ class NaiveBudgetAccountantTest {
     val relativeAllocatedBudgetTwiceMore =
       accountant.requestBudget(BudgetRequest(RelativeBudgetPerOpSpec(2.0), GAUSSIAN_NOISE))
 
-    accountant.allocateBudgets()
+    val allocationDetails = accountant.allocateBudgets()
 
     assertThat(absoluteAllocatedBudget.epsilon()).isEqualTo(30.0)
     assertThat(absoluteAllocatedBudget.delta()).isEqualTo(0.3)
@@ -214,6 +232,18 @@ class NaiveBudgetAccountantTest {
     assertThat(relativeAllocatedBudget.delta()).isWithin(1e-13).of(0.1)
     assertThat(relativeAllocatedBudgetTwiceMore.epsilon()).isEqualTo(20.0)
     assertThat(relativeAllocatedBudgetTwiceMore.delta()).isWithin(1e-13).of(0.2)
+
+    assertThat(allocationDetails).hasSize(3)
+    val details1 = allocationDetails[0] as BudgetAllocationDetails.GaussianAggregationAllocation
+    val details2 = allocationDetails[1] as BudgetAllocationDetails.GaussianAggregationAllocation
+    val details3 = allocationDetails[2] as BudgetAllocationDetails.GaussianAggregationAllocation
+
+    assertThat(details1.epsilon).isEqualTo(30.0)
+    assertThat(details1.delta).isEqualTo(0.3)
+    assertThat(details2.epsilon).isEqualTo(10.0)
+    assertThat(details2.delta).isWithin(1e-13).of(0.1)
+    assertThat(details3.epsilon).isEqualTo(20.0)
+    assertThat(details3.delta).isWithin(1e-13).of(0.2)
   }
 
   @Test
@@ -248,7 +278,7 @@ class NaiveBudgetAccountantTest {
         BudgetRequest(RelativeBudgetPerOpSpec(2.0), POSTAGGREGATED_PARTITION_SELECTION)
       )
 
-    accountant.allocateBudgets()
+    val allocationDetails = accountant.allocateBudgets()
 
     assertThat(absoluteAllocatedBudget.epsilon()).isEqualTo(3.0)
     assertThat(absoluteAllocatedBudget.delta()).isEqualTo(0.1)
@@ -256,5 +286,17 @@ class NaiveBudgetAccountantTest {
     assertThat(relativeAllocatedBudget.delta()).isWithin(1e-13).of(0.1)
     assertThat(relativeAllocatedBudgetTwiceMore.epsilon()).isEqualTo(0.0)
     assertThat(relativeAllocatedBudgetTwiceMore.delta()).isWithin(1e-13).of(0.2)
+
+    assertThat(allocationDetails).hasSize(3)
+    val details1 = allocationDetails[0] as BudgetAllocationDetails.GaussianAggregationAllocation
+    val details2 = allocationDetails[1] as BudgetAllocationDetails.GaussianAggregationAllocation
+    val details3 =
+      allocationDetails[2] as BudgetAllocationDetails.PostaggregatedPartitionSelectionAllocation
+
+    assertThat(details1.epsilon).isEqualTo(3.0)
+    assertThat(details1.delta).isEqualTo(0.1)
+    assertThat(details2.epsilon).isEqualTo(7.0)
+    assertThat(details2.delta).isWithin(1e-13).of(0.1)
+    assertThat(details3.delta).isWithin(1e-13).of(0.2)
   }
 }
