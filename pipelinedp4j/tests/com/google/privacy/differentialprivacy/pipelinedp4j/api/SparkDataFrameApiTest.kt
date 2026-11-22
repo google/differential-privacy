@@ -23,6 +23,8 @@ import org.apache.spark.api.java.function.MapFunction
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.Encoders
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.functions.array
+import org.apache.spark.sql.functions.col
 import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -1150,6 +1152,107 @@ class SparkDataFrameApiTest {
         )
       )
     assertEquals(result, expected)
+  }
+
+  @Test
+  fun run_vectorColumns_scalars_preservesColumnOrder() {
+    val result = runVectorColumns(ColumnNames("anotherValue", "value"), vectorSize = 2)
+
+    assertThat(result).containsExactly(30.0, 3.0).inOrder()
+  }
+
+  @Test
+  fun run_vectorColumns_arrayColumn_preservesElementOrder() {
+    val result = runVectorColumns(ColumnNames("vector"), vectorSize = 2)
+
+    assertThat(result).containsExactly(3.0, 30.0).inOrder()
+  }
+
+  @Test
+  fun run_vectorColumns_mixedColumns_preservesColumnAndElementOrder() {
+    val result =
+      runVectorColumns(ColumnNames("value", "reversedVector", "anotherValue"), vectorSize = 4)
+
+    assertThat(result).containsExactly(3.0, 30.0, 3.0, 30.0).inOrder()
+  }
+
+  @Test
+  fun run_vectorColumns_multipleArrayColumns_preservesColumnAndElementOrder() {
+    val result = runVectorColumns(ColumnNames("reversedVector", "vector"), vectorSize = 4)
+
+    assertThat(result).containsExactly(30.0, 3.0, 3.0, 30.0).inOrder()
+  }
+
+  @Test
+  fun run_vectorColumns_emptyArrayColumn_contributesNoElements() {
+    val result =
+      runVectorColumns(ColumnNames("value", "emptyVector", "anotherValue"), vectorSize = 2)
+
+    assertThat(result).containsExactly(3.0, 30.0).inOrder()
+  }
+
+  @Test
+  fun run_vectorColumns_arrayColumnWithNoise_returnsVector() {
+    val result = runVectorColumns(ColumnNames("vector"), vectorSize = 2, testMode = TestMode.NONE)
+
+    assertThat(result).hasSize(2)
+    assertThat(result.all { it.isFinite() }).isTrue()
+  }
+
+  @Test
+  fun run_vectorColumns_stringColumn_throwsException() {
+    val e = assertFailsWith<Exception> { runVectorColumns(ColumnNames("groupKey"), vectorSize = 1) }
+
+    val cause =
+      generateSequence<Throwable>(e) { it.cause }
+        .filterIsInstance<IllegalArgumentException>()
+        .first()
+    assertThat(cause)
+      .hasMessageThat()
+      .contains(
+        "Column groupKey used in vector aggregation must contain either doubles or iterables of doubles"
+      )
+  }
+
+  private fun runVectorColumns(
+    columnNames: ColumnNames,
+    vectorSize: Int,
+    testMode: TestMode = TestMode.FULL,
+  ): List<Double> {
+    val data =
+      createInputData(
+          listOf(TestDataRow("group1", "pid1", 1.0, 10.0), TestDataRow("group1", "pid2", 2.0, 20.0))
+        )
+        .withColumn("vector", array(col("value"), col("anotherValue")))
+        .withColumn("reversedVector", array(col("anotherValue"), col("value")))
+        .withColumn("emptyVector", array().cast("array<double>"))
+    val query =
+      SparkDataFrameQueryBuilder.from(
+          data,
+          ColumnNames("privacyUnit"),
+          ContributionBoundingLevel.DATASET_LEVEL(
+            maxGroupsContributed = 1,
+            maxContributionsPerGroup = 1,
+          ),
+        )
+        .groupBy(
+          ColumnNames("groupKey"),
+          GroupsType.PublicGroups.createForDataFrame(createPublicGroups(listOf("group1"))),
+        )
+        .aggregateVector(
+          columnNames,
+          vectorSize,
+          VectorAggregationsBuilder().vectorSum("vectorSumResult"),
+          VectorContributionBounds(
+            maxVectorTotalNorm = VectorNorm(normKind = NormKind.L_INF, value = 100.0)
+          ),
+        )
+        .build(TotalBudget(epsilon = 1.0), NoiseKind.LAPLACE)
+
+    val rows = query.run(testMode).collectAsList()
+    assertThat(rows).hasSize(1)
+    assertThat(rows[0].getAs<String>("groupKey")).isEqualTo("group1")
+    return SeqHasAsJava(rows[0].getSeq<Double>(1)).asJava()
   }
 
   // When sum without mean or variance is requested then total value bounds are used.

@@ -26,6 +26,7 @@ import org.apache.spark.sql.types.DataTypes as SparkDataTypes
 import org.apache.spark.sql.types.Metadata as SparkMetadata
 import org.apache.spark.sql.types.StructField as SparkStructField
 import org.apache.spark.sql.types.StructType
+import scala.collection.Seq as ScalaSeq
 import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
@@ -311,6 +312,8 @@ private fun vectorExtractorFromColumns(columnNames: List<String>): (SparkRow) ->
     val columnValue = dataRow.getAs<Any?>(columnName)
     if (columnValue is Double) {
       listOf(columnValue)
+    } else if (columnValue is ScalaSeq<*>) {
+      @Suppress("UNCHECKED_CAST") SeqHasAsJava(columnValue as ScalaSeq<Double>).asJava()
     } else {
       @Suppress("UNCHECKED_CAST")
       try {
