@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
 import com.google.privacy.differentialprivacy.GaussianNoise
 import com.google.privacy.differentialprivacy.Noise
+import com.google.privacy.differentialprivacy.ZeroNoise
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.DATASET_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.PARTITION_LEVEL
 import com.google.privacy.differentialprivacy.pipelinedp4j.core.ContributionBoundingLevel.RECORD_LEVEL
@@ -57,6 +58,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.isA
 import org.mockito.kotlin.isNull
@@ -903,6 +905,49 @@ class DpEngineTest {
         isA<DataExtractors<TestDataRow, String, String>>(),
         any(),
       )
+  }
+
+  @Test
+  fun aggregate_recordLevelQuantiles_usesRecordSensitivityWithoutSamplingRecords() {
+    val noise = spy(ZeroNoise())
+    val dpEngine =
+      DpEngine.createForTesting(
+        LOCAL_EF,
+        DpEngineBudgetSpec(budget = TotalBudget(1.0), accountingStrategy = NAIVE),
+        { _ -> noise },
+      )
+    val inputData =
+      LocalCollection((1..5).asSequence().map { TestDataRow("Alice", "US", it.toDouble()) })
+    val params =
+      QUANTILES_PARAMS.copy(
+        metrics = ImmutableList.of(MetricDefinition(QUANTILES(ImmutableList.of(0.25, 0.5, 0.75)))),
+        noiseKind = LAPLACE,
+        contributionBoundingLevel = RECORD_LEVEL,
+        maxPartitionsContributed = 1,
+        maxContributionsPerPartition = 1,
+        minValue = 0.0,
+        maxValue = 6.0,
+      )
+
+    val result =
+      dpEngine.aggregate(inputData, params, testDataExtractors, LocalCollection(sequenceOf("US")))
+        as LocalTable<String, DpAggregates>
+    dpEngine.done()
+
+    val output = result.data.toList()
+    assertThat(output).hasSize(1)
+    assertThat(output.single().first).isEqualTo("US")
+    val quantiles = output.single().second.quantilesList
+    assertThat(quantiles).hasSize(3)
+    for ((actual, expected) in quantiles.zip(listOf(2.0, 3.0, 4.0))) {
+      assertThat(actual).isWithin(0.01).of(expected)
+    }
+    val l0 = argumentCaptor<Int>()
+    val lInf = argumentCaptor<Double>()
+    verify(noise, atLeastOnce())
+      .addNoise(anyDouble(), l0.capture(), lInf.capture(), eq(1.0), eq(0.0))
+    assertThat(l0.allValues.toSet()).containsExactly(4)
+    assertThat(lInf.allValues.toSet()).containsExactly(1.0)
   }
 
   enum class CountSumBudgetTestCase(
