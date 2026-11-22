@@ -16,6 +16,9 @@
 
 #include "algorithms/internal/gaussian-stddev-calculator.h"
 
+#include <cmath>
+#include <limits>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -122,6 +125,15 @@ TEST(GaussianStddevCalculatorTest,
   EXPECT_THAT(CalculateDeltaForGaussianStddev(epsilon, l2_sensitivity,
                                               /* stddev= */ bounds.lower),
               Ge(delta));
+}
+
+TEST(GaussianStddevCalculatorTest,
+     CalculateGaussianStddevDoesNotHangForMaxL2Sensitivity) {
+  const double l2_sensitivity = std::numeric_limits<double>::max();
+  EXPECT_TRUE(std::isfinite(
+      CalculateGaussianStddev(/*epsilon=*/1.0, /*delta=*/0.5, l2_sensitivity)));
+  EXPECT_TRUE(std::isfinite(CalculateGaussianStddev(
+      /*epsilon=*/1.0, /*delta=*/1e-5, l2_sensitivity)));
 }
 
 }  // namespace
