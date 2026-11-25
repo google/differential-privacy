@@ -65,7 +65,11 @@ class ABSL_DEPRECATED(
   void AddEntry(const T& t) override { variance_->AddEntry(t); }
 
   // Returns a BoundedVarianceSummary.
-  Summary Serialize() const override { return variance_->Serialize(); }
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
+    return variance_->TrySerialize();
+  }
 
   // Merges from BoundedVarianceSummary.
   absl::Status Merge(const Summary& summary) override {

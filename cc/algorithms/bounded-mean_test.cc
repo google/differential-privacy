@@ -778,9 +778,9 @@ TYPED_TEST(BoundedMeanTest, SerializeMergeApproxBoundsBackwardsCompatability) {
   // before the proto change.
   Summary bounds1_summary = bounds1.value()->Serialize();
   BoundedMeanSummary bm_summary;
-  bounds1_summary.data().UnpackTo(&bm_summary);
+  ASSERT_TRUE(bounds1_summary.data().UnpackTo(&bm_summary));
   bm_summary.clear_bounds();
-  bounds1_summary.mutable_data()->PackFrom(bm_summary);
+  ASSERT_TRUE(bounds1_summary.mutable_data()->PackFrom(bm_summary));
 
   ASSERT_OK(bounds2.value()->Merge(bounds1_summary));
   EXPECT_THAT(bounds2.value()->PartialResult(), IsOk());
@@ -1378,8 +1378,10 @@ class ConstantBoundsProvider final : public BoundsProvider<T> {
       decltype(std::declval<const ApproxBounds<T>&>()
                    .CreateClampedCalculationWithoutBounds());
 
-  explicit ConstantBoundsProvider(BoundsResult<T> bounds, double scale = 1.0)
+  explicit ConstantBoundsProvider(BoundsResult<T> bounds, double scale = 1.0,
+                                  bool fail_serialize = false)
       : bounds_(bounds),
+        fail_serialize_(fail_serialize),
         approx_bounds_(typename ApproxBounds<T>::Builder()
                            .SetEpsilon(1.0)
                            .SetNumBins(10)
@@ -1405,7 +1407,15 @@ class ConstantBoundsProvider final : public BoundsProvider<T> {
   int64_t MemoryUsed() const override { return sizeof(*this); }
   double GetEpsilon() const override { return 0; }
   double GetDelta() const override { return 0; }
-  BoundsSummary Serialize() const override { return BoundsSummary(); }
+  BoundsSummary Serialize() const override {
+    return this->SerializeOrLogError();
+  }
+  absl::StatusOr<BoundsSummary> TrySerialize() const override {
+    if (fail_serialize_) {
+      return absl::InternalError("bounds serialization failed");
+    }
+    return BoundsSummary();
+  }
   absl::Status Merge(const BoundsSummary& bounds_summary) override {
     return absl::OkStatus();
   }
@@ -1415,9 +1425,27 @@ class ConstantBoundsProvider final : public BoundsProvider<T> {
 
  private:
   BoundsResult<T> bounds_;
+  bool fail_serialize_ = false;
   int64_t num_inputs_ = 0;
   std::unique_ptr<ApproxBounds<T>> approx_bounds_;
 };
+
+TEST(BoundedMeanTest, TrySerializePropagatesBoundsProviderError) {
+  auto bm =
+      BoundedMean<double>::Builder()
+          .SetEpsilon(kDefaultEpsilon)
+          .SetLaplaceMechanism(std::make_unique<ZeroNoiseMechanism::Builder>())
+          .SetBoundsProvider(std::make_unique<ConstantBoundsProvider<double>>(
+              BoundsResult<double>{0.0, 1.0}, /*scale=*/1.0,
+              /*fail_serialize=*/true))
+          .Build();
+  ASSERT_OK(bm);
+
+  EXPECT_THAT((*bm)->TrySerialize(),
+              StatusIs(absl::StatusCode::kInternal,
+                       HasSubstr("bounds serialization failed")));
+  EXPECT_FALSE((*bm)->Serialize().has_data());
+}
 
 TEST(BoundedMeanTest, EqualNearZeroBoundsWidenedToZeroAndOne) {
   auto bm =

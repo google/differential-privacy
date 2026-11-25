@@ -24,6 +24,7 @@
 #include <utility>
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -120,8 +121,14 @@ class Algorithm {
 
   // Serializes summary data of current entries into Summary proto. This allows
   // results from distributed aggregation to be recorded and later merged.
-  // Returns empty summary for algorithms for which serialize is unimplemented.
+  // Returns an empty summary for algorithms for which serialize is
+  // unimplemented or if serialization fails. Prefer TrySerialize() in new code
+  // so serialization errors are returned instead of logged.
   virtual Summary Serialize() const = 0;
+
+  // Serializes summary data of current entries into a Summary proto, returning
+  // an error if serialization fails.
+  virtual absl::StatusOr<Summary> TrySerialize() const { return Serialize(); }
 
   // Merges serialized summary data into this algorithm. The summary proto must
   // represent data from the same algorithm type with identical parameters. The
@@ -167,6 +174,17 @@ class Algorithm {
 
   // Allows child classes to reset their state as part of a global reset.
   virtual void ResetState() = 0;
+
+  // Helper for subclasses that implement TrySerialize() to back legacy
+  // Serialize() without crashing the process on error.
+  Summary SerializeOrLogError() const {
+    absl::StatusOr<Summary> summary = TrySerialize();
+    if (!summary.ok()) {
+      LOG(ERROR) << "Failed to serialize summary: " << summary.status();
+      return Summary();
+    }
+    return *std::move(summary);
+  }
 
  private:
   bool result_returned_ = false;

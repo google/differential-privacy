@@ -67,9 +67,16 @@ class ApproxBoundsAsBoundsProvider final : public BoundsProvider<T> {
   double GetDelta() const override { return approx_bounds_->GetDelta(); }
 
   BoundsSummary Serialize() const override {
-    Summary summary = approx_bounds_->Serialize();
+    return this->SerializeOrLogError();
+  }
+
+  absl::StatusOr<BoundsSummary> TrySerialize() const override {
+    ASSIGN_OR_RETURN(Summary summary, approx_bounds_->TrySerialize());
     BoundsSummary bounds_summary;
-    summary.data().UnpackTo(bounds_summary.mutable_approx_bounds_summary());
+    if (!summary.data().UnpackTo(
+            bounds_summary.mutable_approx_bounds_summary())) {
+      return absl::InternalError("Failed to unpack ApproxBoundsSummary.");
+    }
     return bounds_summary;
   }
 

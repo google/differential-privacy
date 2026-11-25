@@ -58,9 +58,13 @@ class Quantiles : public Algorithm<T> {
 
   void AddEntry(const T& t) override { return tree_->AddEntry(t); }
 
-  Summary Serialize() const override {
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
     Summary to_return;
-    to_return.mutable_data()->PackFrom(tree_->Serialize());
+    if (!to_return.mutable_data()->PackFrom(tree_->Serialize())) {
+      return absl::InternalError("Failed to pack BoundedQuantilesSummary.");
+    }
     return to_return;
   }
 

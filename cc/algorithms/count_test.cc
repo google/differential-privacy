@@ -227,7 +227,7 @@ TEST(CountTest, MergeTest) {
   CountSummary count_summary;
   count_summary.set_count(2);
   Summary summary;
-  summary.mutable_data()->PackFrom(count_summary);
+  ASSERT_TRUE(summary.mutable_data()->PackFrom(count_summary));
 
   // Merge.
   absl::StatusOr<std::unique_ptr<Count<double>>> count =

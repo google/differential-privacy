@@ -19,7 +19,9 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "algorithms/internal/clamped-calculation-without-bounds.h"
@@ -58,8 +60,12 @@ class BoundsProvider {
   virtual double GetEpsilon() const = 0;
   virtual double GetDelta() const = 0;
 
-  // Serialization on merging with serialized data.
+  // Serialization and merging with serialized data. Prefer TrySerialize() in
+  // new code so serialization errors are returned instead of logged.
   virtual BoundsSummary Serialize() const = 0;
+  virtual absl::StatusOr<BoundsSummary> TrySerialize() const {
+    return Serialize();
+  }
   virtual absl::Status Merge(const BoundsSummary& bounds_summary) = 0;
 
   // Create a new clamped calculation that can be used with this bounds
@@ -68,6 +74,18 @@ class BoundsProvider {
   CreateClampedCalculationWithoutBounds() const = 0;
 
   virtual ~BoundsProvider() = default;
+
+ protected:
+  // Helper for subclasses that implement TrySerialize() to back legacy
+  // Serialize() without crashing the process on error.
+  BoundsSummary SerializeOrLogError() const {
+    absl::StatusOr<BoundsSummary> summary = TrySerialize();
+    if (!summary.ok()) {
+      LOG(ERROR) << "Failed to serialize bounds summary: " << summary.status();
+      return BoundsSummary();
+    }
+    return *std::move(summary);
+  }
 };
 
 }  // namespace differential_privacy

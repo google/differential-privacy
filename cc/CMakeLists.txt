@@ -41,7 +41,9 @@ add_library(dp_algorithms
 target_link_libraries(dp_algorithms
     PUBLIC
         absl::base
+        absl::log
         absl::status
+        absl::statusor
         absl::strings
         protobuf::libprotobuf
         dp_protos

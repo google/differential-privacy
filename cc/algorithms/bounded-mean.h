@@ -147,13 +147,17 @@ class BoundedMeanWithFixedBounds : public BoundedMean<T> {
 
   void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
 
-  Summary Serialize() const override {
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
     BoundedMeanSummary mean_summary;
     mean_summary.set_count(partial_count_);
     SetValue(mean_summary.add_pos_sum(), partial_sum_);
 
     Summary summary;
-    summary.mutable_data()->PackFrom(mean_summary);
+    if (!summary.mutable_data()->PackFrom(mean_summary)) {
+      return absl::InternalError("Failed to pack BoundedMeanSummary.");
+    }
     return summary;
   }
 
@@ -311,7 +315,9 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
 
   void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
 
-  Summary Serialize() const override {
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
     // Create BoundedMeanSummary.
     BoundedMeanSummary bm_summary;
     bm_summary.set_count(partial_count_);
@@ -323,7 +329,8 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
     }
 
     // Add approx bounds summary
-    *bm_summary.mutable_bounds() = bounds_provider_->Serialize();
+    ASSIGN_OR_RETURN(*bm_summary.mutable_bounds(),
+                     bounds_provider_->TrySerialize());
 
     // TODO: Remove this old serialization code that we keep for
     // limited backwards compatibility.
@@ -334,7 +341,9 @@ class BoundedMeanWithApproxBounds : public BoundedMean<T> {
 
     // Create Summary.
     Summary summary;
-    summary.mutable_data()->PackFrom(bm_summary);
+    if (!summary.mutable_data()->PackFrom(bm_summary)) {
+      return absl::InternalError("Failed to pack BoundedMeanSummary.");
+    }
     return summary;
   }
 

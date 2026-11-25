@@ -23,6 +23,7 @@
 #include "base/testing/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
 namespace differential_privacy {
@@ -92,6 +93,29 @@ TEST(AlgorithmTest, Reset) {
   ASSERT_OK(alg.PartialResult());
   alg.Reset();
   EXPECT_OK(alg.PartialResult());
+}
+
+TEST(AlgorithmTest, DefaultTrySerializeDelegatesToSerialize) {
+  TestAlgorithm<double> alg;
+  absl::StatusOr<Summary> summary = alg.TrySerialize();
+  ASSERT_OK(summary);
+  EXPECT_FALSE(summary->has_data());
+}
+
+class FailingSerializeAlgorithm : public TestAlgorithm<double> {
+ public:
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+  absl::StatusOr<Summary> TrySerialize() const override {
+    return absl::InternalError("simulated serialization error");
+  }
+};
+
+TEST(AlgorithmTest, TrySerializeErrorPropagatesAndSerializeDoesNotCrash) {
+  FailingSerializeAlgorithm alg;
+  EXPECT_THAT(alg.TrySerialize(),
+              StatusIs(absl::StatusCode::kInternal, HasSubstr("simulated")));
+  Summary summary = alg.Serialize();
+  EXPECT_FALSE(summary.has_data());
 }
 
 TEST(AlgorithmTest, InvalidEpsilon) {

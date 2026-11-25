@@ -118,13 +118,17 @@ class BoundedSumWithFixedBounds : public BoundedSum<T> {
     partial_sum_ += Clamp<T>(lower_, upper_, t);
   }
 
-  Summary Serialize() const override {
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
     BoundedSumSummary sum_summary;
     // TODO: Use the partial_sum field of the proto.
     SetValue(sum_summary.add_pos_sum(), partial_sum_);
 
     Summary result;
-    result.mutable_data()->PackFrom(sum_summary);
+    if (!result.mutable_data()->PackFrom(sum_summary)) {
+      return absl::InternalError("Failed to pack BoundedSumSummary.");
+    }
     return result;
   }
 
@@ -259,7 +263,9 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
   std::optional<T> lower() const override { return std::nullopt; }
   std::optional<T> upper() const override { return std::nullopt; }
 
-  Summary Serialize() const override {
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
     // Create BoundedSumSummary.
     BoundedSumSummary bs_summary;
     for (T x : pos_sum_) {
@@ -268,11 +274,14 @@ class BoundedSumWithApproxBounds : public BoundedSum<T> {
     for (T x : neg_sum_) {
       SetValue(bs_summary.add_neg_sum(), x);
     }
-    *bs_summary.mutable_bounds() = bounds_provider_->Serialize();
+    ASSIGN_OR_RETURN(*bs_summary.mutable_bounds(),
+                     bounds_provider_->TrySerialize());
 
     // Create Summary.
     Summary summary;
-    summary.mutable_data()->PackFrom(bs_summary);
+    if (!summary.mutable_data()->PackFrom(bs_summary)) {
+      return absl::InternalError("Failed to pack BoundedSumSummary.");
+    }
     return summary;
   }
 
