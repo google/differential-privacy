@@ -199,6 +199,35 @@ TYPED_TEST(ApproxBoundsAsBoundsProviderTypedTest,
 }
 
 TYPED_TEST(ApproxBoundsAsBoundsProviderTypedTest,
+           TrySerializeFromPopulatedAndMergeEmptyBoundsProviderReturnsBounds) {
+  absl::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>>
+      populated_approx_bounds =
+          typename ApproxBounds<TypeParam>::Builder().SetEpsilon(1e20).Build();
+  ASSERT_OK(populated_approx_bounds.status());
+  ApproxBoundsAsBoundsProvider<TypeParam> populated_bounds_provider(
+      std::move(populated_approx_bounds).value());
+  for (int i = -10000; i < 10000; ++i) {
+    populated_bounds_provider.AddEntry(i);
+  }
+  absl::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> empty_approx_bounds =
+      typename ApproxBounds<TypeParam>::Builder().SetEpsilon(1e20).Build();
+  ASSERT_OK(empty_approx_bounds.status());
+  ApproxBoundsAsBoundsProvider<TypeParam> empty_bounds_provider(
+      std::move(empty_approx_bounds).value());
+
+  absl::StatusOr<BoundsSummary> bounds_summary =
+      populated_bounds_provider.TrySerialize();
+  ASSERT_OK(bounds_summary);
+  ASSERT_OK(empty_bounds_provider.Merge(*bounds_summary));
+
+  EXPECT_THAT(
+      empty_bounds_provider.FinalizeAndCalculateBounds(),
+      IsOkAndHolds(AllOf(
+          Field("lower_bound", &BoundsResult<TypeParam>::lower_bound, Lt(0)),
+          Field("upper_bound", &BoundsResult<TypeParam>::upper_bound, Gt(0)))));
+}
+
+TYPED_TEST(ApproxBoundsAsBoundsProviderTypedTest,
            CreateClampedCalculationWithoutBoundsHasSameProperties) {
   absl::StatusOr<std::unique_ptr<ApproxBounds<TypeParam>>> approx_bounds =
       typename ApproxBounds<TypeParam>::Builder()

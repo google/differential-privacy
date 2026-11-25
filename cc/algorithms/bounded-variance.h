@@ -197,7 +197,9 @@ class BoundedVarianceWithFixedBounds : public BoundedVariance<T> {
 
   void AddEntry(const T& t) override { AddMultipleEntries(t, 1); }
 
-  Summary Serialize() const override {
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
     BoundedVarianceSummary variance_summary;
     variance_summary.set_count(partial_count_);
     SetValue(variance_summary.add_pos_sum(), partial_sum_);
@@ -205,7 +207,9 @@ class BoundedVarianceWithFixedBounds : public BoundedVariance<T> {
 
     // Pack variance summary into summary.
     Summary summary;
-    summary.mutable_data()->PackFrom(variance_summary);
+    if (!summary.mutable_data()->PackFrom(variance_summary)) {
+      return absl::InternalError("Failed to pack BoundedVarianceSummary.");
+    }
     return summary;
   }
 
@@ -352,7 +356,9 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
 
   void AddEntry(const T& t) override { AddMultipleEntries(t, 1); }
 
-  Summary Serialize() const override {
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
     // Create BoundedVarianceSummary.
     BoundedVarianceSummary bv_summary;
     bv_summary.set_count(partial_count_);
@@ -370,7 +376,8 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
     }
 
     // Serialize bounds data.
-    *bv_summary.mutable_bounds() = bounds_provider_->Serialize();
+    ASSIGN_OR_RETURN(*bv_summary.mutable_bounds(),
+                     bounds_provider_->TrySerialize());
 
     // TODO: Remove this old serialization code that we keep for
     // limited backwards compatibility.
@@ -381,7 +388,9 @@ class BoundedVarianceWithApproxBounds : public BoundedVariance<T> {
 
     // Create Summary.
     Summary summary;
-    summary.mutable_data()->PackFrom(bv_summary);
+    if (!summary.mutable_data()->PackFrom(bv_summary)) {
+      return absl::InternalError("Failed to pack BoundedVarianceSummary.");
+    }
     return summary;
   }
 

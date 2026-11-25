@@ -93,11 +93,15 @@ class BinarySearch : public Algorithm<T> {
     }
   }
 
-  Summary Serialize() const override {
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
     BinarySearchSummary bs_summary;
     quantiles_->SerializeToProto(bs_summary.mutable_input());
     Summary summary;
-    summary.mutable_data()->PackFrom(bs_summary);
+    if (!summary.mutable_data()->PackFrom(bs_summary)) {
+      return absl::InternalError("Failed to pack BinarySearchSummary.");
+    }
     return summary;
   }
 

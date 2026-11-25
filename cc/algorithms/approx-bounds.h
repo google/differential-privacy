@@ -118,12 +118,16 @@ class ApproxBounds : public Algorithm<T> {
   void AddEntry(const T& input) override { AddMultipleEntries(input, 1); }
 
   // Serialize the positive and negative bin counts.
-  Summary Serialize() const override {
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
     ApproxBoundsSummary am_summary;
     *am_summary.mutable_pos_bin_count() = {pos_bins_.begin(), pos_bins_.end()};
     *am_summary.mutable_neg_bin_count() = {neg_bins_.begin(), neg_bins_.end()};
     Summary summary;
-    summary.mutable_data()->PackFrom(am_summary);
+    if (!summary.mutable_data()->PackFrom(am_summary)) {
+      return absl::InternalError("Failed to pack ApproxBoundsSummary.");
+    }
     return summary;
   }
 

@@ -560,9 +560,9 @@ TYPED_TEST(BoundedVarianceTest,
   // before the proto change.
   Summary bounds1_summary = bounds1.value()->Serialize();
   BoundedVarianceSummary bv_summary;
-  bounds1_summary.data().UnpackTo(&bv_summary);
+  ASSERT_TRUE(bounds1_summary.data().UnpackTo(&bv_summary));
   bv_summary.clear_bounds();
-  bounds1_summary.mutable_data()->PackFrom(bv_summary);
+  ASSERT_TRUE(bounds1_summary.mutable_data()->PackFrom(bv_summary));
 
   ASSERT_OK(bounds2.value()->Merge(bounds1_summary));
   EXPECT_THAT(bounds2.value()->PartialResult(), IsOk());

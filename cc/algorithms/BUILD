@@ -31,6 +31,7 @@ cc_library(
         ":numerical-mechanisms",
         ":util",
         "//proto:util-lib",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
@@ -49,6 +50,7 @@ cc_test(
     deps = [
         ":algorithm",
         "//base/testing:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
     ],
@@ -114,6 +116,7 @@ cc_library(
     ],
     deps = [
         "//algorithms/internal:clamped-calculation-without-bounds",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_differential_privacy//proto:data_cc_proto",

@@ -51,14 +51,18 @@ class Count : public Algorithm<T> {
   }
 
   // Create and return summary containing the count.
-  Summary Serialize() const override {
+  Summary Serialize() const override { return this->SerializeOrLogError(); }
+
+  absl::StatusOr<Summary> TrySerialize() const override {
     // Create CountSummary.
     CountSummary count_summ;
     count_summ.set_count(count_);
 
     // Create Summary.
     Summary summary;
-    summary.mutable_data()->PackFrom(count_summ);
+    if (!summary.mutable_data()->PackFrom(count_summ)) {
+      return absl::InternalError("Failed to pack CountSummary.");
+    }
     return summary;
   }
 
